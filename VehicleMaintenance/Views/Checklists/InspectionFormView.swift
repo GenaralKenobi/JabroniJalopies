@@ -1,0 +1,339 @@
+import PhotosUI
+import SwiftUI
+
+/// A driver completing a checklist. Works fully offline: everything is saved
+/// to the phone on submit and uploads when there's signal.
+struct InspectionFormView: View {
+    let vehicle: Vehicle
+    let checklist: ChecklistTemplate
+
+    @Environment(FleetModel.self) private var fleet
+    @Environment(ConnectivityMonitor.self) private var connectivity
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+
+    @State private var answers: [String: ItemAnswer] = [:]
+    @State private var photos: [String: Data] = [:]
+    @State private var odometerText: String
+    @State private var validationMessage: String?
+    @State private var photoPromptItemId: String?
+    @State private var cameraItemId: IdentifiedString?
+    @State private var libraryItemId: String?
+    @State private var libraryItems: [PhotosPickerItem] = []
+    @State private var outcome: Outcome?
+    @State private var confirmingCancel = false
+
+    struct IdentifiedString: Identifiable { let id: String }
+
+    struct Outcome {
+        var title: String
+        var message: String
+    }
+
+    init(vehicle: Vehicle, checklist: ChecklistTemplate) {
+        self.vehicle = vehicle
+        self.checklist = checklist
+        _odometerText = State(initialValue: String(vehicle.odometer))
+    }
+
+    /// The most recent open defect for each checklist item on this vehicle.
+    private var openDefectsByItem: [String: Defect] {
+        var map: [String: Defect] = [:]
+        for defect in (fleet.openDefects[vehicle.id ?? ""] ?? []).sorted(by: { $0.reportedAt < $1.reportedAt }) {
+            if let itemId = defect.itemId { map[itemId] = defect }
+        }
+        return map
+    }
+
+    private var answeredCount: Int { checklist.items.filter { answers[$0.id]?.verdict != nil }.count }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    LabeledContent("Vehicle", value: vehicle.displayName)
+                    HStack {
+                        Text("Odometer")
+                        TextField("Reading", text: $odometerText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                        Text(unit.abbreviation).foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    if !connectivity.isOnline {
+                        Label("You're offline. Your checklist will be saved on this phone and sent when you have signal.",
+                              systemImage: "wifi.slash")
+                    }
+                }
+
+                ForEach(checklist.items) { item in
+                    Section {
+                        ItemCard(item: item,
+                                 existingDefect: openDefectsByItem[item.id],
+                                 answer: binding(for: item.id),
+                                 photos: $photos,
+                                 photosEnabled: fleet.photosEnabled,
+                                 onFail: { promptForPhoto(item) })
+                    }
+                }
+
+                if let validationMessage {
+                    Section {
+                        Label(validationMessage, systemImage: "exclamationmark.circle")
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    Button(action: submit) {
+                        Text("Submit Checklist (\(answeredCount)/\(checklist.items.count))")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+            }
+            .navigationTitle(checklist.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        if answers.isEmpty { dismiss() } else { confirmingCancel = true }
+                    }
+                }
+            }
+            .confirmationDialog("Discard this checklist?", isPresented: $confirmingCancel, titleVisibility: .visible) {
+                Button("Discard", role: .destructive) { dismiss() }
+            }
+            .confirmationDialog("Add a photo of the problem?", isPresented: Binding(
+                get: { photoPromptItemId != nil },
+                set: { if !$0 { photoPromptItemId = nil } }
+            ), titleVisibility: .visible) {
+                if CameraPicker.isAvailable {
+                    Button("Take Photo") {
+                        cameraItemId = photoPromptItemId.map(IdentifiedString.init)
+                        photoPromptItemId = nil
+                    }
+                }
+                Button("Choose from Library") {
+                    libraryItemId = photoPromptItemId
+                    photoPromptItemId = nil
+                }
+                Button("Not Now", role: .cancel) { photoPromptItemId = nil }
+            } message: {
+                Text("Optional. The problem is reported right away; photos upload when there's signal.")
+            }
+            .fullScreenCover(item: $cameraItemId) { target in
+                CameraPicker { image in addPhoto(image, to: target.id) }
+                    .ignoresSafeArea()
+            }
+            .photosPicker(isPresented: Binding(
+                get: { libraryItemId != nil },
+                set: { if !$0 { libraryItemId = nil } }
+            ), selection: $libraryItems, maxSelectionCount: 4, matching: .images)
+            .onChange(of: libraryItems) { _, items in
+                guard !items.isEmpty, let itemId = libraryItemId ?? lastFailedItemId else { return }
+                Task {
+                    for item in items {
+                        if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+                            addPhoto(image, to: itemId)
+                        }
+                    }
+                    libraryItems = []
+                    libraryItemId = nil
+                }
+            }
+            .alert(outcome?.title ?? "", isPresented: Binding(
+                get: { outcome != nil },
+                set: { if !$0 { outcome = nil; dismiss() } }
+            )) {
+                Button("OK") { outcome = nil; dismiss() }
+            } message: {
+                Text(outcome?.message ?? "")
+            }
+        }
+        .interactiveDismissDisabled(!answers.isEmpty)
+    }
+
+    @State private var lastFailedItemId: String?
+
+    private func binding(for itemId: String) -> Binding<ItemAnswer> {
+        Binding(
+            get: { answers[itemId] ?? ItemAnswer() },
+            set: { answers[itemId] = $0 }
+        )
+    }
+
+    private func promptForPhoto(_ item: ChecklistItem) {
+        lastFailedItemId = item.id
+        guard fleet.photosEnabled, (answers[item.id]?.photoIds.isEmpty ?? true) else { return }
+        photoPromptItemId = item.id
+    }
+
+    private func addPhoto(_ image: UIImage, to itemId: String) {
+        guard let data = ImageProcessing.defectPhotoJPEG(image) else { return }
+        let photoId = UUID().uuidString
+        photos[photoId] = data
+        var answer = answers[itemId] ?? ItemAnswer()
+        answer.photoIds.append(photoId)
+        answers[itemId] = answer
+    }
+
+    private func submit() {
+        let existing = openDefectsByItem
+        if let error = InspectionPlanner.validate(template: checklist, answers: answers, openDefectsByItem: existing) {
+            validationMessage = error.localizedDescription
+            return
+        }
+        validationMessage = nil
+        let plan = InspectionPlanner.plan(template: checklist, answers: answers, openDefectsByItem: existing,
+                                          person: fleet.person, odometer: NumberParsing.int(odometerText))
+
+        // Only send photos attached to defects (a passing item's photos are dropped).
+        var usedPhotoIds = Set(plan.newDefects.flatMap { $0.defect.photos.keys })
+        plan.defectUpdates.forEach { usedPhotoIds.formUnion($0.photoIds) }
+        let usedPhotos = photos.filter { usedPhotoIds.contains($0.key) }
+
+        do {
+            try fleet.submit(plan, vehicle: vehicle, odometer: NumberParsing.int(odometerText), photos: usedPhotos)
+        } catch {
+            validationMessage = error.localizedDescription
+            return
+        }
+
+        let offlineNote = connectivity.isOnline ? "" : "\n\nSaved on this phone. It will be sent automatically when you have signal."
+        let photoNote = usedPhotos.isEmpty ? "" : "\n\nPhotos will upload in the background."
+        if !plan.unsafeItems.isEmpty {
+            outcome = Outcome(
+                title: "⚠️ Do Not Drive This Vehicle",
+                message: "Safety items failed: \(plan.unsafeItems.joined(separator: ", ")).\n\nThe vehicle is now marked UNSAFE TO DRIVE until a manager clears it.\(offlineNote)\(photoNote)")
+        } else if plan.inspection.failedCount > 0 {
+            let count = plan.inspection.failedCount
+            outcome = Outcome(
+                title: "Checklist Saved",
+                message: "\(count) problem\(count == 1 ? "" : "s") reported to your manager.\(offlineNote)\(photoNote)")
+        } else {
+            outcome = Outcome(title: "All Good", message: "Checklist saved.\(offlineNote)")
+        }
+    }
+}
+
+/// One checklist item: pass/fail (or still-a-problem/looks-fixed for an open
+/// defect), an optional number reading, a description and photos.
+private struct ItemCard: View {
+    let item: ChecklistItem
+    let existingDefect: Defect?
+    @Binding var answer: ItemAnswer
+    @Binding var photos: [String: Data]
+    let photosEnabled: Bool
+    let onFail: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(item.title).font(.headline)
+                Spacer()
+                if item.unsafeIfFailed {
+                    Text("Safety")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .foregroundStyle(.red)
+                        .background(Color.red.opacity(0.12), in: Capsule())
+                }
+            }
+
+            if let existingDefect {
+                existingDefectBanner(existingDefect)
+            }
+
+            HStack(spacing: 10) {
+                verdictButton(existingDefect == nil ? "Pass" : "Looks Fixed", symbol: "checkmark", verdict: .pass, color: .green)
+                verdictButton(existingDefect == nil ? "Fail" : "Still a Problem", symbol: "xmark", verdict: .fail, color: .red)
+            }
+
+            if item.requiresReading {
+                HStack {
+                    Text("Reading")
+                    TextField("Enter number", text: $answer.reading)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    if !item.readingLabel.isEmpty {
+                        Text(item.readingLabel).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(10)
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+            }
+
+            failureDetails
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var failureDetails: some View {
+        if existingDefect == nil, answer.verdict == .fail {
+            if item.unsafeIfFailed {
+                Label("This will mark the vehicle UNSAFE TO DRIVE.", systemImage: "exclamationmark.octagon.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.red)
+            }
+            TextField("Describe the problem", text: $answer.details, axis: .vertical)
+                .lineLimit(2...5)
+            if photosEnabled {
+                PhotoAttachmentControls(photoIds: $answer.photoIds, photos: $photos)
+            }
+        } else if existingDefect != nil, answer.verdict == .pass {
+            TextField("Why does it look fixed? (required)", text: $answer.note, axis: .vertical)
+                .lineLimit(2...4)
+            Text("A manager will confirm before the defect is closed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else if existingDefect != nil, answer.verdict == .fail {
+            TextField("Add a note (optional)", text: $answer.note, axis: .vertical)
+                .lineLimit(1...4)
+            if photosEnabled {
+                PhotoAttachmentControls(photoIds: $answer.photoIds, photos: $photos)
+            }
+        }
+    }
+
+    private func existingDefectBanner(_ defect: Defect) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(defect.status == .reportedFixed ? "Defect reported fixed — awaiting manager" : "Open defect",
+                  systemImage: "exclamationmark.triangle.fill")
+                .font(.subheadline.weight(.semibold))
+            if !defect.details.isEmpty {
+                Text(defect.details).font(.subheadline)
+            }
+            Text("\(defect.reportedByName), \(defect.reportedAt.formatted(.relative(presentation: .named)))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .foregroundStyle(defect.unsafe ? Color.red : Color.orange)
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background((defect.unsafe ? Color.red : Color.orange).opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func verdictButton(_ title: String, symbol: String, verdict: ItemVerdict, color: Color) -> some View {
+        let selected = answer.verdict == verdict
+        return Button {
+            answer.verdict = verdict
+            if verdict == .fail, existingDefect == nil {
+                onFail()
+            }
+        } label: {
+            Label(title, systemImage: symbol)
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .foregroundStyle(selected ? Color.white : color)
+                .background(selected ? color : color.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.borderless)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}

@@ -3,11 +3,7 @@ import SwiftUI
 
 /// Bar chart of service spending per month over the last year.
 struct CostChartView: View {
-    let records: [ServiceRecord]
-
-    private var monthlyTotals: [MonthlyCost] {
-        CostAggregation.monthlyTotals(records.map { (date: $0.date, cost: $0.cost) })
-    }
+    let monthlyTotals: [MonthlyCost]
 
     var body: some View {
         Chart(monthlyTotals) { item in

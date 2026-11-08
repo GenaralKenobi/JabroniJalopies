@@ -1,136 +1,123 @@
 import PhotosUI
-import SwiftData
 import SwiftUI
 
 struct VehicleFormView: View {
+    @Environment(FleetModel.self) private var fleet
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
 
     /// `nil` when adding a new vehicle.
-    let vehicle: Vehicle?
+    let original: Vehicle?
 
-    @State private var name: String
-    @State private var make: String
-    @State private var modelName: String
-    @State private var year: Int
-    @State private var vin: String
-    @State private var licensePlate: String
+    @State private var draft: Vehicle
     @State private var odometerText: String
-    @State private var photoData: Data?
     @State private var photoItem: PhotosPickerItem?
+    @State private var errorMessage: String?
 
     private static let years: [Int] = {
         let current = Calendar.current.component(.year, from: .now)
-        return Array((1900...(current + 1)).reversed())
+        return Array((1950...(current + 1)).reversed())
     }()
 
     init(vehicle: Vehicle? = nil) {
-        self.vehicle = vehicle
-        _name = State(initialValue: vehicle?.name ?? "")
-        _make = State(initialValue: vehicle?.make ?? "")
-        _modelName = State(initialValue: vehicle?.modelName ?? "")
-        _year = State(initialValue: vehicle?.year ?? Calendar.current.component(.year, from: .now))
-        _vin = State(initialValue: vehicle?.vin ?? "")
-        _licensePlate = State(initialValue: vehicle?.licensePlate ?? "")
+        original = vehicle
+        _draft = State(initialValue: vehicle ?? .new())
         _odometerText = State(initialValue: vehicle.map { String($0.odometer) } ?? "")
-        _photoData = State(initialValue: vehicle?.photoData)
     }
 
-    private var isValid: Bool {
-        !make.trimmed.isEmpty || !name.trimmed.isEmpty
-    }
+    private var isValid: Bool { !draft.make.trimmed.isEmpty || !draft.name.trimmed.isEmpty }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     HStack(spacing: 16) {
-                        VehicleThumbnail(data: photoData, size: 72)
+                        VehicleThumbnail(data: draft.photo, size: 72)
                         VStack(alignment: .leading, spacing: 10) {
                             PhotosPicker(selection: $photoItem, matching: .images) {
-                                Text(photoData == nil ? "Add Photo" : "Change Photo")
+                                Text(draft.photo == nil ? "Add Photo" : "Change Photo")
                             }
-                            if photoData != nil {
+                            if draft.photo != nil {
                                 Button("Remove Photo", role: .destructive) {
-                                    photoData = nil
+                                    draft.photo = nil
                                     photoItem = nil
                                 }
                             }
                         }
-                        // Keep the two buttons independently tappable inside one row.
                         .buttonStyle(.borderless)
                     }
                 }
 
                 Section("Vehicle") {
-                    TextField("Make (e.g. Toyota)", text: $make)
+                    TextField("Unit number or nickname (e.g. Truck 12)", text: $draft.name)
+                    TextField("Make (e.g. Ford)", text: $draft.make)
                         .textInputAutocapitalization(.words)
-                    TextField("Model (e.g. Camry)", text: $modelName)
+                    TextField("Model (e.g. Transit 250)", text: $draft.model)
                         .textInputAutocapitalization(.words)
-                    Picker("Year", selection: $year) {
+                    Picker("Year", selection: $draft.year) {
                         ForEach(Self.years, id: \.self) { Text(String($0)).tag($0) }
                     }
-                    TextField("Nickname (optional)", text: $name)
                 }
 
                 Section("Details") {
                     HStack {
-                        TextField("Current Odometer", text: $odometerText)
+                        TextField("Current odometer", text: $odometerText)
                             .keyboardType(.numberPad)
                         Text(unit.abbreviation).foregroundStyle(.secondary)
                     }
-                    TextField("License Plate", text: $licensePlate)
+                    TextField("License plate", text: $draft.licensePlate)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
-                    TextField("VIN", text: $vin)
+                    TextField("VIN", text: $draft.vin)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
+                }
+
+                if original == nil {
+                    Section {
+                        Text("Fluids, tires and pressures can be filled in from the vehicle's Specs page after saving.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let errorMessage {
+                    Text(errorMessage).foregroundStyle(.red)
                 }
             }
-            .navigationTitle(vehicle == nil ? "New Vehicle" : "Edit Vehicle")
+            .navigationTitle(original == nil ? "New Vehicle" : "Edit Vehicle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: save).disabled(!isValid)
                 }
             }
             .onChange(of: photoItem) { _, item in
-                loadPhoto(from: item)
-            }
-        }
-    }
-
-    private func loadPhoto(from item: PhotosPickerItem?) {
-        guard let item else { return }
-        Task {
-            if let data = try? await item.loadTransferable(type: Data.self) {
-                photoData = ImageProcessing.downscaledJPEG(data) ?? data
+                guard let item else { return }
+                Task {
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        // Small enough to store with the vehicle record (works offline, no extra storage).
+                        draft.photo = ImageProcessing.downscaledJPEG(data, maxDimension: 600, quality: 0.6)
+                    }
+                }
             }
         }
     }
 
     private func save() {
-        let target = vehicle ?? Vehicle()
-        target.name = name.trimmed
-        target.make = make.trimmed
-        target.modelName = modelName.trimmed
-        target.year = year
-        target.vin = vin.trimmed.uppercased()
-        target.licensePlate = licensePlate.trimmed.uppercased()
-        target.odometer = NumberParsing.int(odometerText) ?? 0
-        target.photoData = photoData
-        if vehicle == nil {
-            modelContext.insert(target)
+        var vehicle = draft
+        vehicle.name = vehicle.name.trimmed
+        vehicle.make = vehicle.make.trimmed
+        vehicle.model = vehicle.model.trimmed
+        vehicle.vin = vehicle.vin.trimmed.uppercased()
+        vehicle.licensePlate = vehicle.licensePlate.trimmed.uppercased()
+        vehicle.odometer = NumberParsing.int(odometerText) ?? 0
+        do {
+            try fleet.save(vehicle)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
-        dismiss()
     }
-}
-
-#Preview {
-    VehicleFormView()
-        .modelContainer(SampleData.previewContainer)
 }

@@ -1,71 +1,120 @@
-import SwiftData
 import SwiftUI
 
 struct VehicleListView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Vehicle.createdAt) private var vehicles: [Vehicle]
+    @Environment(FleetModel.self) private var fleet
+    @Environment(SessionModel.self) private var session
+
+    @State private var path: [String] = []
     @State private var showingAddVehicle = false
+    @State private var showingFleets = false
+    @State private var searchText = ""
+    @State private var didOpenDemoScreen = false
+
+    private var filteredVehicles: [Vehicle] {
+        let query = searchText.trimmed
+        guard !query.isEmpty else { return fleet.sortedVehicles }
+        return fleet.sortedVehicles.filter {
+            $0.displayName.localizedCaseInsensitiveContains(query)
+                || $0.yearMakeModel.localizedCaseInsensitiveContains(query)
+                || $0.licensePlate.localizedCaseInsensitiveContains(query)
+        }
+    }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
-                if vehicles.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Vehicles", systemImage: "car")
-                    } description: {
-                        Text("Add a vehicle to start tracking its maintenance.")
-                    } actions: {
-                        Button("Add Vehicle") { showingAddVehicle = true }
-                            .buttonStyle(.borderedProminent)
-                    }
+                if !fleet.vehiclesLoaded {
+                    ProgressView()
+                } else if fleet.vehicles.isEmpty {
+                    emptyState
                 } else {
-                    List {
-                        ForEach(vehicles) { vehicle in
-                            NavigationLink(value: vehicle) {
-                                VehicleRow(vehicle: vehicle)
-                            }
+                    List(filteredVehicles) { vehicle in
+                        NavigationLink(value: vehicle.id ?? "") {
+                            VehicleRow(vehicle: vehicle)
                         }
-                        .onDelete(perform: deleteVehicles)
                     }
+                    .searchable(text: $searchText, prompt: "Search vehicles")
                 }
             }
-            .navigationTitle("Garage")
-            .navigationDestination(for: Vehicle.self) { vehicle in
-                VehicleDetailView(vehicle: vehicle)
+            .navigationTitle(fleet.fleet?.name ?? "Fleet")
+            .navigationDestination(for: String.self) { vehicleId in
+                VehicleDetailView(vehicleId: vehicleId)
             }
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingAddVehicle = true
-                    } label: {
-                        Label("Add Vehicle", systemImage: "plus")
+                if session.memberships.count > 1 || !session.invites.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showingFleets = true
+                        } label: {
+                            Label("Switch Fleet", systemImage: "arrow.left.arrow.right")
+                        }
+                    }
+                }
+                if fleet.isManager {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showingAddVehicle = true
+                        } label: {
+                            Label("Add Vehicle", systemImage: "plus")
+                        }
                     }
                 }
             }
+            .syncStatusBanner()
             .sheet(isPresented: $showingAddVehicle) {
                 VehicleFormView()
             }
+            .sheet(isPresented: $showingFleets) {
+                NavigationStack {
+                    FleetPickerView()
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) { Button("Close") { showingFleets = false } }
+                        }
+                }
+            }
+            .onChange(of: fleet.vehicles.count) { _, _ in openDemoScreenIfNeeded() }
+            .onAppear { openDemoScreenIfNeeded() }
         }
     }
 
-    private func deleteVehicles(at offsets: IndexSet) {
-        for index in offsets {
-            let vehicle = vehicles[index]
-            vehicle.reminders?.forEach(ReminderNotifications.cancel(for:))
-            modelContext.delete(vehicle)
+    @ViewBuilder
+    private var emptyState: some View {
+        if fleet.isManager {
+            ContentUnavailableView {
+                Label("No Vehicles Yet", systemImage: "car.2")
+            } description: {
+                Text("Add the vehicles in your fleet, then invite drivers from Settings → Members.")
+            } actions: {
+                Button("Add Vehicle") { showingAddVehicle = true }
+                    .buttonStyle(.borderedProminent)
+            }
+        } else {
+            ContentUnavailableView("No Vehicles Assigned", systemImage: "car.2",
+                                   description: Text("Your manager hasn't given you access to any vehicles yet."))
         }
+    }
+
+    private func openDemoScreenIfNeeded() {
+        guard !didOpenDemoScreen, let screen = DemoConfig.screen,
+              ["vehicle", "specs", "checklist", "defect"].contains(screen),
+              let first = fleet.sortedVehicles.first(where: { fleet.condition(of: $0.id) != .ok }) ?? fleet.sortedVehicles.first,
+              let id = first.id else { return }
+        didOpenDemoScreen = true
+        path = [id]
     }
 }
 
-private struct VehicleRow: View {
+struct VehicleRow: View {
+    @Environment(FleetModel.self) private var fleet
     @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
     let vehicle: Vehicle
 
     var body: some View {
+        let condition = fleet.condition(of: vehicle.id)
         HStack(spacing: 12) {
-            VehicleThumbnail(data: vehicle.photoData)
+            VehicleThumbnail(data: vehicle.photo)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(vehicle.displayName)
                     .font(.headline)
                 if !vehicle.subtitle.isEmpty {
@@ -80,15 +129,15 @@ private struct VehicleRow: View {
 
             Spacer(minLength: 8)
 
-            if !(vehicle.reminders ?? []).isEmpty {
-                StatusBadge(status: vehicle.overallStatus)
+            VStack(alignment: .trailing, spacing: 4) {
+                if condition != .ok {
+                    ConditionBadge(condition: condition, compact: true)
+                }
+                if let due = fleet.reminderStatus(of: vehicle), due != .ok {
+                    StatusBadge(status: due)
+                }
             }
         }
         .padding(.vertical, 4)
     }
-}
-
-#Preview {
-    VehicleListView()
-        .modelContainer(SampleData.previewContainer)
 }

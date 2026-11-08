@@ -6,18 +6,24 @@ import UniformTypeIdentifiers
 struct ServiceHistoryExport: Transferable {
     let csv: String
 
-    init(vehicle: Vehicle, unit: DistanceUnit) {
+    init(records: [ServiceRecord], costs: [String: Double], includeCosts: Bool, unit: DistanceUnit) {
         let dateStyle = Date.ISO8601FormatStyle(timeZone: .current).year().month().day()
-        let header = ["Date", "Service", "Odometer (\(unit.abbreviation))", "Cost", "Shop", "Notes"]
-        let rows = vehicle.sortedRecords.map { record in
-            [
+        var header = ["Date", "Service", "Odometer (\(unit.abbreviation))", "Shop", "Status", "Logged by", "Notes"]
+        if includeCosts { header.insert("Cost", at: 3) }
+        let rows = records.map { record in
+            var row = [
                 record.date.formatted(dateStyle),
                 record.displayTitle,
                 String(record.odometer),
-                String(format: "%.2f", record.cost),
                 record.shop,
+                record.status.rawValue,
+                record.createdByName,
                 record.notes,
             ]
+            if includeCosts {
+                row.insert(record.id.flatMap { costs[$0] }.map { String(format: "%.2f", $0) } ?? "", at: 3)
+            }
+            return row
         }
         csv = CSV.make(header: header, rows: rows)
     }

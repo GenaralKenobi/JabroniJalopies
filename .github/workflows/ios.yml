@@ -13,9 +13,32 @@ env:
   BUNDLE_ID: com.genaralkenobi.maintenance
 
 jobs:
+  firebase-rules:
+    name: Security rules tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: firebase
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - name: Run rules tests against the emulators
+        run: npm test
+
   build-and-test:
+    name: Build, unit tests and screenshots
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: write # to publish screenshots to the ci-screenshots branch
     steps:
@@ -31,6 +54,13 @@ jobs:
 
       - name: Generate Xcode project
         run: xcodegen generate
+
+      - name: Cache Swift packages
+        uses: actions/cache@v5
+        with:
+          path: build/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
 
       - name: Pick an iPhone simulator
         id: sim
@@ -52,11 +82,13 @@ jobs:
             -scheme VehicleMaintenance \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath build/DerivedData \
+            -clonedSourcePackagesDirPath build/SourcePackages \
             -resultBundlePath build/TestResults.xcresult \
+            -skipPackagePluginValidation -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO \
             > build/xcodebuild.log 2>&1 || status=$?
           # Print only the useful lines; the full log is uploaded as an artifact.
-          grep -E "error:|warning:|Test .*(passed|failed)|✔|✘|\*\* (BUILD|TEST)" build/xcodebuild.log | sort -u | head -300 || true
+          grep -E "error:|warning: .*\.swift|Test .*(passed|failed)|✔|✘|\*\* (BUILD|TEST)" build/xcodebuild.log | grep -v "SourcePackages" | sort -u | head -300 || true
           if [ "$status" -ne 0 ]; then
             echo "::error::xcodebuild failed with exit code $status"
             tail -80 build/xcodebuild.log
@@ -72,17 +104,42 @@ jobs:
             -configuration Release \
             -destination "generic/platform=iOS" \
             -derivedDataPath build/DerivedDataRelease \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            -skipPackagePluginValidation -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO \
             > build/release.log 2>&1 || status=$?
-          grep -E "error:|warning:|\*\* BUILD" build/release.log | grep -v appintents | sort -u | head -100 || true
+          grep -E "error:|warning: .*\.swift|\*\* BUILD" build/release.log | grep -v "SourcePackages" | sort -u | head -100 || true
           if [ "$status" -ne 0 ]; then
             echo "::error::Release build failed with exit code $status"
             tail -80 build/release.log
           fi
           exit $status
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Start Firebase emulators and seed demo data
+        working-directory: firebase
+        run: |
+          npm ci
+          nohup npx firebase emulators:start --only auth,firestore,storage --project demo-maintenance > ../build/emulators.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -s http://127.0.0.1:8080 > /dev/null && curl -s http://127.0.0.1:9099 > /dev/null && curl -s http://127.0.0.1:9199 > /dev/null; then
+              echo "Emulators ready"; break
+            fi
+            sleep 2
+          done
+          node scripts/seed-demo.mjs
+
       - name: Capture simulator screenshots
-        if: success()
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
           APP="build/DerivedData/Build/Products/Debug-iphonesimulator/VehicleMaintenance.app"
@@ -91,15 +148,28 @@ jobs:
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
           xcrun simctl install "$UDID" "$APP"
           mkdir -p screenshots
-          for appearance in light dark; do
+
+          shoot() { # name appearance [launch args...]
+            local name="$1" appearance="$2"; shift 2
             xcrun simctl ui "$UDID" appearance "$appearance"
-            for tab in garage upcoming settings; do
-              xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
-              xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData YES -initialTab "$tab"
-              sleep 6
-              xcrun simctl io "$UDID" screenshot "screenshots/${tab}-${appearance}.png"
-            done
-          done
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BUNDLE_ID" -useEmulator YES -demoSeed YES "$@"
+            sleep "${WAIT:-7}"
+            xcrun simctl io "$UDID" screenshot "screenshots/${name}.png"
+          }
+
+          WAIT=15 shoot 01-fleet light -initialTab fleet
+          shoot 02-vehicle-unsafe light -initialTab fleet -demoScreen vehicle
+          shoot 03-specs light -initialTab fleet -demoScreen specs
+          shoot 04-checklist light -initialTab fleet -demoScreen checklist
+          shoot 05-defects light -initialTab defects
+          shoot 06-upcoming light -initialTab upcoming
+          shoot 07-settings light -initialTab settings
+          shoot 08-data-storage light -initialTab settings -demoScreen storage
+          shoot 09-members light -initialTab settings -demoScreen members
+          shoot 10-checklists light -initialTab settings -demoScreen checklists
+          shoot 11-fleet-dark dark -initialTab fleet
+          shoot 12-vehicle-dark dark -initialTab fleet -demoScreen vehicle
 
       - name: Publish screenshots to the ci-screenshots branch
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -112,7 +182,7 @@ jobs:
           {
             echo "# Simulator screenshots"
             echo
-            echo "Built from ${GITHUB_SHA} (run ${GITHUB_RUN_ID})."
+            echo "Built from ${GITHUB_SHA} (run ${GITHUB_RUN_ID}), using demo data in the Firebase emulators."
             echo
             for f in *.png; do echo "### ${f%.png}"; echo; echo "<img src=\"$f\" width=\"300\">"; echo; done
           } > README.md
@@ -132,5 +202,6 @@ jobs:
           path: |
             build/xcodebuild.log
             build/release.log
+            build/emulators.log
             build/TestResults.xcresult
             screenshots/

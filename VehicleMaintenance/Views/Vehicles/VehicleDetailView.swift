@@ -1,221 +1,363 @@
-import SwiftData
 import SwiftUI
 
-/// Identifies a request to log a service, optionally pre-filled from a reminder.
-struct ServiceLogRequest: Identifiable {
-    let id = UUID()
-    var type: ServiceType?
-    var title: String = ""
-}
-
 struct VehicleDetailView: View {
-    @Environment(\.modelContext) private var modelContext
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
-    let vehicle: Vehicle
+    let vehicleId: String
 
-    @State private var showingEditVehicle = false
-    @State private var serviceLog: ServiceLogRequest?
-    @State private var editingRecord: ServiceRecord?
+    @Environment(FleetModel.self) private var fleet
+    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+
+    @State private var records: VehicleRecordsModel?
+    @State private var showingEdit = false
+    @State private var showingChecklistPicker = false
+    @State private var activeChecklist: ChecklistTemplate?
+    @State private var confirmingUnsafeStart: ChecklistTemplate?
+    @State private var showingReportProblem = false
+    @State private var showingLogService = false
+    @State private var editingService: ServiceRecord?
+    @State private var reviewingService: ServiceRecord?
     @State private var showingAddReminder = false
-    @State private var editingReminder: MaintenanceReminder?
+    @State private var editingReminder: Reminder?
     @State private var showingOdometerPrompt = false
     @State private var odometerText = ""
+    @State private var confirmingDelete = false
+    @State private var didOpenDemoScreen = false
+    @State private var demoSpecs = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        let records = vehicle.sortedRecords
-        let reminders = vehicle.sortedReminders
+        if let vehicle = fleet.vehicle(vehicleId) {
+            content(vehicle)
+        } else {
+            ContentUnavailableView("Vehicle Unavailable", systemImage: "car",
+                                   description: Text("It may have been deleted or your access changed."))
+        }
+    }
 
-        List {
-            headerSection
-            remindersSection(reminders)
-            historySection(records)
-            if !records.isEmpty {
+    private func content(_ vehicle: Vehicle) -> some View {
+        let openDefects = fleet.openDefects[vehicleId] ?? []
+        let condition = VehicleCondition(openDefects: openDefects)
+        let checklists = fleet.checklists(for: vehicleId)
+
+        return List {
+            headerSection(vehicle, condition: condition, openDefects: openDefects)
+            actionsSection(vehicle, checklists: checklists, condition: condition)
+
+            Section {
+                NavigationLink {
+                    SpecsView(vehicleId: vehicleId)
+                } label: {
+                    Label("Fluids, Tires & Pressures", systemImage: "list.bullet.rectangle.portrait")
+                }
+            }
+
+            defectsSection(openDefects)
+            remindersSection(vehicle)
+            inspectionsSection
+            servicesSection(vehicle)
+            if fleet.isManager, let records, !records.approvedServices.isEmpty {
                 costSection(records)
             }
+            detailsSection(vehicle)
         }
         .navigationTitle(vehicle.displayName)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) { actionsMenu(hasRecords: !records.isEmpty) }
+        .syncStatusBanner()
+        .toolbar { ToolbarItem(placement: .primaryAction) { menu(vehicle) } }
+        .task {
+            if records == nil {
+                records = VehicleRecordsModel(fleetId: fleet.fleetId, vehicleId: vehicleId, includeCosts: fleet.isManager)
+            }
+            openDemoScreenIfNeeded(checklists: checklists)
         }
-        .sheet(isPresented: $showingEditVehicle) {
-            VehicleFormView(vehicle: vehicle)
+        .navigationDestination(isPresented: $demoSpecs) { SpecsView(vehicleId: vehicleId) }
+        .sheet(isPresented: $showingEdit) { VehicleFormView(vehicle: vehicle) }
+        .sheet(isPresented: $showingReportProblem) { ReportDefectView(vehicle: vehicle) }
+        .sheet(isPresented: $showingLogService) { ServiceRecordFormView(vehicle: vehicle) }
+        .sheet(item: $editingService) { ServiceRecordFormView(vehicle: vehicle, record: $0, cost: records?.cost(of: $0)) }
+        .sheet(item: $reviewingService) { ServiceReviewView(vehicle: vehicle, record: $0) }
+        .sheet(isPresented: $showingAddReminder) { ReminderFormView(vehicle: vehicle) }
+        .sheet(item: $editingReminder) { ReminderFormView(vehicle: vehicle, reminder: $0) }
+        .fullScreenCover(item: $activeChecklist) { checklist in
+            InspectionFormView(vehicle: vehicle, checklist: checklist)
         }
-        .sheet(item: $serviceLog) { request in
-            ServiceRecordFormView(vehicle: vehicle, preselectedType: request.type, preselectedTitle: request.title)
+        .confirmationDialog("Choose a Checklist", isPresented: $showingChecklistPicker, titleVisibility: .visible) {
+            ForEach(checklists) { checklist in
+                Button(checklist.name) { start(checklist, condition: condition) }
+            }
         }
-        .sheet(item: $editingRecord) { record in
-            ServiceRecordFormView(vehicle: vehicle, record: record)
-        }
-        .sheet(isPresented: $showingAddReminder) {
-            ReminderFormView(vehicle: vehicle)
-        }
-        .sheet(item: $editingReminder) { reminder in
-            ReminderFormView(vehicle: vehicle, reminder: reminder)
+        .alert("This Vehicle Is Marked Unsafe to Drive", isPresented: Binding(
+            get: { confirmingUnsafeStart != nil },
+            set: { if !$0 { confirmingUnsafeStart = nil } }
+        )) {
+            Button("Continue Checklist") {
+                activeChecklist = confirmingUnsafeStart
+                confirmingUnsafeStart = nil
+            }
+            Button("Cancel", role: .cancel) { confirmingUnsafeStart = nil }
+        } message: {
+            Text("Open safety defects: \(openDefects.filter(\.unsafe).map(\.title).joined(separator: ", ")).\n\nDo not drive it until a manager clears these.")
         }
         .alert("Update Odometer", isPresented: $showingOdometerPrompt) {
-            TextField("Odometer", text: $odometerText)
-                .keyboardType(.numberPad)
+            TextField("Odometer", text: $odometerText).keyboardType(.numberPad)
             Button("Save") {
-                if let value = NumberParsing.int(odometerText) {
-                    vehicle.odometer = value
-                }
+                if let value = NumberParsing.int(odometerText) { fleet.updateOdometer(of: vehicle, to: value) }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Enter the current reading in \(unit.displayName.lowercased()).")
         }
+        .confirmationDialog("Delete \(vehicle.displayName)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete Vehicle and All Records", role: .destructive) {
+                Task {
+                    do {
+                        try await fleet.delete(vehicle)
+                        dismiss()
+                    } catch {
+                        ErrorCenter.shared.report(error, "Deleting vehicle (needs a connection)")
+                    }
+                }
+            }
+        } message: {
+            Text("This permanently deletes its checklists, defects, photos and service history.")
+        }
     }
 
     // MARK: Sections
 
-    private var headerSection: some View {
+    private func headerSection(_ vehicle: Vehicle, condition: VehicleCondition, openDefects: [Defect]) -> some View {
         Section {
             VStack(spacing: 12) {
-                if let data = vehicle.photoData, let image = UIImage(data: data) {
+                if let data = vehicle.photo, let image = UIImage(data: data) {
                     Color.clear
-                        .frame(height: 180)
-                        .overlay {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                        }
+                        .frame(height: 170)
+                        .overlay { Image(uiImage: image).resizable().scaledToFill() }
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 VStack(spacing: 4) {
-                    Text(vehicle.displayName)
-                        .font(.title2.bold())
-                        .multilineTextAlignment(.center)
-                    if !vehicle.subtitle.isEmpty {
-                        Text(vehicle.subtitle).foregroundStyle(.secondary)
-                    }
+                    Text(vehicle.displayName).font(.title2.bold()).multilineTextAlignment(.center)
+                    if !vehicle.subtitle.isEmpty { Text(vehicle.subtitle).foregroundStyle(.secondary) }
                 }
-                if !(vehicle.reminders ?? []).isEmpty {
-                    StatusBadge(status: vehicle.overallStatus)
+                if condition == .outOfService {
+                    UnsafeBanner(defects: openDefects)
+                } else {
+                    ConditionBadge(condition: condition)
                 }
             }
             .frame(maxWidth: .infinity)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
+        }
+    }
 
-            LabeledContent("Odometer") {
-                Button(Formatting.distance(vehicle.odometer, unit: unit), action: promptForOdometer)
+    private func actionsSection(_ vehicle: Vehicle, checklists: [ChecklistTemplate], condition: VehicleCondition) -> some View {
+        Section {
+            if checklists.isEmpty {
+                Label(fleet.isManager ? "Create a checklist in Settings → Checklists" : "No checklist assigned to this vehicle",
+                      systemImage: "checklist")
+                    .foregroundStyle(.secondary)
+            } else {
+                Button {
+                    if checklists.count == 1, let only = checklists.first {
+                        start(only, condition: condition)
+                    } else {
+                        showingChecklistPicker = true
+                    }
+                } label: {
+                    Label("Start Checklist", systemImage: "checklist.checked")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.borderedProminent)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             }
-            if !vehicle.licensePlate.isEmpty {
-                LabeledContent("License Plate", value: vehicle.licensePlate)
+            Button {
+                showingReportProblem = true
+            } label: {
+                Label("Report a Problem", systemImage: "exclamationmark.bubble")
             }
-            if !vehicle.vin.isEmpty {
-                LabeledContent("VIN") {
-                    Text(vehicle.vin)
-                        .font(.footnote.monospaced())
-                        .textSelection(.enabled)
+            Button(action: promptForOdometer) {
+                LabeledContent {
+                    Text(Formatting.distance(vehicle.odometer, unit: unit))
+                } label: {
+                    Label("Update Odometer", systemImage: "speedometer")
                 }
             }
         }
     }
 
-    private func remindersSection(_ reminders: [MaintenanceReminder]) -> some View {
+    @ViewBuilder
+    private func defectsSection(_ openDefects: [Defect]) -> some View {
         Section {
-            if reminders.isEmpty {
-                Button {
-                    showingAddReminder = true
-                } label: {
-                    Label("Add a maintenance reminder", systemImage: "bell.badge")
+            if openDefects.isEmpty {
+                Label("No open defects", systemImage: "checkmark.circle")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(openDefects) { defect in
+                    NavigationLink {
+                        DefectDetailView(vehicleId: vehicleId, defectId: defect.id ?? "")
+                    } label: {
+                        DefectRow(defect: defect, unsynced: records?.unsyncedDefectIds.contains(defect.id ?? "") ?? false)
+                    }
+                }
+            }
+            if let records, records.defects.contains(where: { $0.status == .closed }) {
+                NavigationLink("Closed Defects") {
+                    DefectHistoryView(vehicleId: vehicleId, records: records)
+                }
+            }
+        } header: {
+            Text("Open Defects")
+        }
+    }
+
+    private func remindersSection(_ vehicle: Vehicle) -> some View {
+        let items = (fleet.reminders[vehicleId] ?? []).sorted {
+            $0.status(currentOdometer: vehicle.odometer) > $1.status(currentOdometer: vehicle.odometer)
+        }
+        return Section {
+            if items.isEmpty {
+                if fleet.isManager {
+                    Button { showingAddReminder = true } label: {
+                        Label("Add a maintenance reminder", systemImage: "bell.badge")
+                    }
+                } else {
+                    Text("No maintenance reminders").foregroundStyle(.secondary)
                 }
             } else {
-                ForEach(reminders) { reminder in
-                    Button {
-                        editingReminder = reminder
-                    } label: {
-                        ReminderRow(reminder: reminder)
-                    }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            serviceLog = ServiceLogRequest(type: reminder.serviceType, title: reminder.title)
-                        } label: {
-                            Label("Log Service", systemImage: "checkmark")
+                ForEach(items) { reminder in
+                    if fleet.isManager {
+                        Button { editingReminder = reminder } label: {
+                            ReminderRow(reminder: reminder, vehicle: vehicle)
                         }
-                        .tint(.green)
+                    } else {
+                        ReminderRow(reminder: reminder, vehicle: vehicle)
                     }
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            deleteReminder(reminder)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+                }
+                if fleet.isManager {
+                    Button { showingAddReminder = true } label: {
+                        Label("Add Reminder", systemImage: "plus")
                     }
                 }
             }
         } header: {
             Text("Maintenance")
-        } footer: {
-            if !reminders.isEmpty {
-                Text("Swipe right on an item to log it as done.")
-            }
         }
     }
 
-    private func historySection(_ records: [ServiceRecord]) -> some View {
-        Section("Recent Service") {
-            if records.isEmpty {
-                Button {
-                    serviceLog = ServiceLogRequest()
-                } label: {
-                    Label("Log your first service", systemImage: "wrench.and.screwdriver")
-                }
-            } else {
-                ForEach(records.prefix(5)) { record in
-                    Button {
-                        editingRecord = record
-                    } label: {
-                        ServiceRecordRow(record: record)
+    @ViewBuilder
+    private var inspectionsSection: some View {
+        Section {
+            if let records {
+                if records.inspections.isEmpty {
+                    Text("No checklists completed yet").foregroundStyle(.secondary)
+                } else {
+                    ForEach(records.inspections.prefix(5)) { inspection in
+                        NavigationLink {
+                            InspectionDetailView(vehicleId: vehicleId, inspection: inspection)
+                        } label: {
+                            InspectionRow(inspection: inspection,
+                                          unsynced: records.unsyncedInspectionIds.contains(inspection.id ?? ""))
+                        }
+                    }
+                    if records.inspections.count > 5 {
+                        NavigationLink("All Checklists (\(records.inspections.count))") {
+                            InspectionListView(vehicleId: vehicleId, records: records)
+                        }
                     }
                 }
-                NavigationLink("All Service History (\(records.count))") {
-                    ServiceHistoryView(vehicle: vehicle)
+            } else {
+                ProgressView()
+            }
+        } header: {
+            Text("Recent Checklists")
+        }
+    }
+
+    @ViewBuilder
+    private func servicesSection(_ vehicle: Vehicle) -> some View {
+        let pending = fleet.pendingServices[vehicleId] ?? []
+        Section {
+            ForEach(pending) { record in
+                Button {
+                    if fleet.isManager {
+                        reviewingService = record
+                    } else if record.createdBy == fleet.uid {
+                        editingService = record
+                    }
+                } label: {
+                    ServiceRecordRow(record: record, cost: nil, showsReviewHint: fleet.isManager)
                 }
+            }
+            if let records {
+                ForEach(records.services.filter { $0.status != .pending }.prefix(5)) { record in
+                    Button {
+                        if fleet.isManager { editingService = record }
+                    } label: {
+                        ServiceRecordRow(record: record, cost: fleet.isManager ? records.cost(of: record) : nil)
+                    }
+                    .disabled(!fleet.isManager)
+                }
+                if !records.services.isEmpty {
+                    NavigationLink("All Service History") {
+                        ServiceHistoryView(vehicle: vehicle, records: records)
+                    }
+                }
+            }
+            Button { showingLogService = true } label: {
+                Label("Log a Service", systemImage: "wrench.and.screwdriver")
+            }
+        } header: {
+            Text("Service History")
+        } footer: {
+            if !fleet.isManager {
+                Text("Services you log are reviewed by a manager before they count.")
             }
         }
     }
 
-    private func costSection(_ records: [ServiceRecord]) -> some View {
-        Section("Costs") {
-            LabeledContent("Total Spent", value: Formatting.currency(vehicle.totalSpent))
-            LabeledContent("This Year", value: Formatting.currency(vehicle.spent(inYearOf: .now)))
-            CostChartView(records: records)
-                .frame(height: 180)
+    private func costSection(_ records: VehicleRecordsModel) -> some View {
+        Section("Costs (Managers Only)") {
+            LabeledContent("Total Spent", value: Formatting.currency(records.totalSpent))
+            LabeledContent("This Year", value: Formatting.currency(records.spent(inYearOf: .now)))
+            CostChartView(monthlyTotals: records.monthlyCosts)
+                .frame(height: 170)
                 .padding(.vertical, 8)
         }
     }
 
-    private func actionsMenu(hasRecords: Bool) -> some View {
-        Menu {
-            Button {
-                serviceLog = ServiceLogRequest()
-            } label: {
-                Label("Log Service", systemImage: "wrench.and.screwdriver")
-            }
-            Button {
-                showingAddReminder = true
-            } label: {
-                Label("Add Reminder", systemImage: "bell.badge")
-            }
-            Button(action: promptForOdometer) {
-                Label("Update Odometer", systemImage: "speedometer")
-            }
-            Divider()
-            Button {
-                showingEditVehicle = true
-            } label: {
-                Label("Edit Vehicle", systemImage: "pencil")
-            }
-            if hasRecords {
-                ShareLink(
-                    item: ServiceHistoryExport(vehicle: vehicle, unit: unit),
-                    preview: SharePreview("\(vehicle.displayName) Service History")
-                ) {
-                    Label("Export History (CSV)", systemImage: "square.and.arrow.up")
+    private func detailsSection(_ vehicle: Vehicle) -> some View {
+        Section("Details") {
+            if !vehicle.licensePlate.isEmpty { LabeledContent("License Plate", value: vehicle.licensePlate) }
+            if !vehicle.vin.isEmpty {
+                LabeledContent("VIN") {
+                    Text(vehicle.vin).font(.footnote.monospaced()).textSelection(.enabled)
                 }
+            }
+            if fleet.isManager {
+                let assigned = fleet.members.filter { vehicle.assignedUids.contains($0.id ?? "") }
+                LabeledContent("Assigned Drivers",
+                               value: assigned.isEmpty ? "None" : assigned.map(\.displayName).joined(separator: ", "))
+            }
+        }
+    }
+
+    private func menu(_ vehicle: Vehicle) -> some View {
+        Menu {
+            Button { showingLogService = true } label: { Label("Log Service", systemImage: "wrench.and.screwdriver") }
+            Button { showingReportProblem = true } label: { Label("Report a Problem", systemImage: "exclamationmark.bubble") }
+            Button(action: promptForOdometer) { Label("Update Odometer", systemImage: "speedometer") }
+            if let records, !records.services.isEmpty {
+                ShareLink(item: ServiceHistoryExport(records: records.services, costs: records.costs,
+                                                     includeCosts: fleet.isManager, unit: unit),
+                          preview: SharePreview("\(vehicle.displayName) Service History")) {
+                    Label("Export Service History", systemImage: "square.and.arrow.up")
+                }
+            }
+            if fleet.isManager {
+                Divider()
+                Button { showingEdit = true } label: { Label("Edit Vehicle", systemImage: "pencil") }
+                Button(role: .destructive) { confirmingDelete = true } label: { Label("Delete Vehicle", systemImage: "trash") }
             }
         } label: {
             Label("Actions", systemImage: "ellipsis.circle")
@@ -224,22 +366,26 @@ struct VehicleDetailView: View {
 
     // MARK: Actions
 
+    private func start(_ checklist: ChecklistTemplate, condition: VehicleCondition) {
+        if condition == .outOfService {
+            confirmingUnsafeStart = checklist
+        } else {
+            activeChecklist = checklist
+        }
+    }
+
     private func promptForOdometer() {
-        odometerText = String(vehicle.odometer)
+        odometerText = String(fleet.vehicle(vehicleId)?.odometer ?? 0)
         showingOdometerPrompt = true
     }
 
-    private func deleteReminder(_ reminder: MaintenanceReminder) {
-        ReminderNotifications.cancel(for: reminder)
-        modelContext.delete(reminder)
+    private func openDemoScreenIfNeeded(checklists: [ChecklistTemplate]) {
+        guard !didOpenDemoScreen, let screen = DemoConfig.screen else { return }
+        didOpenDemoScreen = true
+        switch screen {
+        case "specs": demoSpecs = true
+        case "checklist": activeChecklist = checklists.first
+        default: break
+        }
     }
-}
-
-#Preview {
-    let container = SampleData.previewContainer
-    let vehicle = try! container.mainContext.fetch(FetchDescriptor<Vehicle>(sortBy: [SortDescriptor(\.createdAt)])).first!
-    NavigationStack {
-        VehicleDetailView(vehicle: vehicle)
-    }
-    .modelContainer(container)
 }
