@@ -14,10 +14,16 @@ struct StatusBadge: View {
     let status: DueStatus
 
     var body: some View {
-        Label(status.label, systemImage: status.symbolName)
+        // An explicit HStack rather than Label: inside list rows Label can collapse
+        // to icon-only when space is tight.
+        HStack(spacing: 4) {
+            Image(systemName: status.symbolName)
+            Text(status.label)
+                .lineLimit(1)
+        }
             .font(.caption.weight(.semibold))
-            .lineLimit(1)
             .fixedSize()
+            .accessibilityElement(children: .combine)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .foregroundStyle(status.color)
