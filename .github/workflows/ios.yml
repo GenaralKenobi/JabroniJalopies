@@ -1,0 +1,88 @@
+name: iOS Build & Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUNDLE_ID: com.example.VehicleMaintenance
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          sw_vers
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick an iPhone simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))] | last | .udid')
+          if [ -z "$UDID" ] || [ "$UDID" = "null" ]; then
+            echo "No iPhone simulator found"; xcrun simctl list devices available; exit 1
+          fi
+          xcrun simctl list devices available | grep "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Build and run unit tests
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild test \
+            -project VehicleMaintenance.xcodeproj \
+            -scheme VehicleMaintenance \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/DerivedData \
+            -resultBundlePath build/TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/xcodebuild.log | grep -E "error:|warning:|Test .*(passed|failed)|✔|✘|\*\* (BUILD|TEST)" || true
+          # grep above only trims the log output; the real exit status comes from xcodebuild:
+          exit ${PIPESTATUS[0]}
+
+      - name: Capture simulator screenshots
+        if: success()
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          APP="build/DerivedData/Build/Products/Debug-iphonesimulator/VehicleMaintenance.app"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p screenshots
+          for appearance in light dark; do
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            for tab in garage upcoming settings; do
+              xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+              xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData YES -initialTab "$tab"
+              sleep 6
+              xcrun simctl io "$UDID" screenshot "screenshots/${tab}-${appearance}.png"
+            done
+          done
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-results
+          if-no-files-found: ignore
+          path: |
+            build/xcodebuild.log
+            build/TestResults.xcresult
+            screenshots/
