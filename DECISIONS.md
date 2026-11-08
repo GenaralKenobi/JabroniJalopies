@@ -1,0 +1,38 @@
+# Decisions to review
+
+These are choices I made without being sure they match how you work. Each one is easy to change. Reply with the numbers you'd like handled differently.
+
+## Repeating checklist items (weekly / monthly / every N days)
+
+1. **The schedule runs from when the item was last done, not from the calendar.**
+   - "Weekly" means 7 days after it was last done on that truck, not "once per calendar week (Mon–Sun)".
+   - "Monthly" means the same date next month.
+   - The alternative is calendar periods, for example "any time this week" with a reset every Monday.
+2. **An item counts as done whether it passed or failed.** A failed item becomes a defect, and the defect tracks the problem from there. The alternative is that a failed weekly item stays due until it passes.
+3. **Due repeating items are required.** When a weekly item is due, it has to be answered pass or fail like every other item before the checklist can be submitted. The alternative is letting drivers skip it and keep it due.
+4. **Items that aren't due are hidden, but can be done early.** They're listed under "Not due yet" with a **Do Now** button. Doing one early resets its schedule.
+5. **A repeating item with an open defect always appears**, even if it isn't due, so drivers can mark it "still a problem" or "looks fixed".
+6. **The schedule is tracked per truck, not per driver.** If anyone did the weekly check on Van 12 this week, nobody needs to do it again on Van 12 until next week.
+7. **The schedule belongs to the item in each checklist.** If two checklists both contain "Grease fittings", each one tracks its own schedule.
+8. **Managers don't get alerts for overdue items.** Overdue items show up when the next checklist on that truck is started, and the truck page shows "Includes N weekly/monthly items". There's no separate manager alert or report for repeating items that haven't been done. I can add one.
+
+## Chainsaws, ropes and chains
+
+9. **Anyone can mark a saw "Do not use".** You said only managers can do this for ropes. I kept it open to everyone for saws, because a saw with a failed chain brake is an immediate safety issue.
+10. **Equipment problems show in two places:**
+    - a badge on the truck in the fleet list
+    - a coloured banner at the top of the truck's page
+
+    You left this choice to me.
+11. **Chain counts can go negative, and the app shows that as 0.** If more chains are logged out than the truck shows, the log is still saved, the count is flagged, and a manager uses **Correct Counts**. Corrections are applied as adjustments, so logs still syncing from other phones aren't lost.
+12. **Chains aren't tracked while they're out for sharpening.** Dull chains leave the truck's count. Chains coming back go in through **Add Chains** on any truck. The fleet totals show how many were logged dull (to resharpen) over the period, but there's no running count of "currently at the sharpener".
+13. **Chain sizes are whole or decimal inches**, such as 16, 18 or 20.5. A manager types them as a list. They can be filled in from the bar lengths of the saws on that truck.
+14. **Ropes record:** a name or number, diameter, length in feet, an optional minimum length, serial number and notes. A rope below its minimum length shows a warning; it isn't automatically marked "Do not use".
+15. **Removing a saw or rope deletes its history.** Moving it keeps the history. Managers see a warning before removing.
+16. **Only managers add, edit or remove saws and ropes.** Drivers can report problems and submit rope length reductions.
+
+## From earlier
+
+17. **Defect photos are switched on per fleet** with Settings → Defect Photos. They need Firebase's pay-as-you-go plan.
+18. **Records are deleted automatically 5 years after they're created.** Defects are deleted 5 years after they're closed.
+19. **Managers get push notifications only for maintenance reminders and storage warnings.** These are local notifications on the manager's own phone. A server-sent alert when a driver reports a defect needs Firebase's pay-as-you-go plan plus an Apple push key, so it isn't built yet.
