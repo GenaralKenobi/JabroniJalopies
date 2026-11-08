@@ -1,0 +1,258 @@
+rules_version = '2';
+
+// Security rules for the Maintenance app.
+//
+// Data layout
+//   users/{uid}                                  private to the user
+//   users/{uid}/memberships/{fleetId}            the user's list of fleets
+//   invites/{inviteId}                           manager -> email invitations
+//   fleets/{fleetId}                             fleet name + usage counters
+//   fleets/{fleetId}/members/{uid}               per-fleet profile + role
+//   fleets/{fleetId}/checklists/{checklistId}    checklist templates
+//   fleets/{fleetId}/vehicles/{vehicleId}        vehicle, specs, assignments
+//     .../reminders/{id}                         maintenance schedule
+//     .../services/{id}                          service log (driver entries need sign-off)
+//     .../costs/{serviceId}                      service costs (managers only)
+//     .../inspections/{id}                       completed checklists (immutable)
+//     .../defects/{id}                           problems found on inspections
+//
+// Roles: "manager" and "driver". Drivers see every vehicle unless a manager
+// turns off seesAllVehicles for them, in which case they only see vehicles
+// whose assignedUids contains their uid.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function emailVerified() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true;
+    }
+
+    function fleetPath(fleetId) {
+      return /databases/$(database)/documents/fleets/$(fleetId);
+    }
+
+    function memberPath(fleetId) {
+      return /databases/$(database)/documents/fleets/$(fleetId)/members/$(request.auth.uid);
+    }
+
+    function isMember(fleetId) {
+      return signedIn() && exists(memberPath(fleetId));
+    }
+
+    function me(fleetId) {
+      return get(memberPath(fleetId)).data;
+    }
+
+    function isManager(fleetId) {
+      return isMember(fleetId) && me(fleetId).role == 'manager';
+    }
+
+    function vehicleData(fleetId, vehicleId) {
+      return get(/databases/$(database)/documents/fleets/$(fleetId)/vehicles/$(vehicleId)).data;
+    }
+
+    function canSeeVehicle(fleetId, vehicleId) {
+      return isMember(fleetId) && (
+        me(fleetId).role == 'manager'
+        || me(fleetId).seesAllVehicles == true
+        || request.auth.uid in vehicleData(fleetId, vehicleId).assignedUids
+      );
+    }
+
+    function onlyChanges(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    function isRole(value) {
+      return value in ['manager', 'driver'];
+    }
+
+    // The existing history entries must be kept as-is; new entries may only be appended.
+    function historyAppendedOnly() {
+      let before = resource.data.get('history', []);
+      let after = request.resource.data.get('history', []);
+      return after.size() >= before.size() && after[0:before.size()] == before;
+    }
+
+    // ---------- users ----------
+
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+
+      match /memberships/{fleetId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // ---------- invites ----------
+
+    match /invites/{inviteId} {
+      allow read: if isManager(resource.data.fleetId)
+        || (emailVerified() && resource.data.email == myEmail());
+
+      allow create: if isManager(request.resource.data.fleetId)
+        && request.resource.data.status == 'pending'
+        && isRole(request.resource.data.role)
+        && request.resource.data.email is string
+        && request.resource.data.email == request.resource.data.email.lower()
+        && request.resource.data.invitedBy == request.auth.uid;
+
+      allow update: if
+        // Manager revokes
+        (isManager(resource.data.fleetId)
+          && onlyChanges(['status', 'respondedAt'])
+          && request.resource.data.status == 'revoked')
+        // Invitee accepts or declines a pending invite
+        || (emailVerified()
+          && resource.data.email == myEmail()
+          && resource.data.status == 'pending'
+          && onlyChanges(['status', 'respondedAt', 'acceptedBy'])
+          && request.resource.data.status in ['accepted', 'declined']);
+
+      allow delete: if isManager(resource.data.fleetId);
+    }
+
+    // ---------- fleets ----------
+
+    match /fleets/{fleetId} {
+      allow read: if isMember(fleetId);
+
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && existsAfter(memberPath(fleetId));
+
+      allow update: if isManager(fleetId)
+        // Any member may bump the usage counters (photo uploads, new records).
+        || (isMember(fleetId) && onlyChanges(['usage']));
+
+      allow delete: if isManager(fleetId);
+
+      // ----- members (per-fleet profiles) -----
+      match /members/{uid} {
+        allow read: if isMember(fleetId);
+
+        allow create: if signedIn() && request.auth.uid == uid && (
+          // The fleet's creator becomes its first manager, in the same batch as the fleet.
+          (!exists(fleetPath(fleetId))
+            && getAfter(fleetPath(fleetId)).data.createdBy == request.auth.uid
+            && request.resource.data.role == 'manager')
+          // Someone accepting an invite sent to their verified email address.
+          || (emailVerified()
+            && request.resource.data.inviteId is string
+            && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.fleetId == fleetId
+            && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.email == myEmail()
+            && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.status == 'pending'
+            && request.resource.data.role == get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.role
+            && request.resource.data.seesAllVehicles == true)
+        );
+
+        allow update: if
+          (isManager(fleetId) && isRole(request.resource.data.role))
+          // Members can edit their own profile, but not their role or visibility.
+          || (signedIn() && request.auth.uid == uid
+            && onlyChanges(['displayName', 'phone', 'updatedAt']));
+
+        // Managers remove members; members can leave.
+        allow delete: if isManager(fleetId) || (signedIn() && request.auth.uid == uid);
+      }
+
+      // ----- checklist templates -----
+      match /checklists/{checklistId} {
+        allow read: if isMember(fleetId);
+        allow write: if isManager(fleetId);
+      }
+
+      // ----- vehicles -----
+      match /vehicles/{vehicleId} {
+        // Uses resource.data (not get()) so restricted drivers can run
+        // `assignedUids array-contains <uid>` queries.
+        allow read: if isMember(fleetId) && (
+          me(fleetId).role == 'manager'
+          || me(fleetId).seesAllVehicles == true
+          || request.auth.uid in resource.data.assignedUids
+        );
+
+        allow create, delete: if isManager(fleetId);
+
+        allow update: if isManager(fleetId)
+          || (canSeeVehicle(fleetId, vehicleId)
+            && onlyChanges(['odometer', 'odometerUpdatedAt', 'odometerUpdatedBy'])
+            && request.resource.data.odometer is int);
+
+        match /reminders/{reminderId} {
+          allow read: if canSeeVehicle(fleetId, vehicleId);
+          allow write: if isManager(fleetId);
+        }
+
+        match /services/{serviceId} {
+          allow read: if canSeeVehicle(fleetId, vehicleId);
+
+          allow create: if isManager(fleetId)
+            || (canSeeVehicle(fleetId, vehicleId)
+              && request.resource.data.status == 'pending'
+              && request.resource.data.createdBy == request.auth.uid);
+
+          allow update: if isManager(fleetId)
+            // Drivers may edit their own entry until a manager reviews it.
+            || (canSeeVehicle(fleetId, vehicleId)
+              && resource.data.createdBy == request.auth.uid
+              && resource.data.status == 'pending'
+              && request.resource.data.status == 'pending'
+              && request.resource.data.createdBy == request.auth.uid);
+
+          allow delete: if isManager(fleetId)
+            || (canSeeVehicle(fleetId, vehicleId)
+              && resource.data.createdBy == request.auth.uid
+              && resource.data.status == 'pending');
+        }
+
+        match /costs/{serviceId} {
+          allow read, write: if isManager(fleetId);
+        }
+
+        match /inspections/{inspectionId} {
+          allow read: if canSeeVehicle(fleetId, vehicleId);
+          allow create: if canSeeVehicle(fleetId, vehicleId)
+            && request.resource.data.performedBy == request.auth.uid;
+          // Completed inspections are permanent records; only managers may delete them.
+          allow update: if false;
+          allow delete: if isManager(fleetId);
+        }
+
+        match /defects/{defectId} {
+          allow read: if canSeeVehicle(fleetId, vehicleId);
+
+          allow create: if canSeeVehicle(fleetId, vehicleId)
+            && request.resource.data.reportedBy == request.auth.uid
+            && request.resource.data.status == 'open';
+
+          allow update: if isManager(fleetId)
+            // Photos that were taken offline may finish uploading after the
+            // defect is closed, so attaching photos is allowed in any state.
+            || (canSeeVehicle(fleetId, vehicleId)
+              && onlyChanges(['photos', 'updatedAt']))
+            // Drivers can confirm or report as fixed, but never close.
+            || (canSeeVehicle(fleetId, vehicleId)
+              && resource.data.status in ['open', 'reportedFixed']
+              && onlyChanges(['history', 'photos', 'status', 'updatedAt'])
+              && request.resource.data.status in ['open', 'reportedFixed']
+              && historyAppendedOnly());
+
+          allow delete: if isManager(fleetId);
+        }
+      }
+    }
+  }
+}

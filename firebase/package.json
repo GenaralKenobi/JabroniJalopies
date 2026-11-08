@@ -1,0 +1,15 @@
+{
+  "name": "maintenance-firebase",
+  "private": true,
+  "description": "Security rules, indexes and rules tests for the Maintenance app",
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore,storage --project demo-maintenance 'node --test tests/rules.test.js'",
+    "emulators": "firebase emulators:start --only auth,firestore,storage --project demo-maintenance"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.2.0",
+    "firebase-tools": "^15.35.0"
+  }
+}

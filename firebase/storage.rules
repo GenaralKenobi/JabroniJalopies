@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Defect photos live at fleets/{fleetId}/vehicles/{vehicleId}/defects/{defectId}/{photoId}.jpg
+// Access mirrors Firestore: anyone who can see the vehicle can view and add photos;
+// only managers can delete them.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /fleets/{fleetId}/vehicles/{vehicleId}/defects/{defectId}/{photoId} {
+
+      function member() {
+        return firestore.get(/databases/(default)/documents/fleets/$(fleetId)/members/$(request.auth.uid)).data;
+      }
+
+      function isMember() {
+        return request.auth != null
+          && firestore.exists(/databases/(default)/documents/fleets/$(fleetId)/members/$(request.auth.uid));
+      }
+
+      function canSeeVehicle() {
+        return isMember() && (
+          member().role == 'manager'
+          || member().seesAllVehicles == true
+          || request.auth.uid in firestore.get(/databases/(default)/documents/fleets/$(fleetId)/vehicles/$(vehicleId)).data.assignedUids
+        );
+      }
+
+      allow read: if canSeeVehicle();
+
+      allow create: if canSeeVehicle()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+
+      allow delete: if isMember() && member().role == 'manager';
+    }
+  }
+}

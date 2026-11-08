@@ -1,0 +1,9 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "inspections", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "defects", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "services", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "costs", "fieldPath": "expireAt", "ttl": true, "indexes": [] }
+  ]
+}
