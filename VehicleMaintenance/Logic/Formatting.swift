@@ -13,6 +13,10 @@ enum Formatting {
         "\(value.formatted()) \(unit.abbreviation)"
     }
 
+    static func feet(_ value: Double) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(0...1)))) ft"
+    }
+
     static func shortDate(_ date: Date) -> String {
         date.formatted(date: .abbreviated, time: .omitted)
     }

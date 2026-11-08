@@ -187,3 +187,73 @@ struct ReminderTests {
         #expect(!other.matches(serviceType: .other, title: "Wash"))
     }
 }
+
+struct ChainTests {
+    @Test func sizeKeysAreFirestoreSafe() {
+        #expect(ChainSize(inches: 18).key == "in18")
+        #expect(ChainSize(inches: 18.5).key == "in18_5")
+        #expect(ChainSize(inches: 16).label == "16\"")
+    }
+
+    @Test func parsesTypedSizes() {
+        #expect(ChainSizeParser.parse("22, 16 18\"").map(\.inches) == [16, 18, 22])
+        #expect(ChainSizeParser.parse("16, 16, abc, -4").map(\.inches) == [16])
+    }
+
+    @Test func logItemsReportTheirEffectOnTheCount() {
+        let used = ChainLogItem(sizeKey: "in16", inches: 16, dull: 3, discarded: 1, added: 0, adjustment: 0)
+        #expect(used.countChange == -4)
+        let added = ChainLogItem(sizeKey: "in16", inches: 16, dull: 0, discarded: 0, added: 5, adjustment: 0)
+        #expect(added.countChange == 5)
+        let correction = ChainLogItem(sizeKey: "in16", inches: 16, dull: 0, discarded: 0, added: 0, adjustment: -2)
+        #expect(correction.countChange == -2)
+    }
+
+    @Test func inventoryFlagsNegativeCounts() {
+        let inventory = ChainInventory(sizes: [ChainSize(inches: 16)], counts: ["in16": -2])
+        #expect(inventory.needsCorrection)
+        #expect(inventory.count(ChainSize(inches: 16)) == -2)
+    }
+
+    @Test func fleetTotalsCombineTrucksAndPeriod() {
+        let s16 = ChainSize(inches: 16), s18 = ChainSize(inches: 18)
+        let truckA = ChainInventory(sizes: [s16, s18], counts: ["in16": 6, "in18": 4])
+        let truckB = ChainInventory(sizes: [s16], counts: ["in16": -1])
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func log(_ daysAgo: Double, _ items: [ChainLogItem]) -> ChainLog {
+            ChainLog(kind: .usedBox, items: items, loggedBy: "dan", loggedByName: "Dan",
+                     loggedAt: now.addingTimeInterval(-daysAgo * 86_400), expireAt: now)
+        }
+        let logs = [
+            log(1, [ChainLogItem(sizeKey: "in16", inches: 16, dull: 2, discarded: 1, added: 0, adjustment: 0)]),
+            log(40, [ChainLogItem(sizeKey: "in18", inches: 18, dull: 5, discarded: 0, added: 0, adjustment: 0)]),
+        ]
+        let totals = ChainTotals.make(inventories: [truckA, truckB], logs: logs, since: now.addingTimeInterval(-7 * 86_400))
+        #expect(totals.rows.map(\.inches) == [16, 18])
+        #expect(totals.rows[0].onTrucks == 6)  // negative counts don't subtract
+        #expect(totals.rows[0].dull == 2)
+        #expect(totals.rows[0].discarded == 1)
+        #expect(totals.rows[1].dull == 0)      // outside the period
+    }
+}
+
+struct EquipmentTests {
+    @Test func ropeBelowMinimumLength() {
+        var rope = Equipment.new(.rope, vehicleId: "t1")
+        rope.lengthFeet = 90
+        rope.minLengthFeet = 100
+        #expect(rope.isBelowMinimumLength)
+        rope.lengthFeet = 120
+        #expect(!rope.isBelowMinimumLength)
+        var saw = Equipment.new(.chainsaw, vehicleId: "t1")
+        saw.minLengthFeet = 100
+        #expect(!saw.isBelowMinimumLength)
+    }
+
+    @Test func defectOwnersPointAtTheRightPhotoPaths() {
+        #expect(DefectOwner.equipment("saw1").photoPath(fleetId: "f", defectId: "d", photoId: "p")
+                == "fleets/f/equipment/saw1/defects/d/p.jpg")
+        #expect(DefectOwner.vehicle("v1").photoPath(fleetId: "f", defectId: "d", photoId: "p")
+                == "fleets/f/vehicles/v1/defects/d/p.jpg")
+    }
+}

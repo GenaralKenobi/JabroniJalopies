@@ -24,12 +24,17 @@ enum FS {
     static func inspections(_ f: String, _ v: String) -> CollectionReference { vehicle(f, v).collection("inspections") }
     static func defects(_ f: String, _ v: String) -> CollectionReference { vehicle(f, v).collection("defects") }
 
-    /// Cloud Storage path for a defect photo.
-    static func photoPath(fleetId: String, vehicleId: String, defectId: String, photoId: String) -> String {
-        "fleets/\(fleetId)/vehicles/\(vehicleId)/defects/\(defectId)/\(photoId).jpg"
+    static func equipmentCollection(_ f: String) -> CollectionReference { fleet(f).collection("equipment") }
+    static func equipment(_ f: String, _ e: String) -> DocumentReference { equipmentCollection(f).document(e) }
+    static func equipmentDefects(_ f: String, _ e: String) -> CollectionReference { equipment(f, e).collection("defects") }
+    static func lengthChanges(_ f: String, _ e: String) -> CollectionReference { equipment(f, e).collection("lengthChanges") }
+    static func chainInventory(_ f: String, _ v: String) -> DocumentReference {
+        vehicle(f, v).collection("chains").document("inventory")
     }
+    static func chainLogs(_ f: String, _ v: String) -> CollectionReference { vehicle(f, v).collection("chainLogs") }
 
-    static let vehicleSubcollections = ["reminders", "services", "costs", "inspections", "defects"]
+    static let vehicleSubcollections = ["reminders", "services", "costs", "inspections", "defects", "chains", "chainLogs"]
+    static let equipmentSubcollections = ["defects", "lengthChanges"]
 
     /// Encodes a value for use inside `updateData` (e.g. an array of structs or a map).
     static func encode<T: Encodable>(_ value: T) throws -> Any {

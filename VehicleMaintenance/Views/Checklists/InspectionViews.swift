@@ -94,7 +94,7 @@ struct InspectionDetailView: View {
                     }
                     if let defectId = result.defectId {
                         NavigationLink {
-                            DefectDetailView(vehicleId: vehicleId, defectId: defectId)
+                            DefectDetailView(owner: .vehicle(vehicleId), defectId: defectId)
                         } label: { row }
                     } else {
                         row

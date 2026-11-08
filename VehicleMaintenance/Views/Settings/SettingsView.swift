@@ -85,6 +85,8 @@ struct SettingsView: View {
                 case "members": MembersView()
                 case "storage": DataStorageView()
                 case "checklists": ChecklistTemplatesView()
+                case "equipment": EquipmentListView()
+                case "chains": ChainTotalsView()
                 default: EmptyView()
                 }
             }
@@ -122,6 +124,12 @@ struct SettingsView: View {
         Section {
             NavigationLink(value: "checklists") {
                 LabeledContent("Checklists", value: "\(fleet.checklists.count)")
+            }
+            NavigationLink(value: "equipment") {
+                LabeledContent("Chainsaws & Ropes", value: "\(fleet.equipment.count)")
+            }
+            NavigationLink(value: "chains") {
+                Text("Chain Totals")
             }
             Toggle("Defect Photos", isOn: Binding(
                 get: { fleet.photosEnabled },
@@ -172,7 +180,7 @@ struct SettingsView: View {
     }
 
     private func openDemoScreenIfNeeded() {
-        guard path.isEmpty, let screen = DemoConfig.screen, ["members", "storage", "checklists"].contains(screen) else { return }
+        guard path.isEmpty, let screen = DemoConfig.screen, ["members", "storage", "checklists", "equipment", "chains"].contains(screen) else { return }
         path.append(screen)
     }
 }
@@ -272,7 +280,7 @@ struct DataStorageView: View {
                 Text("Free Up Space")
             } footer: {
                 Text(connectivity.isOnline
-                     ? "Deletes completed checklists, closed defects with their photos, and reviewed service records from before this date, for every vehicle. Open defects and pending services are kept."
+                     ? "Deletes completed checklists, closed defects with their photos, reviewed service records, chain logs and reviewed rope changes from before this date. Open defects and anything awaiting approval are kept."
                      : "Needs a connection.")
             }
         }
@@ -310,7 +318,7 @@ struct DataStorageView: View {
         Task {
             do {
                 let summary = try await fleet.purgeRecords(before: cutoff)
-                resultMessage = "Deleted \(summary.inspections) checklists, \(summary.defects) defects (\(summary.photos) photos) and \(summary.services) service records."
+                resultMessage = "Deleted \(summary.inspections) checklists, \(summary.defects) defects (\(summary.photos) photos), \(summary.services) service records, \(summary.chainLogs) chain logs and \(summary.lengthChanges) rope changes."
             } catch {
                 resultMessage = "Couldn't finish: \(ErrorCenter.friendly(error))"
             }

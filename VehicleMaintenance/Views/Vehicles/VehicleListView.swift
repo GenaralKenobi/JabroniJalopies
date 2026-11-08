@@ -96,7 +96,7 @@ struct VehicleListView: View {
 
     private func openDemoScreenIfNeeded() {
         guard !didOpenDemoScreen, let screen = DemoConfig.screen,
-              ["vehicle", "specs", "checklist", "defect"].contains(screen),
+              ["vehicle", "specs", "checklist", "defect", "truckchains", "equipment-detail"].contains(screen),
               !fleet.vehicles.isEmpty, fleet.openDefects.count >= fleet.vehicles.count,
               let worst = fleet.sortedVehicles.max(by: { fleet.condition(of: $0.id) < fleet.condition(of: $1.id) }),
               let id = worst.id else { return }
@@ -133,6 +133,20 @@ struct VehicleRow: View {
             VStack(alignment: .trailing, spacing: 4) {
                 if condition != .ok {
                     ConditionBadge(condition: condition, compact: true)
+                }
+                let alerts = fleet.equipmentAlerts(on: vehicle.id ?? "")
+                if !alerts.isEmpty {
+                    let doNotUse = alerts.contains(where: \.isDoNotUse)
+                    Label(alerts.count == 1 ? alerts[0].equipment.displayName : "\(alerts.count) equipment",
+                          systemImage: doNotUse ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .foregroundStyle(doNotUse ? Color.red : Color.orange)
+                        .background((doNotUse ? Color.red : Color.orange).opacity(0.15), in: Capsule())
+                        .accessibilityLabel("Equipment needs attention")
                 }
                 if let due = fleet.reminderStatus(of: vehicle), due != .ok {
                     StatusBadge(status: due)

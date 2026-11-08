@@ -216,6 +216,55 @@ async function main() {
       if (cost != null) await set(`${F}/vehicles/${vid}/costs/${sid}`, { amount: cost, expireAt: yearsFromNow(5) });
     }
 
+    // Chainsaws and ropes.
+    const equipment = [
+      { id: 'saw-4', type: 'chainsaw', name: 'Saw 4', vehicleId: 'van-12', make: 'Stihl', model: 'MS 462', barLengthInches: 20 },
+      { id: 'saw-7', type: 'chainsaw', name: 'Saw 7', vehicleId: 'van-12', make: 'Husqvarna', model: '572 XP', barLengthInches: 18 },
+      { id: 'saw-2', type: 'chainsaw', name: 'Saw 2', vehicleId: 'truck-3', make: 'Stihl', model: 'MS 500i', barLengthInches: 25 },
+      { id: 'rope-a', type: 'rope', name: 'Rigging Rope A', vehicleId: 'van-12', diameter: '1/2 in', lengthFeet: 150, minLengthFeet: 100 },
+      { id: 'rope-b', type: 'rope', name: 'Rigging Rope B', vehicleId: 'truck-3', diameter: '5/8 in', lengthFeet: 96, minLengthFeet: 100 },
+    ];
+    for (const e of equipment) {
+      const { id: eid, ...data } = e;
+      await set(`${F}/equipment/${eid}`, {
+        make: '', model: '', serialNumber: '', notes: '', diameter: '', createdAt: daysAgo(200), ...data,
+      });
+    }
+    await set(`${F}/equipment/saw-7/defects/defect-chainbrake`, {
+      title: 'Chain brake', details: "Chain brake doesn't engage on kickback test.", unsafe: true, status: 'open',
+      reportedBy: 'driver-ana', reportedByName: 'Ana Lima', reportedAt: daysAgo(0, 8), receivedAt: daysAgo(0, 8),
+      history: [{ type: 'reported', by: 'driver-ana', byName: 'Ana Lima', at: daysAgo(0, 8),
+        note: "Chain brake doesn't engage on kickback test." }],
+      photos: {}, updatedAt: daysAgo(0, 8),
+    });
+    await set(`${F}/equipment/rope-a/lengthChanges/change-1`, {
+      amountFeet: 12, reason: 'Cut out a section with a flat spot from a pinch.', status: 'pending',
+      submittedBy: 'driver-dan', submittedByName: 'Dan Okafor', submittedAt: daysAgo(0, 15), expireAt: yearsFromNow(5),
+    });
+    await set(`${F}/equipment/rope-a/lengthChanges/change-0`, {
+      amountFeet: 8, reason: 'Trimmed glazed end.', status: 'approved', submittedBy: 'driver-ana', submittedByName: 'Ana Lima',
+      submittedAt: daysAgo(30), reviewedBy: uid, reviewedByName: mia, reviewedAt: daysAgo(29), expireAt: yearsFromNow(5),
+    });
+
+    // Chains.
+    const size = (inches) => ({ key: `in${String(inches).replace('.', '_')}`, inches });
+    await set(`${F}/vehicles/van-12/chains/inventory`, {
+      sizes: [size(16), size(18), size(20)], counts: { in16: 6, in18: 9, in20: 4 }, updatedAt: daysAgo(0, 16),
+    });
+    await set(`${F}/vehicles/truck-3/chains/inventory`, {
+      sizes: [size(20), size(25)], counts: { in20: 5, in25: 3 }, updatedAt: daysAgo(1, 16),
+    });
+    const chainLog = (kind, ago, by, byName, items) => set(`${F}/vehicles/van-12/chainLogs/${id('chain')}`, {
+      kind, items, loggedBy: by, loggedByName: byName, loggedAt: daysAgo(ago, 16), receivedAt: daysAgo(ago, 16),
+      expireAt: yearsFromNow(5),
+    });
+    const chainItem = (inches, { dull = 0, discarded = 0, added = 0, adjustment = 0 }) =>
+      ({ sizeKey: size(inches).key, inches, dull, discarded, added, adjustment });
+    await chainLog('usedBox', 0, 'driver-dan', 'Dan Okafor', [chainItem(16, { dull: 2 }), chainItem(18, { dull: 3, discarded: 1 }), chainItem(20, { dull: 1 })]);
+    await chainLog('added', 1, 'driver-ana', 'Ana Lima', [chainItem(18, { added: 6 }), chainItem(20, { added: 2 })]);
+    await chainLog('usedBox', 1, 'driver-ana', 'Ana Lima', [chainItem(16, { dull: 1 }), chainItem(18, { dull: 2 })]);
+    await chainLog('usedBox', 2, 'driver-dan', 'Dan Okafor', [chainItem(18, { dull: 2, discarded: 1 }), chainItem(20, { discarded: 1 })]);
+
     await set('invites/invite-sam', {
       fleetId: 'demo-fleet', fleetName: 'Acme Delivery', email: 'sam.new@demo.test', role: 'driver',
       invitedBy: uid, invitedByName: mia, createdAt: daysAgo(1), status: 'pending',

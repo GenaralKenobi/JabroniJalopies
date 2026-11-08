@@ -22,8 +22,14 @@ final class PhotoUploadQueue {
         var fleetId: String
         var vehicleId: String
         var defectId: String
+        /// Set for equipment defects (chainsaws, ropes); otherwise the defect is on `vehicleId`.
+        var equipmentId: String?
         var createdAt: Date
         var attempts: Int
+
+        var owner: DefectOwner {
+            equipmentId.map(DefectOwner.equipment) ?? .vehicle(vehicleId)
+        }
     }
 
     private(set) var jobs: [Job] = []
@@ -51,15 +57,21 @@ final class PhotoUploadQueue {
         try? Data(contentsOf: fileURL(photoId))
     }
 
-    func enqueue(data: Data, photoId: String, fleetId: String, vehicleId: String, defectId: String) {
+    func enqueue(data: Data, photoId: String, fleetId: String, owner: DefectOwner, defectId: String) {
         do {
             try data.write(to: fileURL(photoId), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         } catch {
             ErrorCenter.shared.report(error, "Saving photo")
             return
         }
+        var vehicleId = ""
+        var equipmentId: String?
+        switch owner {
+        case .vehicle(let id): vehicleId = id
+        case .equipment(let id): equipmentId = id
+        }
         jobs.append(Job(id: photoId, fleetId: fleetId, vehicleId: vehicleId, defectId: defectId,
-                        createdAt: .now, attempts: 0))
+                        equipmentId: equipmentId, createdAt: .now, attempts: 0))
         saveManifest()
         process()
     }
@@ -116,7 +128,7 @@ final class PhotoUploadQueue {
         let url = fileURL(job.id)
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-        let path = FS.photoPath(fleetId: job.fleetId, vehicleId: job.vehicleId, defectId: job.defectId, photoId: job.id)
+        let path = job.owner.photoPath(fleetId: job.fleetId, defectId: job.defectId, photoId: job.id)
 
         let metadata = StorageMetadata()
         metadata.contentType = "image/jpeg"
@@ -129,7 +141,7 @@ final class PhotoUploadQueue {
             "photos.\(job.id).path": path,
             "photos.\(job.id).byteCount": size,
             "updatedAt": Date.now,
-        ], forDocument: FS.defects(job.fleetId, job.vehicleId).document(job.defectId))
+        ], forDocument: job.owner.defects(fleetId: job.fleetId).document(job.defectId))
         batch.updateData([
             "usage.photoBytes": FieldValue.increment(Int64(size)),
             "usage.photoCount": FieldValue.increment(Int64(1)),

@@ -21,7 +21,7 @@ extension FleetModel {
         commitInBackground(batch, "Updating photo setting")
     }
 
-    private func bumpRecordCount(_ count: Int, in batch: WriteBatch) {
+    func bumpRecordCount(_ count: Int, in batch: WriteBatch) {
         guard count != 0 else { return }
         batch.updateData(["usage.recordCount": FieldValue.increment(Int64(count))], forDocument: FS.fleet(fleetId))
     }
@@ -325,18 +325,17 @@ extension FleetModel {
         for (photoId, data) in photos {
             guard let defectId = defectForPhoto[photoId] else { continue }
             PhotoUploadQueue.shared.enqueue(data: data, photoId: photoId, fleetId: fleetId,
-                                            vehicleId: vehicleId, defectId: defectId)
+                                            owner: .vehicle(vehicleId), defectId: defectId)
         }
     }
 
-    private func pendingPhoto() -> DefectPhoto {
+    func pendingPhoto() -> DefectPhoto {
         DefectPhoto(status: .pending, path: nil, addedBy: uid, addedByName: myName, addedAt: .now, byteCount: nil)
     }
 
-    /// Reports a problem outside of a checklist.
-    func reportDefect(vehicle: Vehicle, title: String, details: String, unsafe: Bool, photos: [String: Data]) throws {
-        guard let vehicleId = vehicle.id else { return }
-        let ref = FS.defects(fleetId, vehicleId).document()
+    /// Reports a problem outside of a checklist, on a truck or a piece of equipment.
+    func reportDefect(owner: DefectOwner, title: String, details: String, unsafe: Bool, photos: [String: Data]) throws {
+        let ref = owner.defects(fleetId: fleetId).document()
         let now = Date.now
         var photoEntries: [String: DefectPhoto] = [:]
         photos.keys.forEach { photoEntries[$0] = pendingPhoto() }
@@ -352,12 +351,12 @@ extension FleetModel {
         commitInBackground(batch, "Reporting problem")
         for (photoId, data) in photos {
             PhotoUploadQueue.shared.enqueue(data: data, photoId: photoId, fleetId: fleetId,
-                                            vehicleId: vehicleId, defectId: ref.documentID)
+                                            owner: owner, defectId: ref.documentID)
         }
     }
 
     /// Driver actions on an open defect.
-    func addEvent(_ type: DefectEventType, note: String, to defect: Defect, vehicleId: String) throws {
+    func addEvent(_ type: DefectEventType, note: String, to defect: Defect, owner: DefectOwner) throws {
         guard let defectId = defect.id else { return }
         let event = DefectEvent(type: type, by: uid, byName: myName, at: .now, note: note.trimmed.isEmpty ? nil : note.trimmed)
         var fields: [AnyHashable: Any] = [
@@ -373,12 +372,12 @@ extension FleetModel {
             break
         }
         let batch = FS.db.batch()
-        batch.updateData(fields, forDocument: FS.defects(fleetId, vehicleId).document(defectId))
+        batch.updateData(fields, forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Updating defect")
     }
 
     /// Managers close a defect as repaired or not a defect.
-    func close(_ defect: Defect, vehicleId: String, resolution: DefectResolution, note: String) throws {
+    func close(_ defect: Defect, owner: DefectOwner, resolution: DefectResolution, note: String) throws {
         guard let defectId = defect.id else { return }
         let now = Date.now
         let event = DefectEvent(type: resolution == .repaired ? .repaired : .notDefect, by: uid, byName: myName,
@@ -393,11 +392,11 @@ extension FleetModel {
             "expireAt": Retention.expiry(from: now),
             "updatedAt": now,
             "history": FieldValue.arrayUnion([try FS.encode(event)]),
-        ], forDocument: FS.defects(fleetId, vehicleId).document(defectId))
+        ], forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Closing defect")
     }
 
-    func reopen(_ defect: Defect, vehicleId: String, note: String) throws {
+    func reopen(_ defect: Defect, owner: DefectOwner, note: String) throws {
         guard let defectId = defect.id else { return }
         let event = DefectEvent(type: .reopened, by: uid, byName: myName, at: .now, note: note.trimmed.isEmpty ? nil : note.trimmed)
         let batch = FS.db.batch()
@@ -410,22 +409,31 @@ extension FleetModel {
             "expireAt": FieldValue.delete(),
             "updatedAt": Date.now,
             "history": FieldValue.arrayUnion([try FS.encode(event)]),
-        ], forDocument: FS.defects(fleetId, vehicleId).document(defectId))
+        ], forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Reopening defect")
     }
 
-    func addPhotos(_ photos: [String: Data], to defect: Defect, vehicleId: String) throws {
+    /// Managers can mark an equipment defect "do not use" (or clear it) after it's reported.
+    func setUnsafe(_ unsafe: Bool, on defect: Defect, owner: DefectOwner) {
+        guard let defectId = defect.id else { return }
+        let batch = FS.db.batch()
+        batch.updateData(["unsafe": unsafe, "updatedAt": Date.now],
+                         forDocument: owner.defects(fleetId: fleetId).document(defectId))
+        commitInBackground(batch, "Updating defect")
+    }
+
+    func addPhotos(_ photos: [String: Data], to defect: Defect, owner: DefectOwner) throws {
         guard let defectId = defect.id, !photos.isEmpty else { return }
         var fields: [AnyHashable: Any] = ["updatedAt": Date.now]
         for photoId in photos.keys {
             fields["photos.\(photoId)"] = try FS.encode(pendingPhoto())
         }
         let batch = FS.db.batch()
-        batch.updateData(fields, forDocument: FS.defects(fleetId, vehicleId).document(defectId))
+        batch.updateData(fields, forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Adding photo")
         for (photoId, data) in photos {
             PhotoUploadQueue.shared.enqueue(data: data, photoId: photoId, fleetId: fleetId,
-                                            vehicleId: vehicleId, defectId: defectId)
+                                            owner: owner, defectId: defectId)
         }
     }
 
@@ -436,7 +444,9 @@ extension FleetModel {
         var defects = 0
         var services = 0
         var photos = 0
-        var total: Int { inspections + defects + services }
+        var chainLogs = 0
+        var lengthChanges = 0
+        var total: Int { inspections + defects + services + chainLogs + lengthChanges }
     }
 
     /// Deletes inspections, closed defects (with photos) and reviewed service
@@ -474,6 +484,36 @@ extension FleetModel {
                 batch.deleteDocument(FS.costs(fleetId, vehicleId).document(document.documentID))
                 try await batch.commit()
                 summary.services += 1
+            }
+        }
+
+        for vehicleId in vehicleIds {
+            summary.chainLogs += try await FleetDeleter.deleteAll(
+                FS.chainLogs(fleetId, vehicleId).whereField("loggedAt", isLessThan: cutoff))
+        }
+
+        let equipmentIds = try await FS.equipmentCollection(fleetId).getDocuments().documents.map(\.documentID)
+        for equipmentId in equipmentIds {
+            let oldDefects = try await FS.equipmentDefects(fleetId, equipmentId)
+                .whereField("closedAt", isLessThan: cutoff).getDocuments()
+            for document in oldDefects.documents {
+                if let defect = try? document.data(as: Defect.self) {
+                    for photo in defect.photos.values {
+                        guard let path = photo.path else { continue }
+                        try? await Storage.storage().reference(withPath: path).delete()
+                        summary.photos += 1
+                        freedPhotoBytes += Int64(photo.byteCount ?? 0)
+                    }
+                }
+                try await document.reference.delete()
+                summary.defects += 1
+            }
+            let oldChanges = try await FS.lengthChanges(fleetId, equipmentId)
+                .whereField("submittedAt", isLessThan: cutoff).getDocuments()
+            for document in oldChanges.documents
+            where (try? document.data(as: LengthChange.self))?.status != .pending {
+                try await document.reference.delete()
+                summary.lengthChanges += 1
             }
         }
 

@@ -97,6 +97,7 @@ struct MainTabView: View {
     }
 
     private var defectBadge: Int {
-        fleet.allOpenDefects.count + (fleet.isManager ? fleet.allPendingServices.count : 0)
+        fleet.allOpenDefects.count
+            + (fleet.isManager ? fleet.allPendingServices.count + fleet.allPendingLengthChanges.count : 0)
     }
 }

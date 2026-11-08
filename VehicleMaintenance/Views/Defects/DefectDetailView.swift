@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DefectDetailView: View {
-    let vehicleId: String
+    let owner: DefectOwner
     let defectId: String
 
     @Environment(FleetModel.self) private var fleet
@@ -27,7 +27,7 @@ struct DefectDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if document == nil {
-                document = LiveDocument(FS.defects(fleet.fleetId, vehicleId).document(defectId))
+                document = LiveDocument(owner.defects(fleetId: fleet.fleetId).document(defectId))
             }
         }
     }
@@ -41,11 +41,9 @@ struct DefectDetailView: View {
                         Spacer()
                         DefectStatusBadge(defect: defect)
                     }
-                    if let vehicle = fleet.vehicle(vehicleId) {
-                        Text(vehicle.displayName).foregroundStyle(Color.secondary)
-                    }
+                    Text(fleet.context(for: owner)).foregroundStyle(Color.secondary)
                     if defect.unsafe && defect.isOpen {
-                        Label("Unsafe to drive", systemImage: "exclamationmark.octagon.fill")
+                        Label(isEquipment ? "Do not use" : "Unsafe to drive", systemImage: "exclamationmark.octagon.fill")
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(.red)
                     }
@@ -97,6 +95,11 @@ struct DefectDetailView: View {
         }
     }
 
+    private var isEquipment: Bool {
+        if case .equipment = owner { return true }
+        return false
+    }
+
     private struct ActionBox: Identifiable {
         let type: DefectEventType
         var id: String { type.rawValue }
@@ -122,7 +125,7 @@ struct DefectDetailView: View {
                     if !newPhotoIds.isEmpty {
                         Button("Add \(newPhotoIds.count) Photo\(newPhotoIds.count == 1 ? "" : "s")") {
                             do {
-                                try fleet.addPhotos(newPhotos, to: defect, vehicleId: vehicleId)
+                                try fleet.addPhotos(newPhotos, to: defect, owner: owner)
                                 newPhotoIds = []
                                 newPhotos = [:]
                             } catch {
@@ -160,6 +163,14 @@ struct DefectDetailView: View {
                     .tint(.green)
                     Button { action = .notDefect } label: {
                         Label("Not a Defect", systemImage: "xmark.seal")
+                    }
+                    if isEquipment {
+                        Button(role: defect.unsafe ? nil : .destructive) {
+                            fleet.setUnsafe(!defect.unsafe, on: defect, owner: owner)
+                        } label: {
+                            Label(defect.unsafe ? "Clear \"Do Not Use\"" : "Mark \"Do Not Use\"",
+                                  systemImage: "exclamationmark.octagon")
+                        }
                     }
                 }
             } else if fleet.isManager {
@@ -211,10 +222,10 @@ struct DefectDetailView: View {
     private func perform(_ type: DefectEventType, on defect: Defect) {
         do {
             switch type {
-            case .repaired: try fleet.close(defect, vehicleId: vehicleId, resolution: .repaired, note: note)
-            case .notDefect: try fleet.close(defect, vehicleId: vehicleId, resolution: .notDefect, note: note)
-            case .reopened: try fleet.reopen(defect, vehicleId: vehicleId, note: note)
-            default: try fleet.addEvent(type, note: note, to: defect, vehicleId: vehicleId)
+            case .repaired: try fleet.close(defect, owner: owner, resolution: .repaired, note: note)
+            case .notDefect: try fleet.close(defect, owner: owner, resolution: .notDefect, note: note)
+            case .reopened: try fleet.reopen(defect, owner: owner, note: note)
+            default: try fleet.addEvent(type, note: note, to: defect, owner: owner)
             }
             errorMessage = nil
         } catch {
@@ -225,9 +236,12 @@ struct DefectDetailView: View {
     }
 }
 
-/// Report a problem outside of a checklist.
+/// Report a problem on a truck (outside a checklist) or on a chainsaw or rope.
 struct ReportDefectView: View {
-    let vehicle: Vehicle
+    let owner: DefectOwner
+    /// Whether this person may mark it unsafe / do not use.
+    var allowUnsafe = true
+    var unsafeLabel = "Unsafe to drive"
 
     @Environment(FleetModel.self) private var fleet
     @Environment(\.dismiss) private var dismiss
@@ -242,19 +256,22 @@ struct ReportDefectView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("What's wrong? (e.g. Cracked windshield)", text: $title)
+                    LabeledContent("For", value: fleet.context(for: owner))
+                    TextField("What's wrong? (e.g. Chain brake sticks)", text: $title)
                     TextField("Details", text: $details, axis: .vertical)
                         .lineLimit(3...6)
                 }
-                Section {
-                    Toggle(isOn: $unsafe) {
-                        Label("Unsafe to drive", systemImage: "exclamationmark.octagon")
-                            .foregroundStyle(unsafe ? Color.red : Color.primary)
-                    }
-                } footer: {
-                    if unsafe {
-                        Text("The vehicle will be marked UNSAFE TO DRIVE for everyone until a manager clears it.")
-                            .foregroundStyle(.red)
+                if allowUnsafe {
+                    Section {
+                        Toggle(isOn: $unsafe) {
+                            Label(unsafeLabel, systemImage: "exclamationmark.octagon")
+                                .foregroundStyle(unsafe ? Color.red : Color.primary)
+                        }
+                    } footer: {
+                        if unsafe {
+                            Text("Everyone will see a red \"\(unsafeLabel)\" warning until a manager clears it.")
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
                 if fleet.photosEnabled {
@@ -277,7 +294,8 @@ struct ReportDefectView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Report") {
                         do {
-                            try fleet.reportDefect(vehicle: vehicle, title: title, details: details, unsafe: unsafe,
+                            try fleet.reportDefect(owner: owner, title: title, details: details,
+                                                   unsafe: allowUnsafe && unsafe,
                                                    photos: photos.filter { photoIds.contains($0.key) })
                             dismiss()
                         } catch {

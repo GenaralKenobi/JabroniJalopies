@@ -27,6 +27,7 @@ If you use the app as a member of a fleet, your fleet's managers can see the inf
 | **Vehicle information** | Make, model, year, VIN, license plate, odometer readings, fluid and tire specifications, vehicle photo | To run the fleet's maintenance. |
 | **Inspection records** | Completed checklists: who completed them, when (by the phone's clock and when they reached our servers), results, readings and notes | To record vehicle condition and safety checks. |
 | **Defect reports and photos** | Description of a problem, who reported it, when, and optional photos | So problems get seen and repaired. |
+| **Equipment and chain records** | Chainsaws and ropes on each truck, problems reported on them, rope length changes, and chain counts logged at the end of the day — with who logged them and when | To keep equipment safe and track chain use. |
 | **Service records** | Service type, date, odometer, shop, notes, and costs (costs are visible to managers only) | Maintenance history and sign-off. |
 | **Technical data** | Information our providers need to deliver the service, such as IP addresses in server logs | Security and reliability. |
 
@@ -55,7 +56,7 @@ Members of one fleet can never see another fleet's data. This is enforced by ser
 
 ## How long we keep it
 
-- Inspection records, closed defect reports and their photos, and service records are **deleted automatically five years** after they're created. Defects are deleted five years after they're closed.
+- Inspection records, closed defect reports and their photos, service records, chain logs and rope length changes are **deleted automatically five years** after they're created. Defects are deleted five years after they're closed.
 - Managers can delete records earlier.
 - **When you leave a fleet or delete your account:**
   - Your login, your profile, and your membership in each fleet are deleted.

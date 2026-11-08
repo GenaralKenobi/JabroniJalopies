@@ -22,6 +22,9 @@ struct VehicleDetailView: View {
     @State private var confirmingDelete = false
     @State private var didOpenDemoScreen = false
     @State private var demoSpecs = false
+    @State private var addingEquipment: Equipment?
+    @State private var demoChains = false
+    @State private var demoEquipmentId: String?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -51,6 +54,8 @@ struct VehicleDetailView: View {
             }
 
             defectsSection(openDefects)
+            chainsSection
+            equipmentSection
             remindersSection(vehicle)
             inspectionsSection
             servicesSection(vehicle)
@@ -70,8 +75,11 @@ struct VehicleDetailView: View {
             openDemoScreenIfNeeded(checklists: checklists)
         }
         .navigationDestination(isPresented: $demoSpecs) { SpecsView(vehicleId: vehicleId) }
+        .navigationDestination(isPresented: $demoChains) { ChainsView(vehicleId: vehicleId) }
+        .navigationDestination(item: $demoEquipmentId) { EquipmentDetailView(equipmentId: $0) }
         .sheet(isPresented: $showingEdit) { VehicleFormView(vehicle: vehicle) }
-        .sheet(isPresented: $showingReportProblem) { ReportDefectView(vehicle: vehicle) }
+        .sheet(item: $addingEquipment) { EquipmentFormView(item: $0) }
+        .sheet(isPresented: $showingReportProblem) { ReportDefectView(owner: .vehicle(vehicleId)) }
         .sheet(isPresented: $showingLogService) { ServiceRecordFormView(vehicle: vehicle) }
         .sheet(item: $editingService) { ServiceRecordFormView(vehicle: vehicle, record: $0, cost: records?.cost(of: $0)) }
         .sheet(item: $reviewingService) { ServiceReviewView(vehicle: vehicle, record: $0) }
@@ -142,6 +150,10 @@ struct VehicleDetailView: View {
                 } else {
                     ConditionBadge(condition: condition)
                 }
+                let alerts = fleet.equipmentAlerts(on: vehicleId)
+                if !alerts.isEmpty {
+                    EquipmentAlertBanner(alerts: alerts)
+                }
             }
             .frame(maxWidth: .infinity)
             .listRowBackground(Color.clear)
@@ -195,7 +207,7 @@ struct VehicleDetailView: View {
             } else {
                 ForEach(openDefects) { defect in
                     NavigationLink {
-                        DefectDetailView(vehicleId: vehicleId, defectId: defect.id ?? "")
+                        DefectDetailView(owner: .vehicle(vehicleId), defectId: defect.id ?? "")
                     } label: {
                         DefectRow(defect: defect, unsynced: records?.unsyncedDefectIds.contains(defect.id ?? "") ?? false)
                     }
@@ -203,11 +215,71 @@ struct VehicleDetailView: View {
             }
             if let records, records.defects.contains(where: { $0.status == .closed }) {
                 NavigationLink("Closed Defects") {
-                    DefectHistoryView(vehicleId: vehicleId, records: records)
+                    DefectHistoryView(owner: .vehicle(vehicleId), defects: records.defects)
                 }
             }
         } header: {
             Text("Open Defects")
+        }
+    }
+
+    @ViewBuilder
+    private var chainsSection: some View {
+        let inventory = fleet.chainInventories[vehicleId]
+        if let inventory, !inventory.sizes.isEmpty {
+            Section {
+                ChainSummaryRows(inventory: inventory)
+                NavigationLink {
+                    ChainsView(vehicleId: vehicleId)
+                } label: {
+                    Label("Log Chains", systemImage: "link")
+                }
+            } header: {
+                Text("Chains")
+            }
+        } else if fleet.isManager {
+            Section("Chains") {
+                NavigationLink {
+                    ChainsView(vehicleId: vehicleId)
+                } label: {
+                    Label("Set Up Chain Tracking", systemImage: "link")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var equipmentSection: some View {
+        let items = fleet.equipment(on: vehicleId)
+        if !items.isEmpty || fleet.isManager {
+            Section {
+                ForEach(items) { item in
+                    NavigationLink {
+                        EquipmentDetailView(equipmentId: item.id ?? "")
+                    } label: {
+                        EquipmentRow(item: item)
+                    }
+                }
+                if fleet.isManager {
+                    Menu {
+                        ForEach(EquipmentType.allCases) { type in
+                            Button {
+                                addingEquipment = .new(type, vehicleId: vehicleId)
+                            } label: {
+                                Label("Add \(type.displayName)", systemImage: type.symbolName)
+                            }
+                        }
+                    } label: {
+                        Label("Add Chainsaw or Rope", systemImage: "plus")
+                    }
+                }
+            } header: {
+                Text("Chainsaws & Ropes")
+            } footer: {
+                if !items.isEmpty {
+                    Text("Tap a saw or rope to report a problem\(items.contains { $0.type == .rope } ? " or submit a rope length change" : "").")
+                }
+            }
         }
     }
 
@@ -385,6 +457,9 @@ struct VehicleDetailView: View {
         switch screen {
         case "specs": demoSpecs = true
         case "checklist": activeChecklist = checklists.first
+        case "truckchains": demoChains = true
+        case "equipment-detail":
+            demoEquipmentId = fleet.equipment(on: vehicleId, type: .rope).first?.id ?? fleet.equipment(on: vehicleId).first?.id
         default: break
         }
     }

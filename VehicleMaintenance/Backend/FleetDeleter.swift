@@ -20,11 +20,20 @@ enum FleetDeleter {
 
     /// Deletes a vehicle with all of its records and photos.
     static func deleteVehicle(fleetId: String, vehicleId: String) async throws {
-        try await deletePhotos(fleetId: fleetId, vehicleId: vehicleId, defects: FS.defects(fleetId, vehicleId))
+        try await deletePhotos(defects: FS.defects(fleetId, vehicleId))
         for name in FS.vehicleSubcollections {
             try await deleteAll(FS.vehicle(fleetId, vehicleId).collection(name))
         }
         try await FS.vehicle(fleetId, vehicleId).delete()
+    }
+
+    /// Deletes a chainsaw or rope with its defects, photos and length history.
+    static func deleteEquipment(fleetId: String, equipmentId: String) async throws {
+        try await deletePhotos(defects: FS.equipmentDefects(fleetId, equipmentId))
+        for name in FS.equipmentSubcollections {
+            try await deleteAll(FS.equipment(fleetId, equipmentId).collection(name))
+        }
+        try await FS.equipment(fleetId, equipmentId).delete()
     }
 
     /// Deletes all of a fleet's data except the fleet document and the caller's membership.
@@ -33,13 +42,17 @@ enum FleetDeleter {
         for vehicle in vehicles.documents {
             try await deleteVehicle(fleetId: fleetId, vehicleId: vehicle.documentID)
         }
+        let equipment = try await FS.equipmentCollection(fleetId).getDocuments()
+        for item in equipment.documents {
+            try await deleteEquipment(fleetId: fleetId, equipmentId: item.documentID)
+        }
         try await deleteAll(FS.checklists(fleetId))
         try await deleteAll(FS.invites.whereField("fleetId", isEqualTo: fleetId))
         try await FS.fleet(fleetId).delete()
     }
 
     /// Deletes the uploaded photos for the defects in a query.
-    static func deletePhotos(fleetId: String, vehicleId: String, defects: Query) async throws {
+    static func deletePhotos(defects: Query) async throws {
         let snapshot = try await defects.getDocuments()
         for document in snapshot.documents {
             guard let defect = try? document.data(as: Defect.self) else { continue }

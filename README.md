@@ -40,6 +40,18 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
 - A glanceable card for each vehicle: fluids, tires and wheels (with pressures emphasized), and parts and capacities.
 - Managers can edit values and add, rename or remove fields and whole sections. Empty fields are hidden from drivers.
 
+### Chainsaws, ropes and chains
+- **Chainsaws and ropes** are tracked individually on each truck. Only managers can add them, edit them, or move them between trucks, and each item's history moves with it.
+- **Equipment problems:** anyone on the truck can report a problem on a saw or rope, with an optional photo, even offline.
+  - These problems don't flag the truck itself. Instead, an orange or red banner on the truck page, and a badge in the fleet list, warn everyone who uses that truck.
+  - Saws can be marked **Do not use** by anyone. Ropes can be marked **Do not use** by managers only.
+- **Rope length:** anyone can submit a length reduction, which applies only after a manager approves it. Submissions can't be withdrawn. A rope shorter than its optional minimum length is flagged.
+- **Chains:** each truck has its own chain sizes, set by managers, and shows how many sharp chains of each size it has.
+  - **Empty Used Chain Box:** at the end of the day, record how many chains are dull and need resharpening, and how many are thrown away.
+  - **Add Chains:** anyone can record chains put on any truck, new or back from sharpening.
+  - Counts change by adding and subtracting, so logs made offline by several people all count. If a count goes below zero, it's flagged for a manager to correct.
+- **Managers only:** fleet-wide chain totals per size for the week, month and year, plus an all-equipment list that includes items not currently on a truck.
+
 ### Maintenance and services
 - Maintenance reminders can be based on distance, time, or whichever comes first. Managers get a notification when time-based reminders come due.
 - Drivers can log services, but they count only after a manager signs off. An approved service resets matching reminders.

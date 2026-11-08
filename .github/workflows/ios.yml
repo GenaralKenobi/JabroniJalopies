@@ -173,8 +173,12 @@ jobs:
           shoot 08-data-storage light -initialTab settings -demoScreen storage
           shoot 09-members light -initialTab settings -demoScreen members
           shoot 10-checklists light -initialTab settings -demoScreen checklists
-          shoot 11-fleet-dark dark -initialTab fleet
-          shoot 12-vehicle-dark dark -initialTab fleet -demoScreen vehicle
+          shoot 11-truck-chains light -initialTab fleet -demoScreen truckchains
+          shoot 12-rope light -initialTab fleet -demoScreen equipment-detail
+          shoot 13-chain-totals light -initialTab settings -demoScreen chains
+          shoot 14-equipment light -initialTab settings -demoScreen equipment
+          shoot 15-fleet-dark dark -initialTab fleet
+          shoot 16-vehicle-dark dark -initialTab fleet -demoScreen vehicle
 
           kill $LOG_PID 2>/dev/null || true
           echo "--- App log (demo + errors) ---"

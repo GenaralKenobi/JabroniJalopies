@@ -16,11 +16,11 @@ struct DefectsTabView: View {
                         Label("No open defects", systemImage: "checkmark.circle")
                             .foregroundStyle(Color.secondary)
                     }
-                    ForEach(defects, id: \.defect.id) { entry in
+                    ForEach(defects) { entry in
                         NavigationLink {
-                            DefectDetailView(vehicleId: entry.vehicle.id ?? "", defectId: entry.defect.id ?? "")
+                            DefectDetailView(owner: entry.owner, defectId: entry.defect.id ?? "")
                         } label: {
-                            DefectRow(defect: entry.defect, vehicleName: entry.vehicle.displayName)
+                            DefectRow(defect: entry.defect, context: entry.context)
                         }
                     }
                 } header: {
@@ -28,6 +28,21 @@ struct DefectsTabView: View {
                 } footer: {
                     if !defects.isEmpty {
                         Text(fleet.isManager ? "Only managers can close defects." : "A manager closes defects once they're repaired.")
+                    }
+                }
+
+                let ropeChanges = fleet.allPendingLengthChanges
+                if !ropeChanges.isEmpty {
+                    Section {
+                        ForEach(ropeChanges, id: \.change.id) { entry in
+                            NavigationLink {
+                                EquipmentDetailView(equipmentId: entry.equipment.id ?? "")
+                            } label: {
+                                LengthChangeRow(change: entry.change, ropeName: fleet.context(for: .equipment(entry.equipment.id ?? "")))
+                            }
+                        }
+                    } header: {
+                        Text(fleet.isManager ? "Rope Length Changes to Approve" : "Rope Length Changes Awaiting Approval")
                     }
                 }
 
@@ -66,7 +81,7 @@ struct DefectsTabView: View {
 
 struct DefectRow: View {
     let defect: Defect
-    var vehicleName: String?
+    var context: String?
     var unsynced = false
 
     var body: some View {
@@ -75,8 +90,8 @@ struct DefectRow: View {
                 .foregroundStyle(defect.status == .closed ? Color.secondary : defect.unsafe ? Color.red : Color.orange)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 3) {
-                if let vehicleName {
-                    Text(vehicleName).font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
+                if let context {
+                    Text(context).font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
                 }
                 Text(defect.title).foregroundStyle(Color.primary)
                 if !defect.details.isEmpty {
@@ -104,13 +119,13 @@ struct DefectRow: View {
 }
 
 struct DefectHistoryView: View {
-    let vehicleId: String
-    let records: VehicleRecordsModel
+    let owner: DefectOwner
+    let defects: [Defect]
 
     var body: some View {
-        List(records.defects.filter { $0.status == .closed }) { defect in
+        List(defects.filter { $0.status == .closed }) { defect in
             NavigationLink {
-                DefectDetailView(vehicleId: vehicleId, defectId: defect.id ?? "")
+                DefectDetailView(owner: owner, defectId: defect.id ?? "")
             } label: {
                 DefectRow(defect: defect)
             }

@@ -11,7 +11,7 @@ enum DemoConfig {
         #endif
     }
 
-    /// vehicle, specs, checklist, defect, members, storage, checklists
+    /// vehicle, specs, checklist, truckchains, equipment-detail, members, storage, checklists, equipment, chains
     static var screen: String? {
         #if DEBUG
         return UserDefaults.standard.string(forKey: "demoScreen")
