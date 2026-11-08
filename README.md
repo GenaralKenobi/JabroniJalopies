@@ -56,7 +56,7 @@ fills the app with demo vehicles.
 2. builds the app and runs the unit tests on an iPhone simulator
 3. launches the app with demo data and screenshots each tab in light and dark mode
 
-The build log, test results and screenshots are uploaded as the `ios-build-results` artifact on each run.
+The build log, test results and screenshots are uploaded as the `ios-build-results` artifact on each run. For pushes to `main`, the screenshots are also published to the [`ci-screenshots`](../../tree/ci-screenshots) branch so you can view them on GitHub.
 
 ## Project layout
 

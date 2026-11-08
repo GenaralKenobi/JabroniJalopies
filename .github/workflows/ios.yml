@@ -16,8 +16,10 @@ jobs:
   build-and-test:
     runs-on: macos-latest
     timeout-minutes: 45
+    permissions:
+      contents: write # to publish screenshots to the ci-screenshots branch
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Show toolchain
         run: |
@@ -81,9 +83,31 @@ jobs:
             done
           done
 
+      - name: Publish screenshots to the ci-screenshots branch
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHOTS=$(mktemp -d)
+          cp screenshots/*.png "$SHOTS"/
+          cd "$SHOTS"
+          {
+            echo "# Simulator screenshots"
+            echo
+            echo "Built from ${GITHUB_SHA} (run ${GITHUB_RUN_ID})."
+            echo
+            for f in *.png; do echo "### ${f%.png}"; echo; echo "<img src=\"$f\" width=\"300\">"; echo; done
+          } > README.md
+          git init -q -b ci-screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Screenshots for ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-screenshots
+
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ios-build-results
           if-no-files-found: ignore
