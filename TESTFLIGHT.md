@@ -65,7 +65,11 @@ To get the `.p8` text on an iPhone:
 
 On a computer, open the file in any text editor.
 
-## 7. Build and upload
+## 7. Add the Firebase config
+
+The app needs your Firebase project's `GoogleService-Info.plist` in `VehicleMaintenance/Resources/`. If you haven't added it yet, follow [FIREBASE_SETUP.md](FIREBASE_SETUP.md). The TestFlight workflow stops with a clear message if the file is missing.
+
+## 8. Build and upload
 
 1. In this repository, go to **Actions**, then **TestFlight**, then **Run workflow**.
 2. The build takes about 10–15 minutes.
@@ -73,7 +77,7 @@ On a computer, open the file in any text editor.
 
 To publish a new version later, change `MARKETING_VERSION` in `project.yml` and run the workflow again. Each run gets a higher build number automatically.
 
-## 8. Install on your iPhone
+## 9. Install on your iPhone
 
 1. In App Store Connect, open your app, then the **TestFlight** tab.
 2. Under **Internal Testing**, click **+** to create a group, then add yourself.

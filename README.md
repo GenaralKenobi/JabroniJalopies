@@ -1,93 +1,94 @@
-# Vehicle Maintenance (iOS)
+# Fleet Maintenance (iOS)
 
-A SwiftUI + SwiftData app for tracking vehicle maintenance: service history, recurring
-reminders by distance and/or time, costs, and due-date notifications.
+A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect reporting, a quick-reference spec card for each vehicle, maintenance reminders, and service history. Managers and drivers share a fleet, and checklists work without signal.
 
-**Requirements:** Xcode 15 or later, iOS 17 or later. No third-party dependencies.
+**Built with:**
+- SwiftUI on iOS 17 or later
+- Firebase: Authentication, Firestore and Cloud Storage
+
+[Screenshots](../../tree/ci-screenshots) are captured automatically by CI on every push to `main`.
 
 ## Features
 
-- **Garage**: multiple vehicles with a photo, make, model, year, VIN, license plate and odometer reading.
-- **Service log**: the date, odometer reading, service type, cost, shop and notes for each service. You can search it, and it's grouped by year with yearly totals.
-- **Maintenance reminders**: due every *N* miles/km and/or *N* months, whichever comes first.
-  - Status: *Up to date*, *Due soon* (within 500 units or 30 days) or *Overdue*.
-  - Picking a service type pre-fills a typical interval (oil change: 5,000 mi / 6 months, and so on).
-  - Logging a service automatically resets the matching reminder.
-  - A local notification is sent on the morning a time-based reminder comes due.
-- **Upcoming tab**: overdue and due-soon items across all vehicles.
-- **Costs**: total spent, spending this year, and a 12-month bar chart (Swift Charts).
-- **Export**: a vehicle's service history as CSV through the share sheet.
-- **Settings**: miles or kilometers, and notification permission.
+### Fleets, people and roles
+- People are invited by email. Each person creates their own login and confirms their email.
+- One login can belong to several fleets. Each fleet has its own profile (name, phone) and role.
+- Roles:
+  - **Manager:** edits vehicles, checklists and specs; approves services; closes defects; manages members; sees costs.
+  - **Driver:** completes checklists, reports problems, logs services (which need sign-off) and updates the odometer.
+- Everyone sees every vehicle by default. A manager can limit a driver to the vehicles assigned to them.
 
-## Getting started
+### Morning checklists
+- Managers build checklist templates. Every item is pass/fail.
+- For each item, the manager decides whether it also asks for a number reading (for example tire pressure in PSI) and whether it's a safety item.
+- When an item fails, the app asks for a photo, but a photo isn't required.
+- A failed safety item marks the vehicle **UNSAFE TO DRIVE**. Everyone sees a strong warning, including anyone who starts another checklist on that vehicle.
+- If an item already has an open defect, the driver chooses **Still a problem** or **Looks fixed** (with a required note) instead of plain pass/fail. A later "pass" never erases an earlier problem.
 
-The Xcode project is generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen):
+### Defects
+- Defects can only be closed by a manager, as **Repaired** or **Not a defect**.
+- Each defect keeps a full history of who reported, confirmed or reported it fixed, and when.
+- When a report reaches the server late, the defect shows both the time it was reported on the phone and the time it reached the server.
+
+### Offline first
+- Firestore's on-device cache lets drivers view vehicles and specs, and submit checklists, with no connection.
+- Changes sync automatically when the phone is back online.
+- Defect **text uploads first**. **Photos are saved on the phone** and upload separately whenever there's signal. They retry after the app restarts and in background refreshes, so a problem gets flagged even when a photo can't get through.
+- A banner shows when the phone is offline or photos are waiting to upload. Records that haven't synced yet are marked "Waiting to sync".
+
+### Vehicle specs quick view
+- A glanceable card for each vehicle: fluids, tires and wheels (with pressures emphasized), and parts and capacities.
+- Managers can edit values and add, rename or remove fields and whole sections. Empty fields are hidden from drivers.
+
+### Maintenance and services
+- Maintenance reminders can be based on distance, time, or whichever comes first. Managers get a notification when time-based reminders come due.
+- Drivers can log services, but they count only after a manager signs off. An approved service resets matching reminders.
+- Costs, the 12-month cost chart and cost totals are visible to managers only. Service history can be exported as CSV.
+
+### Data, storage and privacy
+- Records are deleted automatically after 5 years. Managers can delete old records earlier.
+- Storage use is tracked against Firebase's free allowances. Managers get an in-app warning and a notification at 80%.
+- In-app account deletion is included. Signing out wipes the on-device copy of the fleet's data.
+- There's no analytics, no ads and no location tracking. See [PRIVACY.md](PRIVACY.md) for the draft privacy policy.
+
+## Setup
+
+1. **Firebase:** follow [FIREBASE_SETUP.md](FIREBASE_SETUP.md). It takes about 15 minutes in a browser and ends with adding `GoogleService-Info.plist`. Builds without that file show a "Firebase not set up" screen.
+2. **Install on iPhone without a Mac:** follow [TESTFLIGHT.md](TESTFLIGHT.md). GitHub Actions builds, signs and uploads to TestFlight.
+3. **With a Mac (optional):**
 
 ```bash
 brew install xcodegen
 ```
 
 ```bash
-xcodegen generate
+xcodegen generate && open VehicleMaintenance.xcodeproj
 ```
-
-```bash
-open VehicleMaintenance.xcodeproj
-```
-
-Then select your development team under *Signing & Capabilities* and run. The bundle ID is
-`com.genaralkenobi.maintenance`. In debug builds, **Settings → Load Sample Data**
-fills the app with demo vehicles.
-
-### No Mac? Install from TestFlight
-
-GitHub Actions can build, sign and upload the app to TestFlight for you. See
-[TESTFLIGHT.md](TESTFLIGHT.md) for the one-time setup.
-
-<details>
-<summary>Without XcodeGen</summary>
-
-1. In Xcode, choose File → New → Project → iOS App (SwiftUI interface, SwiftData storage), name it `VehicleMaintenance` and set iOS 17 as the minimum.
-2. Delete the generated `ContentView.swift`, `Item.swift` and `VehicleMaintenanceApp.swift`.
-3. Drag the `VehicleMaintenance/` source folders into the project.
-4. Add `VehicleMaintenanceTests/LogicTests.swift` to a unit-test target.
-</details>
-
-## Continuous integration
-
-`.github/workflows/ios.yml` runs on every push on a GitHub-hosted Mac. It:
-
-1. generates the project with XcodeGen
-2. builds the app and runs the unit tests on an iPhone simulator
-3. launches the app with demo data and screenshots each tab in light and dark mode
-
-The build log, test results and screenshots are uploaded as the `ios-build-results` artifact on each run. For pushes to `main`, the screenshots are also published to the [`ci-screenshots`](../../tree/ci-screenshots) branch so you can view them on GitHub.
 
 ## Project layout
 
 ```
 VehicleMaintenance/
-├── App/            App entry point and tab bar
-├── Models/         SwiftData models (Vehicle, ServiceRecord, MaintenanceReminder) and enums
-├── Logic/          Pure, unit-tested logic: due-date math, cost aggregation, CSV, number parsing
-├── Services/       Notifications, image downscaling, CSV export, sample data
-├── Views/          SwiftUI screens grouped by feature
-└── Resources/      Asset catalog (app icon, accent color)
-VehicleMaintenanceTests/  Swift Testing unit tests
+├── App/          Entry point, routing, tab bar
+├── Models/       Firestore documents (fleets, members, vehicles, checklists, inspections, defects…)
+├── Logic/        Pure, unit-tested logic: checklist → defect planning, due dates, usage, specs, CSV
+├── Backend/      Firebase setup, auth, session/fleet models and actions, offline photo queue
+└── Views/        SwiftUI screens by feature
+VehicleMaintenanceTests/   Swift Testing unit tests
+firebase/
+├── firestore.rules, storage.rules   Security rules (roles, visibility, defect lifecycle)
+├── firestore.indexes.json           5-year TTL policies
+├── storage-lifecycle.json           5-year photo retention
+├── tests/                           Rules tests run against the emulators
+└── scripts/seed-demo.mjs            Demo data for screenshots
 ```
 
-## Notes
+## Continuous integration
 
-- All model properties have defaults and relationships are optional, so the schema is ready
-  for iCloud sync. To turn it on, add the iCloud (CloudKit) and Background Modes (Remote
-  notifications) capabilities.
-- Odometer values are stored in whichever unit you choose. Switching units doesn't convert existing readings.
-- The app icon is generated by `scripts/make_icon.py`.
+`.github/workflows/ios.yml` runs on every push:
 
-## Ideas for next steps
+1. **Security rules tests** against the Firebase emulators. These check roles, vehicle visibility, invites, defect closing, service sign-off and photos.
+2. The app build and **unit tests** on an iPhone simulator, plus an unsigned **Release** build.
+3. **Screenshots:** starts the Firebase emulators, seeds a demo fleet, and screenshots the main screens. They're published to the [`ci-screenshots`](../../tree/ci-screenshots) branch.
 
-- Fuel log with MPG/L per 100 km tracking
-- Receipt photos and documents attached to service records
-- VIN decoding to fill in make, model and year automatically
-- Home screen widget showing the next due item
-- iCloud sync and sharing a vehicle with family members
+`.github/workflows/firebase-deploy.yml` deploys the rules, TTL policies and photo lifecycle once it's configured. `.github/workflows/testflight.yml` uploads builds to TestFlight.

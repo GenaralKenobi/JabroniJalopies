@@ -1,0 +1,79 @@
+name: Deploy Firebase Rules
+
+# Deploys Firestore security rules and indexes (including the 5-year TTL
+# policies), and — once Cloud Storage is enabled — Storage rules and the photo
+# retention lifecycle rule. See FIREBASE_SETUP.md for the one-time setup.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - firebase/firestore.rules
+      - firebase/firestore.indexes.json
+      - firebase/storage.rules
+      - firebase/storage-lifecycle.json
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
+      SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - name: Check configuration
+        run: |
+          if [ -z "$PROJECT_ID" ] || [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::notice::Skipping: set the FIREBASE_PROJECT_ID variable and FIREBASE_SERVICE_ACCOUNT secret to enable deploys (see FIREBASE_SETUP.md)."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/checkout@v6
+        if: env.SKIP != '1'
+
+      - uses: actions/setup-node@v6
+        if: env.SKIP != '1'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/package-lock.json
+
+      - name: Install Firebase CLI
+        working-directory: firebase
+        if: env.SKIP != '1'
+        run: npm ci
+
+      - name: Authenticate
+        if: env.SKIP != '1'
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy Firestore rules and indexes (with TTL)
+        working-directory: firebase
+        if: env.SKIP != '1'
+        run: npx firebase deploy --only firestore --project "$PROJECT_ID" --non-interactive --force
+
+      - name: Deploy Storage rules
+        working-directory: firebase
+        if: env.SKIP != '1' && env.STORAGE_BUCKET != ''
+        run: npx firebase deploy --only storage --project "$PROJECT_ID" --non-interactive
+
+      - uses: google-github-actions/auth@v2
+        if: env.SKIP != '1' && env.STORAGE_BUCKET != ''
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: env.SKIP != '1' && env.STORAGE_BUCKET != ''
+
+      - name: Apply 5-year photo retention
+        working-directory: firebase
+        if: env.SKIP != '1' && env.STORAGE_BUCKET != ''
+        run: gcloud storage buckets update "gs://$STORAGE_BUCKET" --lifecycle-file=storage-lifecycle.json
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json"
