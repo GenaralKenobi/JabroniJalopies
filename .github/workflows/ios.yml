@@ -85,7 +85,7 @@ jobs:
             -clonedSourcePackagesDirPath build/SourcePackages \
             -resultBundlePath build/TestResults.xcresult \
             -skipPackagePluginValidation -skipMacroValidation \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY=- \
             > build/xcodebuild.log 2>&1 || status=$?
           # Print only the useful lines; the full log is uploaded as an artifact.
           grep -E "error:|warning: .*\.swift|Test .*(passed|failed)|✔|✘|\*\* (BUILD|TEST)" build/xcodebuild.log | grep -v "SourcePackages" | sort -u | head -300 || true
@@ -148,6 +148,11 @@ jobs:
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
           xcrun simctl install "$UDID" "$APP"
           mkdir -p screenshots
+          # Keep the app's log so demo/sign-in problems are visible in CI.
+          xcrun simctl spawn "$UDID" log stream --level info \
+            --predicate 'subsystem == "com.genaralkenobi.maintenance" OR (process == "VehicleMaintenance" AND messageType == error)' \
+            > build/app.log 2>&1 &
+          LOG_PID=$!
 
           shoot() { # name appearance [launch args...]
             local name="$1" appearance="$2"; shift 2
@@ -170,6 +175,10 @@ jobs:
           shoot 10-checklists light -initialTab settings -demoScreen checklists
           shoot 11-fleet-dark dark -initialTab fleet
           shoot 12-vehicle-dark dark -initialTab fleet -demoScreen vehicle
+
+          kill $LOG_PID 2>/dev/null || true
+          echo "--- App log (demo + errors) ---"
+          grep -E "DEMO|rror" build/app.log | head -60 || true
 
       - name: Publish screenshots to the ci-screenshots branch
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -203,5 +212,6 @@ jobs:
             build/xcodebuild.log
             build/release.log
             build/emulators.log
+            build/app.log
             build/TestResults.xcresult
             screenshots/
