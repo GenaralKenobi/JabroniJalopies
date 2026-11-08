@@ -15,6 +15,11 @@ rules_version = '2';
 //     .../costs/{serviceId}                      service costs (managers only)
 //     .../inspections/{id}                       completed checklists (immutable)
 //     .../defects/{id}                           problems found on inspections
+//     .../chains/inventory                       chain sizes + counts on this truck
+//     .../chainLogs/{id}                         used-chain-box and chains-added logs
+//   fleets/{fleetId}/equipment/{equipmentId}     chainsaws and ropes (movable between trucks)
+//     .../defects/{id}                           equipment problems
+//     .../lengthChanges/{id}                     rope length reductions awaiting approval
 //
 // Roles: "manager" and "driver". Drivers see every vehicle unless a manager
 // turns off seesAllVehicles for them, in which case they only see vehicles
@@ -77,6 +82,24 @@ service cloud.firestore {
 
     function isRole(value) {
       return value in ['manager', 'driver'];
+    }
+
+    // Non-manager defect updates: attach photos any time (they may upload late),
+    // or confirm / report fixed while open — never close.
+    function memberDefectUpdateAllowed() {
+      return onlyChanges(['photos', 'updatedAt'])
+        || (resource.data.status in ['open', 'reportedFixed']
+          && onlyChanges(['history', 'photos', 'status', 'updatedAt'])
+          && request.resource.data.status in ['open', 'reportedFixed']
+          && historyAppendedOnly());
+    }
+
+    function equipmentData(fleetId, equipmentId) {
+      return get(/databases/$(database)/documents/fleets/$(fleetId)/equipment/$(equipmentId)).data;
+    }
+
+    function canSeeEquipment(fleetId, equipmentId) {
+      return canSeeVehicle(fleetId, equipmentData(fleetId, equipmentId).vehicleId);
     }
 
     // The existing history entries must be kept as-is; new entries may only be appended.
@@ -239,18 +262,68 @@ service cloud.firestore {
             && request.resource.data.status == 'open';
 
           allow update: if isManager(fleetId)
-            // Photos that were taken offline may finish uploading after the
-            // defect is closed, so attaching photos is allowed in any state.
-            || (canSeeVehicle(fleetId, vehicleId)
-              && onlyChanges(['photos', 'updatedAt']))
-            // Drivers can confirm or report as fixed, but never close.
-            || (canSeeVehicle(fleetId, vehicleId)
-              && resource.data.status in ['open', 'reportedFixed']
-              && onlyChanges(['history', 'photos', 'status', 'updatedAt'])
-              && request.resource.data.status in ['open', 'reportedFixed']
-              && historyAppendedOnly());
+            || (canSeeVehicle(fleetId, vehicleId) && memberDefectUpdateAllowed());
 
           allow delete: if isManager(fleetId);
+        }
+
+        // Chain sizes and current counts for this truck (doc id "inventory").
+        match /chains/{docId} {
+          allow read: if canSeeVehicle(fleetId, vehicleId);
+          allow create, delete: if isManager(fleetId);
+          // Anyone on the truck may change counts (logged in chainLogs); only managers change sizes.
+          allow update: if isManager(fleetId)
+            || (canSeeVehicle(fleetId, vehicleId) && onlyChanges(['counts', 'updatedAt']));
+        }
+
+        // Used-chain-box emptying and chains added. Permanent records.
+        match /chainLogs/{logId} {
+          allow read: if canSeeVehicle(fleetId, vehicleId);
+          allow create: if canSeeVehicle(fleetId, vehicleId)
+            && request.resource.data.loggedBy == request.auth.uid
+            && (request.resource.data.kind in ['usedBox', 'added'] || isManager(fleetId));
+          allow update: if false;
+          allow delete: if isManager(fleetId);
+        }
+      }
+
+      // ----- equipment (chainsaws, ropes) -----
+      // Lives at fleet level so managers can move it between trucks; visible to
+      // anyone who can see the truck it's on.
+      match /equipment/{equipmentId} {
+        allow read: if isMember(fleetId) && (
+          me(fleetId).role == 'manager'
+          || me(fleetId).seesAllVehicles == true
+          || request.auth.uid in vehicleData(fleetId, resource.data.vehicleId).assignedUids
+        );
+        allow write: if isManager(fleetId);
+
+        match /defects/{defectId} {
+          allow read: if canSeeEquipment(fleetId, equipmentId);
+
+          // Only managers may mark a rope "do not use".
+          allow create: if canSeeEquipment(fleetId, equipmentId)
+            && request.resource.data.reportedBy == request.auth.uid
+            && request.resource.data.status == 'open'
+            && (request.resource.data.unsafe == false
+              || isManager(fleetId)
+              || equipmentData(fleetId, equipmentId).type != 'rope');
+
+          allow update: if isManager(fleetId)
+            || (canSeeEquipment(fleetId, equipmentId) && memberDefectUpdateAllowed());
+
+          allow delete: if isManager(fleetId);
+        }
+
+        // Rope length reductions: anyone submits, managers approve. No cancelling.
+        match /lengthChanges/{changeId} {
+          allow read: if canSeeEquipment(fleetId, equipmentId);
+          allow create: if canSeeEquipment(fleetId, equipmentId)
+            && request.resource.data.submittedBy == request.auth.uid
+            && request.resource.data.status == 'pending'
+            && request.resource.data.amountFeet is number
+            && request.resource.data.amountFeet > 0;
+          allow update, delete: if isManager(fleetId);
         }
       }
     }

@@ -32,5 +32,34 @@ service firebase.storage {
 
       allow delete: if isMember() && member().role == 'manager';
     }
+
+    match /fleets/{fleetId}/equipment/{equipmentId}/defects/{defectId}/{photoId} {
+
+      function member() {
+        return firestore.get(/databases/(default)/documents/fleets/$(fleetId)/members/$(request.auth.uid)).data;
+      }
+
+      function isMember() {
+        return request.auth != null
+          && firestore.exists(/databases/(default)/documents/fleets/$(fleetId)/members/$(request.auth.uid));
+      }
+
+      function canSeeEquipment() {
+        let vehicleId = firestore.get(/databases/(default)/documents/fleets/$(fleetId)/equipment/$(equipmentId)).data.vehicleId;
+        return isMember() && (
+          member().role == 'manager'
+          || member().seesAllVehicles == true
+          || request.auth.uid in firestore.get(/databases/(default)/documents/fleets/$(fleetId)/vehicles/$(vehicleId)).data.assignedUids
+        );
+      }
+
+      allow read: if canSeeEquipment();
+
+      allow create: if canSeeEquipment()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+
+      allow delete: if isMember() && member().role == 'manager';
+    }
   }
 }

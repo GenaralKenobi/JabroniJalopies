@@ -4,7 +4,7 @@
   "description": "Security rules, indexes and rules tests for the Maintenance app",
   "type": "module",
   "scripts": {
-    "test": "firebase emulators:exec --only firestore,storage --project demo-maintenance 'node --test tests/rules.test.js'",
+    "test": "firebase emulators:exec --only firestore,storage --project demo-maintenance 'node --test --test-concurrency=1 tests/rules.test.js tests/equipment.test.js'",
     "emulators": "firebase emulators:start --only auth,firestore,storage --project demo-maintenance"
   },
   "devDependencies": {
