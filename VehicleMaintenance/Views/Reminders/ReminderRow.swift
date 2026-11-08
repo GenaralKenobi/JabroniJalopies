@@ -27,7 +27,8 @@ struct ReminderRow: View {
 
             Spacer(minLength: 8)
 
-            if status != .ok {
+            // The Upcoming list already groups rows under status headers.
+            if status != .ok && !showsVehicle {
                 StatusBadge(status: status)
             }
         }
