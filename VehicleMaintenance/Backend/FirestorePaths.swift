@@ -33,7 +33,11 @@ enum FS {
 
     /// Encodes a value for use inside `updateData` (e.g. an array of structs or a map).
     static func encode<T: Encodable>(_ value: T) throws -> Any {
-        struct Box<V: Encodable>: Encodable { let value: V }
-        return try Firestore.Encoder().encode(Box(value: value))["value"] as Any
+        try Firestore.Encoder().encode(EncodingBox(value: value))["value"] as Any
     }
+}
+
+/// Wraps a value so Firestore's encoder (which needs a keyed container) can encode it.
+private struct EncodingBox<V: Encodable>: Encodable {
+    let value: V
 }
