@@ -70,7 +70,7 @@ private struct SpecRowView: View {
         let emphasized = ["pressure", "psi", "torque"].contains { row.label.localizedCaseInsensitiveContains($0) }
         HStack(alignment: .firstTextBaseline) {
             Text(row.label)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
             Spacer(minLength: 12)
             Text(row.value)
                 .font(emphasized ? .title3.weight(.bold).monospacedDigit() : .body.weight(.semibold))
@@ -104,7 +104,7 @@ struct SpecsEditorView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 TextField("Field name", text: $row.label)
                                     .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.secondary)
                                 TextField("Value", text: $row.value)
                             }
                             .padding(.vertical, 2)

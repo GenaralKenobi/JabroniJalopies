@@ -31,7 +31,7 @@ struct FleetPickerView: View {
                             Text(invite.fleetName).font(.headline)
                             Text("\(invite.invitedByName) invited you as a \(invite.role.displayName.lowercased()).")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.secondary)
                             HStack {
                                 Button("Join") { acceptingInvite = invite }
                                     .buttonStyle(.borderedProminent)
@@ -55,7 +55,7 @@ struct FleetPickerView: View {
                         } label: {
                             HStack {
                                 Label(membership.fleetName, systemImage: "car.2")
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(Color.primary)
                                 Spacer()
                                 if membership.id == session.fleetModel?.fleetId {
                                     Image(systemName: "checkmark").foregroundStyle(.tint)

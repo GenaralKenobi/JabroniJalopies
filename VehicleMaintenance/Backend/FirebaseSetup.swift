@@ -13,7 +13,7 @@ enum FirebaseSetup {
     static let emulatorHost = "127.0.0.1"
 
     static func configure() {
-        guard FirebaseApp.app() == nil else { return }
+        guard !isConfigured else { return }
 
         #if DEBUG
         if UserDefaults.standard.bool(forKey: "useEmulator") {

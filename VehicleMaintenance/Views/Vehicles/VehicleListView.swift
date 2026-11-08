@@ -72,7 +72,7 @@ struct VehicleListView: View {
                         }
                 }
             }
-            .onChange(of: fleet.vehicles.count) { _, _ in openDemoScreenIfNeeded() }
+            .onChange(of: fleet.openDefects.count) { _, _ in openDemoScreenIfNeeded() }
             .onAppear { openDemoScreenIfNeeded() }
         }
     }
@@ -97,8 +97,9 @@ struct VehicleListView: View {
     private func openDemoScreenIfNeeded() {
         guard !didOpenDemoScreen, let screen = DemoConfig.screen,
               ["vehicle", "specs", "checklist", "defect"].contains(screen),
-              let first = fleet.sortedVehicles.first(where: { fleet.condition(of: $0.id) != .ok }) ?? fleet.sortedVehicles.first,
-              let id = first.id else { return }
+              !fleet.vehicles.isEmpty, fleet.openDefects.count >= fleet.vehicles.count,
+              let worst = fleet.sortedVehicles.max(by: { fleet.condition(of: $0.id) < fleet.condition(of: $1.id) }),
+              let id = worst.id else { return }
         didOpenDemoScreen = true
         path = [id]
     }
@@ -120,11 +121,11 @@ struct VehicleRow: View {
                 if !vehicle.subtitle.isEmpty {
                     Text(vehicle.subtitle)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondary)
                 }
                 Text(Formatting.distance(vehicle.odometer, unit: unit))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
             }
 
             Spacer(minLength: 8)

@@ -27,7 +27,7 @@ struct SignInView: View {
                             .font(.title2.bold())
                         Text("Checklists, defects and maintenance for your vehicles — even without signal.")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.secondary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
@@ -148,7 +148,7 @@ struct VerifyEmailView: View {
                     Task { await auth.signOut() }
                 }
                 if let message {
-                    Text(message).font(.footnote).foregroundStyle(.secondary)
+                    Text(message).font(.footnote).foregroundStyle(Color.secondary)
                 }
             }
         }

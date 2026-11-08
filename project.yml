@@ -31,6 +31,7 @@ targets:
     info:
       path: VehicleMaintenance/Info.plist
       properties:
+        NSAccentColorName: AccentColor
         UIBackgroundModes: [fetch]
         BGTaskSchedulerPermittedIdentifiers: [com.genaralkenobi.maintenance.photo-upload]
         NSCameraUsageDescription: Take photos of vehicle problems so your fleet manager can see them.

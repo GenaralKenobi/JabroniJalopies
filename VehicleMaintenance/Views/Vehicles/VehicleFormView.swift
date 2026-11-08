@@ -63,7 +63,7 @@ struct VehicleFormView: View {
                     HStack {
                         TextField("Current odometer", text: $odometerText)
                             .keyboardType(.numberPad)
-                        Text(unit.abbreviation).foregroundStyle(.secondary)
+                        Text(unit.abbreviation).foregroundStyle(Color.secondary)
                     }
                     TextField("License plate", text: $draft.licensePlate)
                         .textInputAutocapitalization(.characters)
@@ -77,7 +77,7 @@ struct VehicleFormView: View {
                     Section {
                         Text("Fluids, tires and pressures can be filled in from the vehicle's Specs page after saving.")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.secondary)
                     }
                 }
 

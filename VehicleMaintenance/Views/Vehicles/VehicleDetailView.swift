@@ -135,7 +135,7 @@ struct VehicleDetailView: View {
                 }
                 VStack(spacing: 4) {
                     Text(vehicle.displayName).font(.title2.bold()).multilineTextAlignment(.center)
-                    if !vehicle.subtitle.isEmpty { Text(vehicle.subtitle).foregroundStyle(.secondary) }
+                    if !vehicle.subtitle.isEmpty { Text(vehicle.subtitle).foregroundStyle(Color.secondary) }
                 }
                 if condition == .outOfService {
                     UnsafeBanner(defects: openDefects)
@@ -154,7 +154,7 @@ struct VehicleDetailView: View {
             if checklists.isEmpty {
                 Label(fleet.isManager ? "Create a checklist in Settings → Checklists" : "No checklist assigned to this vehicle",
                       systemImage: "checklist")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
             } else {
                 Button {
                     if checklists.count == 1, let only = checklists.first {
@@ -191,7 +191,7 @@ struct VehicleDetailView: View {
         Section {
             if openDefects.isEmpty {
                 Label("No open defects", systemImage: "checkmark.circle")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
             } else {
                 ForEach(openDefects) { defect in
                     NavigationLink {
@@ -222,7 +222,7 @@ struct VehicleDetailView: View {
                         Label("Add a maintenance reminder", systemImage: "bell.badge")
                     }
                 } else {
-                    Text("No maintenance reminders").foregroundStyle(.secondary)
+                    Text("No maintenance reminders").foregroundStyle(Color.secondary)
                 }
             } else {
                 ForEach(items) { reminder in
@@ -250,7 +250,7 @@ struct VehicleDetailView: View {
         Section {
             if let records {
                 if records.inspections.isEmpty {
-                    Text("No checklists completed yet").foregroundStyle(.secondary)
+                    Text("No checklists completed yet").foregroundStyle(Color.secondary)
                 } else {
                     ForEach(records.inspections.prefix(5)) { inspection in
                         NavigationLink {

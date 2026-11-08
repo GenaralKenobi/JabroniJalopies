@@ -11,10 +11,10 @@ struct InspectionRow: View {
                 .foregroundStyle(inspection.unsafe ? Color.red : inspection.failedCount > 0 ? Color.orange : Color.green)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(inspection.checklistName).foregroundStyle(.primary)
+                Text(inspection.checklistName).foregroundStyle(Color.primary)
                 Text("\(inspection.performedByName) · \(inspection.completedAt.formatted(date: .abbreviated, time: .shortened))")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
                 if unsynced {
                     Label("Waiting to sync", systemImage: "arrow.triangle.2.circlepath")
                         .font(.caption2.weight(.semibold))
@@ -61,7 +61,7 @@ struct InspectionDetailView: View {
                     LabeledContent("Synced", value: received.formatted(date: .abbreviated, time: .shortened))
                     Text("Completed offline and uploaded later.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondary)
                 }
                 if let odometer = inspection.odometer {
                     LabeledContent("Odometer", value: odometer.formatted())
@@ -88,7 +88,7 @@ struct InspectionDetailView: View {
                                     .font(.subheadline.monospacedDigit().weight(.semibold))
                             }
                             if let note = result.note {
-                                Text(note).font(.caption).foregroundStyle(.secondary)
+                                Text(note).font(.caption).foregroundStyle(Color.secondary)
                             }
                         }
                     }

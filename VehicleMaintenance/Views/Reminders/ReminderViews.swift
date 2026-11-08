@@ -13,11 +13,11 @@ struct ReminderRow: View {
                 .foregroundStyle(status.color)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(reminder.displayTitle).foregroundStyle(.primary)
+                Text(reminder.displayTitle).foregroundStyle(Color.primary)
                 if showsVehicle {
-                    Text(vehicle.displayName).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    Text(vehicle.displayName).font(.caption.weight(.medium)).foregroundStyle(Color.secondary)
                 }
-                Text(dueDescription).font(.caption).foregroundStyle(.secondary)
+                Text(dueDescription).font(.caption).foregroundStyle(Color.secondary)
             }
             Spacer(minLength: 8)
             if status != .ok && !showsVehicle {
@@ -96,12 +96,12 @@ struct ReminderFormView: View {
                     HStack {
                         Text("Every")
                         TextField("—", text: $distanceText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
-                        Text(unit.abbreviation).foregroundStyle(.secondary)
+                        Text(unit.abbreviation).foregroundStyle(Color.secondary)
                     }
                     HStack {
                         Text("Every")
                         TextField("—", text: $monthsText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
-                        Text("months").foregroundStyle(.secondary)
+                        Text("months").foregroundStyle(Color.secondary)
                     }
                 } header: {
                     Text("Interval")
@@ -113,7 +113,7 @@ struct ReminderFormView: View {
                     HStack {
                         Text("Odometer")
                         TextField("0", text: $lastOdometerText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
-                        Text(unit.abbreviation).foregroundStyle(.secondary)
+                        Text(unit.abbreviation).foregroundStyle(Color.secondary)
                     }
                 }
                 Section {

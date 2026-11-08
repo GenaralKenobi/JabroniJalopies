@@ -25,8 +25,8 @@ struct SettingsView: View {
                         Button { editingProfile = true } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(me.displayName).foregroundStyle(.primary)
-                                    Text("\(me.role.displayName) · \(me.email)").font(.caption).foregroundStyle(.secondary)
+                                    Text(me.displayName).foregroundStyle(Color.primary)
+                                    Text("\(me.role.displayName) · \(me.email)").font(.caption).foregroundStyle(Color.secondary)
                                 }
                                 Spacer()
                                 Text("Edit").foregroundStyle(.tint)
@@ -291,11 +291,11 @@ struct DataStorageView: View {
                 Text(title)
                 Spacer()
                 Text(fraction.formatted(.percent.precision(.fractionLength(0))))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
             }
             ProgressView(value: min(fraction, 1))
-                .tint(fraction >= UsageReport.criticalFraction ? Color.red : fraction >= UsageReport.warningFraction ? Color.orange : Color.accentColor)
-            Text(detail).font(.caption).foregroundStyle(.secondary)
+                .tint(fraction >= UsageReport.criticalFraction ? Color.red : fraction >= UsageReport.warningFraction ? Color.orange : Color.brand)
+            Text(detail).font(.caption).foregroundStyle(Color.secondary)
         }
         .padding(.vertical, 4)
     }
@@ -336,7 +336,7 @@ struct DeleteAccountView: View {
                     .font(.subheadline)
                 Text("If you're the only manager of a fleet with other members, make someone else a manager first. If you're the only member, the fleet and all its data are deleted.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
             }
             Section {
                 SecureField("Password", text: $password)

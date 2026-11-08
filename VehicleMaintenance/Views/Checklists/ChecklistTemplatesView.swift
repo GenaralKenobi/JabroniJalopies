@@ -12,8 +12,8 @@ struct ChecklistTemplatesView: View {
                 ForEach(fleet.checklists) { checklist in
                     Button { editing = checklist } label: {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(checklist.name).foregroundStyle(.primary)
-                            Text(summary(checklist)).font(.caption).foregroundStyle(.secondary)
+                            Text(checklist.name).foregroundStyle(Color.primary)
+                            Text(summary(checklist)).font(.caption).foregroundStyle(Color.secondary)
                         }
                     }
                 }
@@ -96,10 +96,10 @@ struct ChecklistEditorView: View {
                                 }
                             } label: {
                                 HStack {
-                                    Text(vehicle.displayName).foregroundStyle(.primary)
+                                    Text(vehicle.displayName).foregroundStyle(Color.primary)
                                     Spacer()
                                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(selected ? Color.accentColor : .secondary)
+                                        .foregroundStyle(selected ? Color.brand : .secondary)
                                 }
                             }
                         }

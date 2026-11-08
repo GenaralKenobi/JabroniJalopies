@@ -14,7 +14,7 @@ struct DefectsTabView: View {
                 Section {
                     if defects.isEmpty {
                         Label("No open defects", systemImage: "checkmark.circle")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.secondary)
                     }
                     ForEach(defects, id: \.defect.id) { entry in
                         NavigationLink {
@@ -42,7 +42,7 @@ struct DefectsTabView: View {
                                 }
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(entry.vehicle.displayName).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                                    Text(entry.vehicle.displayName).font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
                                     ServiceRecordRow(record: entry.record, cost: nil, showsReviewHint: fleet.isManager)
                                 }
                             }
@@ -76,11 +76,11 @@ struct DefectRow: View {
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 3) {
                 if let vehicleName {
-                    Text(vehicleName).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(vehicleName).font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
                 }
-                Text(defect.title).foregroundStyle(.primary)
+                Text(defect.title).foregroundStyle(Color.primary)
                 if !defect.details.isEmpty {
-                    Text(defect.details).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                    Text(defect.details).font(.subheadline).foregroundStyle(Color.secondary).lineLimit(2)
                 }
                 HStack(spacing: 6) {
                     Text("\(defect.reportedByName) · \(defect.reportedAt.formatted(.relative(presentation: .named)))")
@@ -89,7 +89,7 @@ struct DefectRow: View {
                     }
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
                 if unsynced {
                     Label("Waiting to sync", systemImage: "arrow.triangle.2.circlepath")
                         .font(.caption2.weight(.semibold))

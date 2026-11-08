@@ -14,7 +14,7 @@ struct VehicleThumbnail: View {
                 Rectangle().fill(.quaternary)
                 Image(systemName: "car.fill")
                     .font(.system(size: size * 0.4))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
             }
         }
         .frame(width: size, height: size)

@@ -57,7 +57,7 @@ struct InspectionFormView: View {
                         TextField("Reading", text: $odometerText)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
-                        Text(unit.abbreviation).foregroundStyle(.secondary)
+                        Text(unit.abbreviation).foregroundStyle(Color.secondary)
                     }
                 } footer: {
                     if !connectivity.isOnline {
@@ -260,7 +260,7 @@ private struct ItemCard: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                     if !item.readingLabel.isEmpty {
-                        Text(item.readingLabel).foregroundStyle(.secondary)
+                        Text(item.readingLabel).foregroundStyle(Color.secondary)
                     }
                 }
                 .padding(10)
@@ -290,7 +290,7 @@ private struct ItemCard: View {
                 .lineLimit(2...4)
             Text("A manager will confirm before the defect is closed.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
         } else if existingDefect != nil, answer.verdict == .fail {
             TextField("Add a note (optional)", text: $answer.note, axis: .vertical)
                 .lineLimit(1...4)
@@ -310,7 +310,7 @@ private struct ItemCard: View {
             }
             Text("\(defect.reportedByName), \(defect.reportedAt.formatted(.relative(presentation: .named)))")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
         }
         .foregroundStyle(defect.unsafe ? Color.red : Color.orange)
         .padding(10)

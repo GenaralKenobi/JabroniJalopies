@@ -12,11 +12,11 @@ struct ServiceRecordRow: View {
                 .foregroundStyle(.tint)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(record.displayTitle).foregroundStyle(.primary)
+                Text(record.displayTitle).foregroundStyle(Color.primary)
                 Text("\(Formatting.shortDate(record.date)) · \(Formatting.distance(record.odometer, unit: unit))")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Color.secondary)
                 if !record.shop.isEmpty {
-                    Text(record.shop).font(.caption).foregroundStyle(.secondary)
+                    Text(record.shop).font(.caption).foregroundStyle(Color.secondary)
                 }
                 switch record.status {
                 case .pending:
@@ -36,7 +36,7 @@ struct ServiceRecordRow: View {
             if let cost, cost > 0 {
                 Text(Formatting.currency(cost))
                     .font(.callout.monospacedDigit())
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.primary)
             }
         }
         .padding(.vertical, 2)
@@ -93,7 +93,7 @@ struct ServiceRecordFormView: View {
                         TextField("0", text: $odometerText)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
-                        Text(unit.abbreviation).foregroundStyle(.secondary)
+                        Text(unit.abbreviation).foregroundStyle(Color.secondary)
                     }
                     if fleet.isManager {
                         HStack {
@@ -101,7 +101,7 @@ struct ServiceRecordFormView: View {
                             TextField("0.00", text: $costText)
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
-                            Text(Formatting.currencyCode).foregroundStyle(.secondary)
+                            Text(Formatting.currencyCode).foregroundStyle(Color.secondary)
                         }
                     }
                     TextField("Shop or mechanic", text: $draft.shop)
@@ -190,7 +190,7 @@ struct ServiceReviewView: View {
                         TextField("0.00", text: $costText)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                        Text(Formatting.currencyCode).foregroundStyle(.secondary)
+                        Text(Formatting.currencyCode).foregroundStyle(Color.secondary)
                     }
                     TextField("Note to driver (optional)", text: $note, axis: .vertical)
                 } footer: {

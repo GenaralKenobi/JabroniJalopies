@@ -1,5 +1,10 @@
 import SwiftUI
 
+extension Color {
+    /// The app's orange accent, read straight from the asset catalog.
+    static let brand = Color("AccentColor")
+}
+
 extension VehicleCondition {
     var color: Color {
         switch self {

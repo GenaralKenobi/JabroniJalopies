@@ -30,7 +30,7 @@ struct MembersView: View {
                                 Text(invite.email)
                                 Text("Invited as \(invite.role.displayName.lowercased())")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.secondary)
                             }
                             Spacer()
                             ShareLink(item: InviteMessage.text(for: invite)) {
@@ -69,16 +69,16 @@ struct MemberRow: View {
     var body: some View {
         HStack {
             Image(systemName: member.role == .manager ? "person.badge.key.fill" : "person.fill")
-                .foregroundStyle(member.role == .manager ? Color.accentColor : .secondary)
+                .foregroundStyle(member.role == .manager ? Color.brand : .secondary)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(member.displayName + (isMe ? " (you)" : ""))
-                Text(member.email).font(.caption).foregroundStyle(.secondary)
+                Text(member.email).font(.caption).foregroundStyle(Color.secondary)
             }
             Spacer()
             Text(member.role.displayName)
                 .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
         }
     }
 }
@@ -136,10 +136,10 @@ struct MemberDetailView: View {
                                     }
                                 } label: {
                                     HStack {
-                                        Text(vehicle.displayName).foregroundStyle(.primary)
+                                        Text(vehicle.displayName).foregroundStyle(Color.primary)
                                         Spacer()
                                         Image(systemName: assigned ? "checkmark.circle.fill" : "circle")
-                                            .foregroundStyle(assigned ? Color.accentColor : .secondary)
+                                            .foregroundStyle(assigned ? Color.brand : .secondary)
                                     }
                                 }
                             }

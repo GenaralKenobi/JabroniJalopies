@@ -28,6 +28,7 @@ struct RootView: View {
                 ProgressView()
             }
         }
+        .tint(.brand)
         .onChange(of: sessionKey, initial: true) { _, key in
             session?.stop()
             if !key.isEmpty, let email = auth.email {

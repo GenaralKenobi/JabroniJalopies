@@ -42,7 +42,7 @@ struct DefectDetailView: View {
                         DefectStatusBadge(defect: defect)
                     }
                     if let vehicle = fleet.vehicle(vehicleId) {
-                        Text(vehicle.displayName).foregroundStyle(.secondary)
+                        Text(vehicle.displayName).foregroundStyle(Color.secondary)
                     }
                     if defect.unsafe && defect.isOpen {
                         Label("Unsafe to drive", systemImage: "exclamationmark.octagon.fill")
@@ -60,7 +60,7 @@ struct DefectDetailView: View {
                 if let received = defect.receivedAt, received.timeIntervalSince(defect.reportedAt) > 10 * 60 {
                     LabeledContent("Reached server", value: received.formatted(date: .abbreviated, time: .shortened))
                     Text("Reported offline and uploaded later.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(Color.secondary)
                 }
                 if document?.hasPendingWrites == true {
                     Label("Changes waiting to sync", systemImage: "arrow.triangle.2.circlepath")
@@ -80,7 +80,7 @@ struct DefectDetailView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(event.type.label).font(.subheadline.weight(.semibold))
                             Text("\(event.byName) · \(event.at.formatted(date: .abbreviated, time: .shortened))")
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.caption).foregroundStyle(Color.secondary)
                             if let note = event.note {
                                 Text(note).font(.subheadline)
                             }

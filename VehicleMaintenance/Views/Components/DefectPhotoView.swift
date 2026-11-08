@@ -81,7 +81,7 @@ struct DefectPhotoView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 6)
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.secondary)
         }
     }
 }

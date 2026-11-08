@@ -11,7 +11,7 @@ struct CostChartView: View {
                 x: .value("Month", item.month, unit: .month),
                 y: .value("Cost", item.total)
             )
-            .foregroundStyle(Color.accentColor.gradient)
+            .foregroundStyle(Color.brand.gradient)
             .cornerRadius(3)
         }
         .chartXAxis {
