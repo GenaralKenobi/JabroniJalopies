@@ -137,10 +137,12 @@ struct VehicleRow: View {
                 let alerts = fleet.equipmentAlerts(on: vehicle.id ?? "")
                 if !alerts.isEmpty {
                     let doNotUse = alerts.contains(where: \.isDoNotUse)
-                    Label(alerts.count == 1 ? alerts[0].equipment.displayName : "\(alerts.count) equipment",
-                          systemImage: doNotUse ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
+                    HStack(spacing: 4) {
+                        Image(systemName: doNotUse ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
+                        Text(alerts.count == 1 ? alerts[0].equipment.displayName : "\(alerts.count) equipment")
+                            .lineLimit(1)
+                    }
                         .font(.caption.weight(.semibold))
-                        .lineLimit(1)
                         .fixedSize()
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)

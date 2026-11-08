@@ -375,7 +375,8 @@ struct ChainTotalsView: View {
         }
         .navigationTitle("Chain Totals")
         .overlay { if isLoading && logs.isEmpty { ProgressView() } }
-        .task { await load() }
+        // Reload once the trucks have loaded (the screen can open before they arrive).
+        .task(id: fleet.vehicles.count) { await load() }
         .refreshable { await load() }
     }
 
