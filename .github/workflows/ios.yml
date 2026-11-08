@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUNDLE_ID: com.example.VehicleMaintenance
+  BUNDLE_ID: com.genaralkenobi.maintenance
 
 jobs:
   build-and-test:
@@ -60,6 +60,24 @@ jobs:
           if [ "$status" -ne 0 ]; then
             echo "::error::xcodebuild failed with exit code $status"
             tail -80 build/xcodebuild.log
+          fi
+          exit $status
+
+      - name: Build Release for device (unsigned)
+        run: |
+          status=0
+          xcodebuild build \
+            -project VehicleMaintenance.xcodeproj \
+            -scheme VehicleMaintenance \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/DerivedDataRelease \
+            CODE_SIGNING_ALLOWED=NO \
+            > build/release.log 2>&1 || status=$?
+          grep -E "error:|warning:|\*\* BUILD" build/release.log | grep -v appintents | sort -u | head -100 || true
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Release build failed with exit code $status"
+            tail -80 build/release.log
           fi
           exit $status
 
@@ -113,5 +131,6 @@ jobs:
           if-no-files-found: ignore
           path: |
             build/xcodebuild.log
+            build/release.log
             build/TestResults.xcresult
             screenshots/

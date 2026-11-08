@@ -1,6 +1,6 @@
 name: VehicleMaintenance
 options:
-  bundleIdPrefix: com.example
+  bundleIdPrefix: com.genaralkenobi
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -16,10 +16,13 @@ targets:
     sources: [VehicleMaintenance]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.VehicleMaintenance
+        PRODUCT_BUNDLE_IDENTIFIER: com.genaralkenobi.maintenance
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Maintenance
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        # The app uses no custom encryption; skips the export-compliance question in App Store Connect.
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"

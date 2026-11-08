@@ -1,0 +1,138 @@
+name: TestFlight
+
+# Builds a signed release and uploads it to App Store Connect / TestFlight.
+# No Mac needed: signing uses Apple's cloud-managed certificates through an
+# App Store Connect API key. See TESTFLIGHT.md for the one-time setup.
+#
+# Run it from the Actions tab ("Run workflow"), or push a tag like v1.0.1.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      # Build numbers must always increase; re-running a run bumps the second part.
+      BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check repository secrets
+        run: |
+          missing=0
+          for name in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret $name (see TESTFLIGHT.md)"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Install App Store Connect API key
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          KEY_PATH="$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
+          # Also accept the key pasted as base64.
+          if ! grep -q "BEGIN PRIVATE KEY" "$KEY_PATH"; then
+            printf '%s' "$ASC_PRIVATE_KEY" | base64 --decode > "$KEY_PATH" 2>/dev/null || true
+          fi
+          if ! grep -q "BEGIN PRIVATE KEY" "$KEY_PATH"; then
+            echo "::error::ASC_PRIVATE_KEY must be the full contents of the AuthKey_XXXX.p8 file, including the BEGIN/END lines"
+            exit 1
+          fi
+          chmod 600 "$KEY_PATH"
+          echo "KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Archive (Release)
+        run: |
+          status=0
+          xcodebuild archive \
+            -project VehicleMaintenance.xcodeproj \
+            -scheme VehicleMaintenance \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/VehicleMaintenance.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            > "$RUNNER_TEMP/archive.log" 2>&1 || status=$?
+          grep -E "error:|warning:.*(sign|provision|certificate)|\*\* ARCHIVE" "$RUNNER_TEMP/archive.log" | sort -u | head -100 || true
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Archive failed with exit code $status"
+            tail -80 "$RUNNER_TEMP/archive.log"
+          fi
+          exit $status
+
+      - name: Export and upload to App Store Connect
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          status=0
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/VehicleMaintenance.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            > "$RUNNER_TEMP/export.log" 2>&1 || status=$?
+          grep -iE "error|upload|\*\* EXPORT" "$RUNNER_TEMP/export.log" | sort -u | head -100 || true
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Export/upload failed with exit code $status"
+            tail -80 "$RUNNER_TEMP/export.log"
+          fi
+          exit $status
+
+      - name: Summary
+        if: success()
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :ApplicationProperties:CFBundleShortVersionString" "$RUNNER_TEMP/VehicleMaintenance.xcarchive/Info.plist")
+          {
+            echo "### Uploaded to App Store Connect"
+            echo
+            echo "Version **${VERSION} (${BUILD_NUMBER})**. Apple processes the build for roughly 5–30 minutes;"
+            echo "it then appears in App Store Connect → your app → TestFlight, and in the TestFlight app for internal testers."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"
