@@ -43,8 +43,8 @@ jobs:
 
       - name: Build and run unit tests
         run: |
-          set -o pipefail
           mkdir -p build
+          status=0
           xcodebuild test \
             -project VehicleMaintenance.xcodeproj \
             -scheme VehicleMaintenance \
@@ -52,9 +52,14 @@ jobs:
             -derivedDataPath build/DerivedData \
             -resultBundlePath build/TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tee build/xcodebuild.log | grep -E "error:|warning:|Test .*(passed|failed)|✔|✘|\*\* (BUILD|TEST)" || true
-          # grep above only trims the log output; the real exit status comes from xcodebuild:
-          exit ${PIPESTATUS[0]}
+            > build/xcodebuild.log 2>&1 || status=$?
+          # Print only the useful lines; the full log is uploaded as an artifact.
+          grep -E "error:|warning:|Test .*(passed|failed)|✔|✘|\*\* (BUILD|TEST)" build/xcodebuild.log | sort -u | head -300 || true
+          if [ "$status" -ne 0 ]; then
+            echo "::error::xcodebuild failed with exit code $status"
+            tail -80 build/xcodebuild.log
+          fi
+          exit $status
 
       - name: Capture simulator screenshots
         if: success()
