@@ -257,3 +257,34 @@ struct EquipmentTests {
                 == "fleets/f/vehicles/v1/defects/d/p.jpg")
     }
 }
+
+struct PeriodicScheduleTests {
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }()
+
+    private func day(_ y: Int, _ m: Int, _ d: Int, hour: Int = 9) -> Date {
+        calendar.date(from: DateComponents(year: y, month: m, day: d, hour: hour))!
+    }
+
+    @Test func everyTimeItemsAndNeverDoneItemsAreDue() {
+        #expect(PeriodicSchedule.isDue(nil, lastDone: day(2026, 6, 1), now: day(2026, 6, 1), calendar: calendar))
+        #expect(PeriodicSchedule.isDue(.weekly, lastDone: nil, now: day(2026, 6, 1), calendar: calendar))
+    }
+
+    @Test func weeklyIsDueSevenDaysAfterTheDayItWasDone() {
+        let done = day(2026, 6, 1, hour: 16)
+        #expect(!PeriodicSchedule.isDue(.weekly, lastDone: done, now: day(2026, 6, 7, hour: 23), calendar: calendar))
+        #expect(PeriodicSchedule.isDue(.weekly, lastDone: done, now: day(2026, 6, 8, hour: 6), calendar: calendar))
+    }
+
+    @Test func monthlyAndCustomIntervals() {
+        let done = day(2026, 1, 31)
+        #expect(PeriodicSchedule.nextDue(.monthly, lastDone: done, calendar: calendar) == day(2026, 2, 28, hour: 0))
+        #expect(PeriodicSchedule.nextDue(.every(14), lastDone: day(2026, 6, 1), calendar: calendar) == day(2026, 6, 15, hour: 0))
+        #expect(ItemFrequency.every(14).label == "Every 14 days")
+        #expect(ItemFrequency.every(0).days == 1)
+    }
+}

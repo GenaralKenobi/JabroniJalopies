@@ -15,6 +15,7 @@ rules_version = '2';
 //     .../costs/{serviceId}                      service costs (managers only)
 //     .../inspections/{id}                       completed checklists (immutable)
 //     .../defects/{id}                           problems found on inspections
+//     .../checklistState/periodic                when repeating checklist items were last done
 //     .../chains/inventory                       chain sizes + counts on this truck
 //     .../chainLogs/{id}                         used-chain-box and chains-added logs
 //   fleets/{fleetId}/equipment/{equipmentId}     chainsaws and ropes (movable between trucks)
@@ -264,6 +265,13 @@ service cloud.firestore {
           allow update: if isManager(fleetId)
             || (canSeeVehicle(fleetId, vehicleId) && memberDefectUpdateAllowed());
 
+          allow delete: if isManager(fleetId);
+        }
+
+        // When each repeating (weekly / monthly / every N days) checklist item was
+        // last done on this truck. Written alongside each completed checklist.
+        match /checklistState/{docId} {
+          allow read, create, update: if canSeeVehicle(fleetId, vehicleId);
           allow delete: if isManager(fleetId);
         }
 

@@ -32,7 +32,8 @@ struct ChecklistTemplatesView: View {
     private func summary(_ checklist: ChecklistTemplate) -> String {
         let vehicles = checklist.vehicleIds.isEmpty ? "All vehicles" : "\(checklist.vehicleIds.count) vehicle\(checklist.vehicleIds.count == 1 ? "" : "s")"
         let safety = checklist.items.filter(\.unsafeIfFailed).count
-        return "\(checklist.items.count) items · \(safety) safety · \(vehicles)"
+        let repeating = checklist.items.filter { $0.frequency != nil }.count
+        return "\(checklist.items.count) items · \(safety) safety" + (repeating > 0 ? " · \(repeating) repeating" : "") + " · \(vehicles)"
     }
 }
 
@@ -75,7 +76,7 @@ struct ChecklistEditorView: View {
                 } header: {
                     Text("Items")
                 } footer: {
-                    Text("Every item is pass/fail. Turn on \"Record a number\" to also ask for a reading. Safety items mark the vehicle unsafe to drive when they fail.")
+                    Text("Every item is pass/fail. Turn on \"Record a number\" to also ask for a reading. Safety items mark the vehicle unsafe to drive when they fail. Repeating items only appear when they're due on that truck.")
                 }
 
                 Section {
@@ -168,6 +169,20 @@ private struct ChecklistItemEditor: View {
                     .font(.subheadline)
                     .textInputAutocapitalization(.never)
             }
+            Picker("Repeat", selection: Binding(
+                get: { RepeatChoice(item.frequency) },
+                set: { item.frequency = $0.frequency(days: item.frequency?.days ?? 14) }
+            )) {
+                ForEach(RepeatChoice.allCases, id: \.self) { Text($0.label).tag($0) }
+            }
+            .font(.subheadline)
+            if item.frequency?.kind == .days {
+                Stepper("Every \(item.frequency?.days ?? 14) days",
+                        value: Binding(get: { item.frequency?.days ?? 14 },
+                                       set: { item.frequency = .every($0) }),
+                        in: 1...365)
+                    .font(.subheadline)
+            }
             Toggle(isOn: $item.unsafeIfFailed) {
                 Label("Unsafe to drive if failed", systemImage: "exclamationmark.octagon")
                     .foregroundStyle(item.unsafeIfFailed ? Color.red : Color.primary)
@@ -175,5 +190,37 @@ private struct ChecklistItemEditor: View {
             .font(.subheadline)
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// The Repeat options shown in the checklist editor.
+private enum RepeatChoice: CaseIterable {
+    case everyTime, weekly, monthly, days
+
+    init(_ frequency: ItemFrequency?) {
+        switch frequency?.kind {
+        case nil: self = .everyTime
+        case .weekly: self = .weekly
+        case .monthly: self = .monthly
+        case .days: self = .days
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .everyTime: "Every checklist"
+        case .weekly: "Weekly"
+        case .monthly: "Monthly"
+        case .days: "Every … days"
+        }
+    }
+
+    func frequency(days: Int) -> ItemFrequency? {
+        switch self {
+        case .everyTime: nil
+        case .weekly: .weekly
+        case .monthly: .monthly
+        case .days: .every(days)
+        }
     }
 }

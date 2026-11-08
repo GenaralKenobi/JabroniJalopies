@@ -22,6 +22,8 @@ struct InspectionFormView: View {
     @State private var libraryItems: [PhotosPickerItem] = []
     @State private var outcome: Outcome?
     @State private var confirmingCancel = false
+    /// Repeating items that aren't due yet but the driver chose to do now.
+    @State private var doingEarly: Set<String> = []
 
     struct IdentifiedString: Identifiable { let id: String }
 
@@ -45,7 +47,31 @@ struct InspectionFormView: View {
         return map
     }
 
-    private var answeredCount: Int { checklist.items.filter { answers[$0.id]?.verdict != nil }.count }
+    private var lastDone: [String: Date] { fleet.checklistStates[vehicle.id ?? ""]?.lastDone ?? [:] }
+
+    /// Items to answer now: every-time items, repeating items that are due (or have an open
+    /// defect), and anything the driver chose to do early.
+    private var activeItems: [ChecklistItem] {
+        let defects = openDefectsByItem
+        return checklist.items.filter { item in
+            PeriodicSchedule.isDue(item.frequency, lastDone: lastDone[item.id])
+                || defects[item.id] != nil
+                || doingEarly.contains(item.id)
+        }
+    }
+
+    private var notDueItems: [ChecklistItem] {
+        let active = Set(activeItems.map(\.id))
+        return checklist.items.filter { !active.contains($0.id) }
+    }
+
+    private var activeChecklist: ChecklistTemplate {
+        var copy = checklist
+        copy.items = activeItems
+        return copy
+    }
+
+    private var answeredCount: Int { activeItems.filter { answers[$0.id]?.verdict != nil }.count }
 
     var body: some View {
         NavigationStack {
@@ -66,14 +92,39 @@ struct InspectionFormView: View {
                     }
                 }
 
-                ForEach(checklist.items) { item in
+                ForEach(activeItems) { item in
                     Section {
                         ItemCard(item: item,
+                                 lastDone: lastDone[item.id],
                                  existingDefect: openDefectsByItem[item.id],
                                  answer: binding(for: item.id),
                                  photos: $photos,
                                  photosEnabled: fleet.photosEnabled,
                                  onFail: { promptForPhoto(item) })
+                    }
+                }
+
+                if !notDueItems.isEmpty {
+                    Section {
+                        ForEach(notDueItems) { item in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.title)
+                                    if let frequency = item.frequency,
+                                       let next = PeriodicSchedule.nextDue(frequency, lastDone: lastDone[item.id]) {
+                                        Text("\(frequency.label) · next due \(next.formatted(date: .abbreviated, time: .omitted))")
+                                            .font(.caption).foregroundStyle(Color.secondary)
+                                    }
+                                }
+                                Spacer()
+                                Button("Do Now") { doingEarly.insert(item.id) }
+                                    .buttonStyle(.bordered)
+                            }
+                        }
+                    } header: {
+                        Text("Not Due Yet")
+                    } footer: {
+                        Text("These repeat weekly, monthly or on a schedule, and were done recently on this truck.")
                     }
                 }
 
@@ -86,7 +137,7 @@ struct InspectionFormView: View {
 
                 Section {
                     Button(action: submit) {
-                        Text("Submit Checklist (\(answeredCount)/\(checklist.items.count))")
+                        Text("Submit Checklist (\(answeredCount)/\(activeItems.count))")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
@@ -183,6 +234,7 @@ struct InspectionFormView: View {
 
     private func submit() {
         let existing = openDefectsByItem
+        let checklist = activeChecklist
         if let error = InspectionPlanner.validate(template: checklist, answers: answers, openDefectsByItem: existing) {
             validationMessage = error.localizedDescription
             return
@@ -197,7 +249,8 @@ struct InspectionFormView: View {
         let usedPhotos = photos.filter { usedPhotoIds.contains($0.key) }
 
         do {
-            try fleet.submit(plan, vehicle: vehicle, odometer: NumberParsing.int(odometerText), photos: usedPhotos)
+            try fleet.submit(plan, vehicle: vehicle, odometer: NumberParsing.int(odometerText), photos: usedPhotos,
+                             repeatingItemIds: checklist.items.filter { $0.frequency != nil }.map(\.id))
         } catch {
             validationMessage = error.localizedDescription
             return
@@ -224,6 +277,7 @@ struct InspectionFormView: View {
 /// defect), an optional number reading, a description and photos.
 private struct ItemCard: View {
     let item: ChecklistItem
+    let lastDone: Date?
     let existingDefect: Defect?
     @Binding var answer: ItemAnswer
     @Binding var photos: [String: Data]
@@ -235,6 +289,13 @@ private struct ItemCard: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(item.title).font(.headline)
                 Spacer()
+                if let frequency = item.frequency {
+                    Text(frequency.label)
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .foregroundStyle(Color.brand)
+                        .background(Color.brand.opacity(0.12), in: Capsule())
+                }
                 if item.unsafeIfFailed {
                     Text("Safety")
                         .font(.caption2.weight(.bold))
@@ -242,6 +303,13 @@ private struct ItemCard: View {
                         .foregroundStyle(.red)
                         .background(Color.red.opacity(0.12), in: Capsule())
                 }
+            }
+
+            if item.frequency != nil {
+                Text(lastDone.map { "Last done on this truck \($0.formatted(date: .abbreviated, time: .omitted))" }
+                     ?? "Not done on this truck yet")
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
             }
 
             if let existingDefect {

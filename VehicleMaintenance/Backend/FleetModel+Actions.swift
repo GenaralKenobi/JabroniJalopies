@@ -278,10 +278,18 @@ extension FleetModel {
     /// Saves a completed checklist. The text records are written in one batch so
     /// a problem is flagged as soon as any signal is available; photos are queued
     /// separately and attach whenever they finish uploading.
-    func submit(_ plan: InspectionPlan, vehicle: Vehicle, odometer: Int?, photos: [String: Data]) throws {
+    func submit(_ plan: InspectionPlan, vehicle: Vehicle, odometer: Int?, photos: [String: Data],
+                repeatingItemIds: [String] = []) throws {
         guard let vehicleId = vehicle.id else { return }
         let batch = FS.db.batch()
         try batch.setData(from: plan.inspection, forDocument: FS.inspections(fleetId, vehicleId).document(plan.inspectionId))
+
+        // Repeating items count as done whether they passed or failed (a failure becomes a defect).
+        if !repeatingItemIds.isEmpty {
+            var lastDone: [String: Date] = [:]
+            repeatingItemIds.forEach { lastDone[$0] = plan.inspection.completedAt }
+            batch.setData(["lastDone": lastDone], forDocument: FS.checklistState(fleetId, vehicleId), merge: true)
+        }
 
         for newDefect in plan.newDefects {
             try batch.setData(from: newDefect.defect, forDocument: FS.defects(fleetId, vehicleId).document(newDefect.id))

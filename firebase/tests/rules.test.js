@@ -200,6 +200,13 @@ describe('inspections and defects', () => {
     await assertSucceeds(batch.commit());
   });
 
+  it('records when repeating items were last done, for people who can see the truck', async () => {
+    const path = (v) => `fleets/${FLEET}/vehicles/${v}/checklistState/periodic`;
+    await assertSucceeds(setDoc(doc(db('rita'), path(VEHICLE)), { lastDone: { weekly1: new Date() } }, { merge: true }));
+    await assertFails(setDoc(doc(db('rita'), path(RESTRICTED_VEHICLE)), { lastDone: { weekly1: new Date() } }, { merge: true }));
+    await assertFails(deleteDoc(doc(db('dan'), path(VEHICLE))));
+  });
+
   it('blocks inspections filed under someone else, and editing them later', async () => {
     const d = db('dan');
     await assertFails(setDoc(doc(d, `fleets/${FLEET}/vehicles/${VEHICLE}/inspections/i2`), { performedBy: 'mia' }));

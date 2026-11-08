@@ -24,11 +24,42 @@ struct ChecklistItem: Codable, Identifiable, Hashable {
     var readingLabel: String
     /// A failure means the vehicle should not be driven.
     var unsafeIfFailed: Bool
+    /// How often the item needs doing. `nil` means on every checklist.
+    var frequency: ItemFrequency? = nil
 
-    static func new(_ title: String = "", reading: String? = nil, unsafe: Bool = false) -> ChecklistItem {
+    static func new(_ title: String = "", reading: String? = nil, unsafe: Bool = false,
+                    frequency: ItemFrequency? = nil) -> ChecklistItem {
         ChecklistItem(id: UUID().uuidString, title: title, requiresReading: reading != nil,
-                      readingLabel: reading ?? "", unsafeIfFailed: unsafe)
+                      readingLabel: reading ?? "", unsafeIfFailed: unsafe, frequency: frequency)
     }
+}
+
+/// A checklist item that only needs doing every so often on each truck.
+struct ItemFrequency: Codable, Hashable {
+    enum Kind: String, Codable, CaseIterable {
+        case weekly, monthly, days
+    }
+
+    var kind: Kind
+    /// For `.days`: the interval in days.
+    var days: Int?
+
+    static let weekly = ItemFrequency(kind: .weekly)
+    static let monthly = ItemFrequency(kind: .monthly)
+    static func every(_ days: Int) -> ItemFrequency { ItemFrequency(kind: .days, days: max(1, days)) }
+
+    var label: String {
+        switch kind {
+        case .weekly: "Weekly"
+        case .monthly: "Monthly"
+        case .days: (days ?? 1) == 1 ? "Daily" : "Every \(days ?? 1) days"
+        }
+    }
+}
+
+/// fleets/{f}/vehicles/{v}/checklistState/periodic — when each repeating item was last done on this truck.
+struct ChecklistState: Codable, Hashable {
+    var lastDone: [String: Date]
 }
 
 /// fleets/{f}/vehicles/{v}/inspections/{id} — a completed checklist. Never edited.

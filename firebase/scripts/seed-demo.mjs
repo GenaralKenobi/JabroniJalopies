@@ -109,6 +109,10 @@ async function main() {
       item('Engine oil level'),
       item('Warning lights on dash'),
       item('Fire extinguisher and first-aid kit'),
+      { ...item('Fire extinguisher gauge in green'), frequency: { kind: 'weekly' } },
+      { ...item('Grease fittings'), frequency: { kind: 'monthly' } },
+      { ...item('Battery terminals clean and tight'), frequency: { kind: 'days', days: 14 } },
+      { ...item('Tire tread depth', { reading: '32nds' }), frequency: { kind: 'monthly' } },
     ];
     const itemByPrefix = (prefix) => items.find((i) => i.title.startsWith(prefix));
     await set(`${F}/checklists/morning`, { name: 'Morning Checklist', items, vehicleIds: [], updatedAt: daysAgo(30) });
@@ -130,6 +134,16 @@ async function main() {
         licensePlate: v.plate, odometer: v.odo, assignedUids: [], specSections: specs(v.specs), createdAt: daysAgo(400),
       });
     }
+
+    // Van 12: the weekly extinguisher check is due; grease and battery were done recently.
+    await set(`${F}/vehicles/van-12/checklistState/periodic`, {
+      lastDone: {
+        [itemByPrefix('Fire extinguisher gauge').id]: daysAgo(8),
+        [itemByPrefix('Grease').id]: daysAgo(6),
+        [itemByPrefix('Battery').id]: daysAgo(3),
+        [itemByPrefix('Tire tread').id]: daysAgo(20),
+      },
+    });
 
     const brakes = itemByPrefix('Brakes');
     const lights = itemByPrefix('Headlights');
@@ -164,7 +178,7 @@ async function main() {
       photos: {}, updatedAt: daysAgo(1),
     });
 
-    const results = (failBrakes) => items.map((i) => {
+    const results = (failBrakes) => items.filter((i) => !i.frequency).map((i) => {
       const failed = failBrakes && i.id === brakes.id;
       const r = { itemId: i.id, title: i.title, passed: !failed };
       if (i.requiresReading) { r.reading = 72; r.readingLabel = i.readingLabel; }

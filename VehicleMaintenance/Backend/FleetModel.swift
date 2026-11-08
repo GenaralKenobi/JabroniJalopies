@@ -22,6 +22,8 @@ final class FleetModel {
     private(set) var pendingServices: [String: [ServiceRecord]] = [:]
     /// Chain sizes and counts, keyed by vehicle id.
     private(set) var chainInventories: [String: ChainInventory] = [:]
+    /// When repeating checklist items were last done, keyed by vehicle id.
+    private(set) var checklistStates: [String: ChecklistState] = [:]
     /// Chainsaws and ropes on visible trucks (managers: all, including unassigned).
     private(set) var equipment: [Equipment] = []
     /// Open defects keyed by equipment id.
@@ -82,6 +84,14 @@ final class FleetModel {
 
     func checklists(for vehicleId: String) -> [ChecklistTemplate] {
         checklists.filter { $0.applies(to: vehicleId) }
+    }
+
+    /// Repeating items (weekly, monthly…) currently due on a truck, across its checklists.
+    func dueRepeatingItems(on vehicleId: String, now: Date = .now) -> [ChecklistItem] {
+        let lastDone = checklistStates[vehicleId]?.lastDone ?? [:]
+        return checklists(for: vehicleId).flatMap(\.items).filter { item in
+            item.frequency != nil && PeriodicSchedule.isDue(item.frequency, lastDone: lastDone[item.id], now: now)
+        }
     }
 
     /// Open defects across visible trucks and their equipment, unsafe and newest first.
@@ -329,6 +339,7 @@ final class FleetModel {
             openDefects[removed] = nil
             pendingServices[removed] = nil
             chainInventories[removed] = nil
+            checklistStates[removed] = nil
         }
         for vehicleId in ids.subtracting(perVehicle.keys) {
             let remindersListener = firestoreListen(FS.reminders(fleetId, vehicleId)) { [weak self] (items: [Reminder], _) in
@@ -351,7 +362,12 @@ final class FleetModel {
                     self?.chainInventories[vehicleId] = try? snapshot?.data(as: ChainInventory.self)
                 }
             }
-            perVehicle[vehicleId] = [remindersListener, defectsListener, pendingListener, chainsListener]
+            let stateListener = FS.checklistState(fleetId, vehicleId).addSnapshotListener { [weak self] snapshot, _ in
+                MainActor.assumeIsolated {
+                    self?.checklistStates[vehicleId] = try? snapshot?.data(as: ChecklistState.self)
+                }
+            }
+            perVehicle[vehicleId] = [remindersListener, defectsListener, pendingListener, chainsListener, stateListener]
         }
     }
 

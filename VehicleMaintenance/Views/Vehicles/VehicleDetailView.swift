@@ -175,10 +175,17 @@ struct VehicleDetailView: View {
                         showingChecklistPicker = true
                     }
                 } label: {
-                    Label("Start Checklist", systemImage: "checklist.checked")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                    VStack(spacing: 2) {
+                        Label("Start Checklist", systemImage: "checklist.checked")
+                            .font(.headline)
+                        let due = fleet.dueRepeatingItems(on: vehicleId)
+                        if !due.isEmpty {
+                            Text(due.count == 1 ? "Includes 1 weekly/monthly item" : "Includes \(due.count) weekly/monthly items")
+                                .font(.caption)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
                 }
                 .buttonStyle(.borderedProminent)
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
