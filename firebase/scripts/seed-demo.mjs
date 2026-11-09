@@ -28,7 +28,8 @@ const daysAgo = (days, hour = 7) => {
   const d = new Date(now);
   d.setDate(d.getDate() - days);
   d.setHours(hour, 12, 0, 0);
-  return Timestamp.fromDate(d);
+  // Never in the future (e.g. "6 AM today" when CI runs just after midnight).
+  return Timestamp.fromDate(d > now ? new Date(now.getTime() - 60 * 60 * 1000) : d);
 };
 const yearsFromNow = (years) => {
   const d = new Date(now);

@@ -6,7 +6,7 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
 - SwiftUI on iOS 17 or later
 - Firebase: Authentication, Firestore and Cloud Storage
 
-[Screenshots](../../tree/ci-screenshots) are captured automatically by CI on every push to `main`.
+[Screenshots](../../tree/ci-screenshots) are captured automatically by CI on every push to `main`. Decisions waiting for your review are in [DECISIONS.md](DECISIONS.md).
 
 ## Features
 
@@ -23,6 +23,10 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
 - For each item, the manager decides whether it also asks for a number reading (for example tire pressure in PSI) and whether it's a safety item.
 - When an item fails, the app asks for a photo, but a photo isn't required.
 - A failed safety item marks the vehicle **UNSAFE TO DRIVE**. Everyone sees a strong warning, including anyone who starts another checklist on that vehicle.
+- **Repeating items:** an item can repeat weekly, monthly or every N days instead of on every checklist.
+  - Each truck remembers when each repeating item was last done, and this works offline.
+  - When an item isn't due, it moves to a "Not due yet" section and can be done early.
+  - The truck page shows how many repeating items are due.
 - If an item already has an open defect, the driver chooses **Still a problem** or **Looks fixed** (with a required note) instead of plain pass/fail. A later "pass" never erases an earlier problem.
 
 ### Defects
