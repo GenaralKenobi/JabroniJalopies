@@ -111,23 +111,42 @@ struct VehicleRow: View {
     let vehicle: Vehicle
 
     var body: some View {
+        let vehicleId = vehicle.id ?? ""
         let condition = fleet.condition(of: vehicle.id)
-        HStack(spacing: 12) {
+        let alerts = fleet.equipmentAlerts(on: vehicleId)
+        let due = fleet.reminderStatus(of: vehicle).flatMap { $0 == .ok ? nil : $0 }
+
+        HStack(alignment: .top, spacing: 12) {
             VehicleThumbnail(data: vehicle.photo)
 
-            VStack(alignment: .leading, spacing: 3) {
+            // Everything stacks under the name, and badges wrap onto extra lines,
+            // so nothing gets squeezed however many badges a truck has.
+            VStack(alignment: .leading, spacing: 4) {
                 Text(vehicle.displayName)
                     .font(.headline)
-                if !vehicle.subtitle.isEmpty {
-                    Text(vehicle.subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.secondary)
-                }
-                Text(Formatting.distance(vehicle.odometer, unit: unit))
-                    .font(.caption)
+                Text([vehicle.subtitle, Formatting.distance(vehicle.odometer, unit: unit)]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " · "))
+                    .font(.subheadline)
                     .foregroundStyle(Color.secondary)
-                if !fleet.checklists(for: vehicle.id ?? "").isEmpty {
-                    if let last = fleet.lastInspections[vehicle.id ?? ""], Calendar.current.isDateInToday(last.completedAt) {
+
+                if condition != .ok || !alerts.isEmpty || due != nil {
+                    FlowLayout(spacing: 6) {
+                        if condition != .ok {
+                            ConditionBadge(condition: condition, compact: true)
+                        }
+                        if !alerts.isEmpty {
+                            equipmentBadge(alerts)
+                        }
+                        if let due {
+                            StatusBadge(status: due)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+
+                if !fleet.checklists(for: vehicleId).isEmpty {
+                    if let last = fleet.lastInspections[vehicleId], Calendar.current.isDateInToday(last.completedAt) {
                         Label("Checked today", systemImage: "checkmark.circle.fill")
                             .font(.caption)
                             .foregroundStyle(Color.green)
@@ -138,34 +157,25 @@ struct VehicleRow: View {
                     }
                 }
             }
-
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 4) {
-                if condition != .ok {
-                    ConditionBadge(condition: condition, compact: true)
-                }
-                let alerts = fleet.equipmentAlerts(on: vehicle.id ?? "")
-                if !alerts.isEmpty {
-                    let doNotUse = alerts.contains(where: \.isDoNotUse)
-                    HStack(spacing: 4) {
-                        Image(systemName: doNotUse ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
-                        Text(alerts.count == 1 ? alerts[0].equipment.displayName : "\(alerts.count) equipment")
-                            .lineLimit(1)
-                    }
-                        .font(.caption.weight(.semibold))
-                        .fixedSize()
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .foregroundStyle(doNotUse ? Color.red : Color.orange)
-                        .background((doNotUse ? Color.red : Color.orange).opacity(0.15), in: Capsule())
-                        .accessibilityLabel("Equipment needs attention")
-                }
-                if let due = fleet.reminderStatus(of: vehicle), due != .ok {
-                    StatusBadge(status: due)
-                }
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 4)
+    }
+
+    private func equipmentBadge(_ alerts: [EquipmentAlert]) -> some View {
+        let doNotUse = alerts.contains(where: \.isDoNotUse)
+        return HStack(spacing: 4) {
+            Image(systemName: doNotUse ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
+            Text(alerts.count == 1 ? alerts[0].equipment.displayName : "\(alerts.count) equipment")
+                .lineLimit(1)
+        }
+        .font(.caption.weight(.semibold))
+        .fixedSize()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .foregroundStyle(doNotUse ? Color.red : Color.orange)
+        .background((doNotUse ? Color.red : Color.orange).opacity(0.15), in: Capsule())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Equipment needs attention: \(alerts.map(\.equipment.displayName).joined(separator: ", "))")
     }
 }
