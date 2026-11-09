@@ -70,6 +70,8 @@ final class SessionModel {
     /// Called when this user was removed from a fleet.
     private func handleLostAccess(fleetId: String) {
         FS.memberships(uid).document(fleetId).delete()
+        ChecklistReminder.cancel(fleetId: fleetId)
+        ReminderNotifications.sync([], prefix: fleetId)
         if fleetModel?.fleetId == fleetId {
             fleetModel?.stop()
             fleetModel = nil
@@ -90,7 +92,8 @@ final class SessionModel {
 
         let batch = FS.db.batch()
         try batch.setData(from: Fleet(name: trimmedName, createdBy: uid, photosEnabled: false,
-                                      usage: FleetUsage(photoBytes: 0, photoCount: 0, recordCount: 0)),
+                                      usage: FleetUsage(photoBytes: 0, photoCount: 0, recordCount: 0),
+                                      distanceUnit: DistanceUnit.current.rawValue),
                           forDocument: fleetRef)
         try batch.setData(from: Member(role: .manager, displayName: profile.displayName.trimmed,
                                        phone: profile.phone.trimmed, email: email, seesAllVehicles: true),
@@ -151,6 +154,8 @@ final class SessionModel {
         batch.deleteDocument(FS.members(fleetId).document(uid))
         batch.deleteDocument(FS.memberships(uid).document(fleetId))
         try await batch.commit()
+        ChecklistReminder.cancel(fleetId: fleetId)
+        ReminderNotifications.sync([], prefix: fleetId)
         if fleetModel?.fleetId == fleetId {
             fleetModel?.stop()
             fleetModel = nil

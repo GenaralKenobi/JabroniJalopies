@@ -21,21 +21,66 @@ extension FleetModel {
         commitInBackground(batch, "Updating photo setting")
     }
 
-    func bumpRecordCount(_ count: Int, in batch: WriteBatch) {
+    func setDistanceUnit(_ unit: DistanceUnit) {
+        let batch = FS.db.batch()
+        batch.updateData(["distanceUnit": unit.rawValue], forDocument: FS.fleet(fleetId))
+        commitInBackground(batch, "Changing distance unit")
+    }
+
+    /// Daily checklist reminder time for everyone in the fleet ("HH:mm"), or nil to turn it off.
+    func setChecklistReminder(_ time: String?) {
+        let batch = FS.db.batch()
+        let value: Any = time ?? FieldValue.delete()
+        batch.updateData(["checklistReminderTime": value], forDocument: FS.fleet(fleetId))
+        commitInBackground(batch, "Updating checklist reminder")
+    }
+
+    /// Bumps the estimated record count. Written on its own (never in the same batch
+    /// as a checklist) so a counter problem can never cause real records to be rejected.
+    func bumpRecordCount(_ count: Int) {
         guard count != 0 else { return }
-        batch.updateData(["usage.recordCount": FieldValue.increment(Int64(count))], forDocument: FS.fleet(fleetId))
+        FS.fleet(fleetId).updateData(["usage.recordCount": FieldValue.increment(Int64(count))]) { _ in
+            // It's only an estimate; nothing to tell the user.
+        }
     }
 
     // MARK: Vehicles
 
-    /// Creates or updates a vehicle (managers). Returns its id.
+    /// Adds a vehicle (managers). Returns its id.
     @discardableResult
-    func save(_ vehicle: Vehicle) throws -> String {
-        let ref = vehicle.id.map { FS.vehicle(fleetId, $0) } ?? FS.vehicles(fleetId).document()
+    func add(_ vehicle: Vehicle) throws -> String {
+        let ref = FS.vehicles(fleetId).document()
         let batch = FS.db.batch()
         try batch.setData(from: vehicle, forDocument: ref)
-        commitInBackground(batch, "Saving vehicle")
+        commitInBackground(batch, "Adding vehicle")
         return ref.documentID
+    }
+
+    /// Saves edits from the vehicle form. Only the form's fields are written, so
+    /// changes made meanwhile by others (odometer, specs, driver assignments) are kept.
+    func update(_ edited: Vehicle, from original: Vehicle) {
+        guard let id = original.id else { return }
+        var fields: [AnyHashable: Any] = [
+            "name": edited.name,
+            "make": edited.make,
+            "model": edited.model,
+            "year": edited.year,
+            "vin": edited.vin,
+            "licensePlate": edited.licensePlate,
+        ]
+        if let photo = edited.photo {
+            fields["photo"] = photo
+        } else {
+            fields["photo"] = FieldValue.delete()
+        }
+        if edited.odometer != original.odometer {
+            fields["odometer"] = edited.odometer
+            fields["odometerUpdatedAt"] = FieldValue.serverTimestamp()
+            fields["odometerUpdatedBy"] = uid
+        }
+        let batch = FS.db.batch()
+        batch.updateData(fields, forDocument: FS.vehicle(fleetId, id))
+        commitInBackground(batch, "Saving vehicle")
     }
 
     /// Deletes a vehicle and all of its records. Needs a connection.
@@ -178,17 +223,22 @@ extension FleetModel {
 
         let batch = FS.db.batch()
         try batch.setData(from: record, forDocument: ref)
-        if isManager, let cost {
-            try batch.setData(from: ServiceCost(amount: cost, expireAt: record.expireAt),
-                              forDocument: FS.costs(fleetId, vehicleId).document(ref.documentID))
-        }
-        if isNew {
-            bumpRecordCount(1, in: batch)
+        if isManager {
+            let costRef = FS.costs(fleetId, vehicleId).document(ref.documentID)
+            if let cost {
+                try batch.setData(from: ServiceCost(amount: cost, expireAt: record.expireAt), forDocument: costRef)
+            } else if !isNew {
+                // The manager cleared the cost.
+                batch.deleteDocument(costRef)
+            }
         }
         if record.status == .approved {
             applyApprovedService(record, vehicle: vehicle, in: batch)
         }
         commitInBackground(batch, "Saving service record")
+        if isNew {
+            bumpRecordCount(1)
+        }
     }
 
     func approve(_ record: ServiceRecord, vehicle: Vehicle, cost: Double?, note: String) throws {
@@ -281,20 +331,19 @@ extension FleetModel {
     func submit(_ plan: InspectionPlan, vehicle: Vehicle, odometer: Int?, photos: [String: Data],
                 repeatingItemIds: [String] = []) throws {
         guard let vehicleId = vehicle.id else { return }
-        let batch = FS.db.batch()
-        try batch.setData(from: plan.inspection, forDocument: FS.inspections(fleetId, vehicleId).document(plan.inspectionId))
 
-        // Repeating items count as done whether they passed or failed (a failure becomes a defect).
-        if !repeatingItemIds.isEmpty {
-            var lastDone: [String: Date] = [:]
-            repeatingItemIds.forEach { lastDone[$0] = plan.inspection.completedAt }
-            batch.setData(["lastDone": lastDone], forDocument: FS.checklistState(fleetId, vehicleId), merge: true)
-        }
-
+        // 1. The checklist and any new defects, together. These are new documents the
+        //    driver is always allowed to create, so this write can't be rejected by
+        //    anything that changed while the phone was offline.
+        let records = FS.db.batch()
+        try records.setData(from: plan.inspection, forDocument: FS.inspections(fleetId, vehicleId).document(plan.inspectionId))
         for newDefect in plan.newDefects {
-            try batch.setData(from: newDefect.defect, forDocument: FS.defects(fleetId, vehicleId).document(newDefect.id))
+            try records.setData(from: newDefect.defect, forDocument: FS.defects(fleetId, vehicleId).document(newDefect.id))
         }
+        commitInBackground(records, "Saving checklist")
 
+        // 2. Updates to existing defects, each on its own: a manager may have closed one
+        //    while this phone was offline, and that must not lose the checklist above.
         for update in plan.defectUpdates {
             var fields: [AnyHashable: Any] = [
                 "history": FieldValue.arrayUnion([try FS.encode(update.event)]),
@@ -306,19 +355,34 @@ extension FleetModel {
             for photoId in update.photoIds {
                 fields["photos.\(photoId)"] = try FS.encode(pendingPhoto())
             }
-            batch.updateData(fields, forDocument: FS.defects(fleetId, vehicleId).document(update.defectId))
+            let defectTitle = plan.inspection.results.first { $0.defectId == update.defectId }?.title ?? "a defect"
+            FS.defects(fleetId, vehicleId).document(update.defectId).updateData(fields) { error in
+                MainActor.assumeIsolated {
+                    guard let error else { return }
+                    if error.isPermissionDenied {
+                        ErrorCenter.shared.message = "Your checklist was saved, but \"\(defectTitle)\" had already been closed by a manager. If the problem is still there, report it again."
+                    } else {
+                        ErrorCenter.shared.report(error, "Updating \(defectTitle)")
+                    }
+                }
+            }
         }
 
+        // 3. Repeating items count as done whether they passed or failed (a failure becomes a defect).
+        if !repeatingItemIds.isEmpty {
+            var lastDone: [String: Date] = [:]
+            repeatingItemIds.forEach { lastDone[$0] = plan.inspection.completedAt }
+            let state = FS.db.batch()
+            state.setData(["lastDone": lastDone], forDocument: FS.checklistState(fleetId, vehicleId), merge: true)
+            commitInBackground(state, "Saving checklist schedule")
+        }
+
+        // 4. Odometer.
         if let odometer, odometer > vehicle.odometer {
-            batch.updateData([
-                "odometer": odometer,
-                "odometerUpdatedAt": FieldValue.serverTimestamp(),
-                "odometerUpdatedBy": uid,
-            ], forDocument: FS.vehicle(fleetId, vehicleId))
+            updateOdometer(of: vehicle, to: odometer)
         }
-        bumpRecordCount(plan.recordCount, in: batch)
-        commitInBackground(batch, "Saving checklist")
 
+        bumpRecordCount(plan.recordCount)
         enqueuePhotos(photos, plan: plan, vehicleId: vehicleId)
     }
 
@@ -355,8 +419,8 @@ extension FleetModel {
             photos: photoEntries, updatedAt: now)
         let batch = FS.db.batch()
         try batch.setData(from: defect, forDocument: ref)
-        bumpRecordCount(1, in: batch)
         commitInBackground(batch, "Reporting problem")
+        bumpRecordCount(1)
         for (photoId, data) in photos {
             PhotoUploadQueue.shared.enqueue(data: data, photoId: photoId, fleetId: fleetId,
                                             owner: owner, defectId: ref.documentID)

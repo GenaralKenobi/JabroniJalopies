@@ -116,6 +116,7 @@ struct SignInView: View {
 
 struct VerifyEmailView: View {
     @Environment(AuthModel.self) private var auth
+    @Environment(\.scenePhase) private var scenePhase
     @State private var message: String?
     @State private var isChecking = false
 
@@ -151,6 +152,10 @@ struct VerifyEmailView: View {
                     Text(message).font(.footnote).foregroundStyle(Color.secondary)
                 }
             }
+        }
+        // Coming back from the Mail app after tapping the link: check automatically.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await auth.refresh() } }
         }
     }
 }

@@ -36,3 +36,17 @@ These are choices I made without being sure they match how you work. Each one is
 17. **Defect photos are switched on per fleet** with Settings → Defect Photos. They need Firebase's pay-as-you-go plan.
 18. **Records are deleted automatically 5 years after they're created.** Defects are deleted 5 years after they're closed.
 19. **Managers get push notifications only for maintenance reminders and storage warnings.** These are local notifications on the manager's own phone. A server-sent alert when a driver reports a defect needs Firebase's pay-as-you-go plan plus an Apple push key, so it isn't built yet.
+
+## From the full review
+
+20. **The distance unit (miles or kilometres) is a fleet setting.** It used to be per phone, which meant two drivers could enter odometer readings in different units on the same truck. Now a manager sets it once under Settings → Fleet Settings, and everyone's phone follows it. Changing it doesn't convert readings already entered.
+21. **There's a daily checklist reminder, off by default.** A manager can turn it on and pick a time under Settings → Fleet Settings. Every member's phone then shows "Complete today's checklist" at that time, **every day including weekends**. Should it be weekdays only, or per driver?
+22. **Each truck shows when its last checklist was done.**
+    - The fleet list shows "Checked today" or "Not checked today".
+    - The truck page shows "Last checklist today at 6:12 AM by Dan".
+
+    Several checklists a day on the same truck are still allowed; nothing blocks a second one.
+23. **Managers can change the safety flag on any defect, either way.** That includes a truck's "Unsafe to drive", so a driver's mistaken flag can be cleared without closing the defect.
+24. **Managers can correct a rope's length directly** in its edit screen, for example after replacing the rope. Drivers still go through approval.
+25. **Signing out checks for unsynced work first.** If checklists done offline or photos haven't uploaded yet, the app warns that signing out will lose them and suggests waiting for signal. If you sign out anyway, waiting photos are deleted from the phone, so the next person to sign in can't see them.
+26. **A manager closing a defect doesn't lose an offline checklist.** If a driver offline marks a defect "still a problem" while a manager closes it, the checklist is still saved and the driver is told to report the problem again if it's still there. The app doesn't reopen the closed defect or create a new one automatically.

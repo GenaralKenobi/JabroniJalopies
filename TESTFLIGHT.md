@@ -85,3 +85,14 @@ To publish a new version later, change `MARKETING_VERSION` in `project.yml` and 
 4. Open the invite email, or open the TestFlight app. The app shows up there, ready to install.
 
 Internal testers can install a build as soon as Apple finishes processing it, with no review. Friends outside your team count as *external* testers, and their builds need a short beta review first.
+
+### Getting the app to your drivers
+
+- **Internal testing:** only people you add as users of your App Store Connect team (up to 100). This is good for you and other managers.
+- **External testing:**
+  1. Under **TestFlight**, create an external group and turn on **Public Link**.
+  2. Share the link with drivers. They install TestFlight, then your app.
+  3. The first build for external testers goes through a short Apple beta review, usually about a day.
+
+  TestFlight builds expire after 90 days, so upload a new one at least that often.
+- **For the long term,** release on the App Store, either unlisted or public, or distribute privately through Apple Business Manager. App Review needs a demo login with sample data; see YOUR_TODO.md.

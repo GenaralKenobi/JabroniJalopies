@@ -1,5 +1,6 @@
 import FirebaseAuth
 import Foundation
+import UserNotifications
 
 /// The signed-in Firebase user.
 @MainActor
@@ -77,9 +78,12 @@ final class AuthModel {
         }
     }
 
+    /// Signs out and wipes this phone's copy of fleet data and scheduled reminders.
+    /// Check `FirebaseSetup.hasUnsyncedChanges()` first: unsynced changes are lost.
     func signOut() async {
         try? Auth.auth().signOut()
         update(nil)
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         await FirebaseSetup.clearLocalCache()
     }
 
@@ -97,6 +101,7 @@ final class AuthModel {
     func deleteAuthUser() async throws {
         try await Auth.auth().currentUser?.delete()
         update(nil)
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         await FirebaseSetup.clearLocalCache()
     }
 

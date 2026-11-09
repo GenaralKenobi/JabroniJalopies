@@ -30,6 +30,8 @@ final class FleetModel {
     private(set) var equipmentDefects: [String: [Defect]] = [:]
     /// Rope length reductions waiting for a manager, keyed by equipment id.
     private(set) var pendingLengthChanges: [String: [LengthChange]] = [:]
+    /// The most recent completed checklist on each truck, keyed by vehicle id.
+    private(set) var lastInspections: [String: Inspection] = [:]
 
     private let onLostAccess: () -> Void
     private var baseListeners: [ListenerRegistration] = []
@@ -41,6 +43,8 @@ final class FleetModel {
     private var equipmentByQuery: [String: [Equipment]] = [:]
     private var perEquipment: [String: [ListenerRegistration]] = [:]
     private var stopped = false
+    private var verifyingAccess = false
+    private var lastSyncedFleetName: String?
 
     init(fleetId: String, uid: String, email: String, onLostAccess: @escaping () -> Void) {
         self.fleetId = fleetId
@@ -189,6 +193,7 @@ final class FleetModel {
                     return
                 }
                 self.fleet = try? snapshot.data(as: Fleet.self)
+                self.applyFleetSettings()
                 self.checkUsageAlert()
             }
         })
@@ -212,6 +217,10 @@ final class FleetModel {
 
     func stop() {
         stopped = true
+        removeAllListeners()
+    }
+
+    private func removeAllListeners() {
         baseListeners.forEach { $0.remove() }
         baseListeners.removeAll()
         vehicleListener?.remove()
@@ -222,13 +231,44 @@ final class FleetModel {
         equipmentListeners.removeAll()
         perEquipment.values.flatMap { $0 }.forEach { $0.remove() }
         perEquipment.removeAll()
+        vehicleListener = nil
+        vehicleQueryKey = nil
+        inviteListener = nil
+        equipmentByQuery.removeAll()
     }
 
     private func handleListenerError(_ error: Error) {
         if error.isPermissionDenied {
-            lostAccess()
+            verifyAccess()
         } else {
             ErrorCenter.shared.report(error, "Syncing fleet")
+        }
+    }
+
+    /// A permission error can be temporary: right after creating or joining a fleet,
+    /// the server may not have the new membership yet. Wait for this phone's pending
+    /// writes, then check the membership on the server before giving up on the fleet.
+    private func verifyAccess() {
+        guard !verifyingAccess, !stopped else { return }
+        verifyingAccess = true
+        FS.db.waitForPendingWrites { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, !self.stopped else { return }
+                FS.members(self.fleetId).document(self.uid).getDocument(source: .server) { snapshot, error in
+                    MainActor.assumeIsolated {
+                        guard !self.stopped else { return }
+                        self.verifyingAccess = false
+                        if let snapshot, snapshot.exists {
+                            // Still a member: reconnect everything.
+                            self.removeAllListeners()
+                            self.start()
+                        } else if error == nil || error?.isPermissionDenied == true {
+                            self.lostAccess()
+                        }
+                        // Network errors: keep working from the cache and try again later.
+                    }
+                }
+            }
         }
     }
 
@@ -274,6 +314,8 @@ final class FleetModel {
             inviteListener?.remove()
             inviteListener = nil
             invites = []
+            // Maintenance reminder notifications are for managers only.
+            ReminderNotifications.sync([], prefix: fleetId)
         }
     }
 
@@ -340,6 +382,7 @@ final class FleetModel {
             pendingServices[removed] = nil
             chainInventories[removed] = nil
             checklistStates[removed] = nil
+            lastInspections[removed] = nil
         }
         for vehicleId in ids.subtracting(perVehicle.keys) {
             let remindersListener = firestoreListen(FS.reminders(fleetId, vehicleId)) { [weak self] (items: [Reminder], _) in
@@ -367,7 +410,12 @@ final class FleetModel {
                     self?.checklistStates[vehicleId] = try? snapshot?.data(as: ChecklistState.self)
                 }
             }
-            perVehicle[vehicleId] = [remindersListener, defectsListener, pendingListener, chainsListener, stateListener]
+            let lastInspectionQuery = FS.inspections(fleetId, vehicleId).order(by: "completedAt", descending: true).limit(to: 1)
+            let lastInspectionListener = firestoreListen(lastInspectionQuery) { [weak self] (items: [Inspection], _) in
+                self?.lastInspections[vehicleId] = items.first
+            }
+            perVehicle[vehicleId] = [remindersListener, defectsListener, pendingListener, chainsListener, stateListener,
+                                     lastInspectionListener]
         }
     }
 
@@ -381,6 +429,21 @@ final class FleetModel {
                          reminder: entry.reminder)
         }
         ReminderNotifications.sync(entries, prefix: fleetId)
+    }
+
+    /// Applies fleet-wide settings on this phone: distance unit, daily checklist
+    /// reminder, and the fleet's name in this person's fleet list.
+    private func applyFleetSettings() {
+        guard let fleet else { return }
+        if let unit = fleet.distanceUnit, DistanceUnit(rawValue: unit) != nil,
+           UserDefaults.standard.string(forKey: DistanceUnit.storageKey) != unit {
+            UserDefaults.standard.set(unit, forKey: DistanceUnit.storageKey)
+        }
+        ChecklistReminder.sync(fleetId: fleetId, fleetName: fleet.name, time: fleet.checklistReminderTime)
+        if lastSyncedFleetName != fleet.name {
+            lastSyncedFleetName = fleet.name
+            FS.memberships(uid).document(fleetId).setData(["fleetName": fleet.name], merge: true)
+        }
     }
 
     private func checkUsageAlert() {

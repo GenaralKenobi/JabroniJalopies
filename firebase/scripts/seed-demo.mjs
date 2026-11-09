@@ -90,6 +90,8 @@ async function main() {
 
     await set(F, {
       name: 'Acme Delivery', createdBy: uid, createdAt: daysAgo(400), photosEnabled: true,
+      // No checklistReminderTime here: it would put a notification prompt over the CI screenshots.
+      distanceUnit: 'mi',
       usage: { photoBytes: 1_350_000_000, photoCount: 2900, recordCount: 18400 },
     });
     await set(`${F}/members/${uid}`, {

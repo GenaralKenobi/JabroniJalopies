@@ -85,6 +85,7 @@ struct VehicleFormView: View {
                     Text(errorMessage).foregroundStyle(.red)
                 }
             }
+            .keyboardDoneButton()
             .navigationTitle(original == nil ? "New Vehicle" : "Edit Vehicle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -112,9 +113,14 @@ struct VehicleFormView: View {
         vehicle.model = vehicle.model.trimmed
         vehicle.vin = vehicle.vin.trimmed.uppercased()
         vehicle.licensePlate = vehicle.licensePlate.trimmed.uppercased()
-        vehicle.odometer = NumberParsing.int(odometerText) ?? 0
+        vehicle.odometer = NumberParsing.int(odometerText) ?? original?.odometer ?? 0
+        if let original {
+            fleet.update(vehicle, from: original)
+            dismiss()
+            return
+        }
         do {
-            try fleet.save(vehicle)
+            try fleet.add(vehicle)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

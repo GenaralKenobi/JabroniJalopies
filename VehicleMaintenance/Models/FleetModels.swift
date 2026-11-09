@@ -24,6 +24,10 @@ struct Fleet: Codable, Identifiable, Hashable {
     /// Defect photos need Cloud Storage, which requires Firebase's pay-as-you-go plan.
     var photosEnabled: Bool?
     var usage: FleetUsage?
+    /// "mi" or "km". Fleet-wide so everyone enters odometer readings in the same unit.
+    var distanceUnit: String?
+    /// "HH:mm" local time for the daily checklist reminder on everyone's phone; nil = off.
+    var checklistReminderTime: String?
 }
 
 struct FleetUsage: Codable, Hashable {

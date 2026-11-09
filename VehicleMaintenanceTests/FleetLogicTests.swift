@@ -258,6 +258,17 @@ struct EquipmentTests {
     }
 }
 
+struct ChecklistReminderTests {
+    @Test func parsesAndFormatsReminderTimes() {
+        #expect(ChecklistReminder.parse("06:30")?.hour == 6)
+        #expect(ChecklistReminder.parse("06:30")?.minute == 30)
+        #expect(ChecklistReminder.parse("24:00") == nil)
+        #expect(ChecklistReminder.parse("6") == nil)
+        #expect(ChecklistReminder.parse(nil) == nil)
+        #expect(ChecklistReminder.format(hour: 6, minute: 5) == "06:05")
+    }
+}
+
 struct PeriodicScheduleTests {
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)

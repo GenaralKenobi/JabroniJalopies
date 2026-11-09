@@ -16,6 +16,11 @@ struct SettingsView: View {
     @State private var confirmingLeave = false
     @State private var errorMessage: String?
     @State private var path = NavigationPath()
+    @State private var checkingSignOut = false
+    @State private var confirmingSignOut = false
+    @State private var signOutWarning: String?
+    @Environment(ConnectivityMonitor.self) private var connectivity
+    @Environment(PhotoUploadQueue.self) private var photoQueue
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -43,10 +48,9 @@ struct SettingsView: View {
                     managerSection
                 }
 
-                Section("App") {
-                    Picker("Distance Unit", selection: $unit) {
-                        ForEach(DistanceUnit.allCases) { Text($0.displayName).tag($0) }
-                    }
+                fleetSettingsSection
+
+                Section("Notifications") {
                     notificationRow
                 }
 
@@ -55,12 +59,8 @@ struct SettingsView: View {
                     Link(destination: AppLinks.privacyPolicy) {
                         Label("Privacy Policy", systemImage: "hand.raised")
                     }
-                    Button("Sign Out") {
-                        Task {
-                            session.stop()
-                            await auth.signOut()
-                        }
-                    }
+                    Button(checkingSignOut ? "Checking for unsynced changes…" : "Sign Out", action: beginSignOut)
+                        .disabled(checkingSignOut)
                     NavigationLink("Delete Account") { DeleteAccountView() }
                         .foregroundStyle(.red)
                 }
@@ -99,6 +99,10 @@ struct SettingsView: View {
             .confirmationDialog("Leave \(fleet.fleet?.name ?? "this fleet")?", isPresented: $confirmingLeave,
                                 titleVisibility: .visible) {
                 Button("Leave Fleet", role: .destructive) {
+                    guard connectivity.isOnline else {
+                        errorMessage = "Leaving a fleet needs a connection."
+                        return
+                    }
                     Task {
                         do { try await session.leave(fleetId: fleet.fleetId) } catch { errorMessage = error.localizedDescription }
                     }
@@ -106,7 +110,93 @@ struct SettingsView: View {
             } message: {
                 Text("Your past checklists and reports stay in the fleet's records.")
             }
+            .confirmationDialog("Sign out anyway?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
+                Button("Sign Out and Lose Them", role: .destructive) {
+                    Task { await signOut() }
+                }
+            } message: {
+                Text(signOutWarning ?? "")
+            }
         }
+    }
+
+    /// Distance unit and the daily checklist reminder apply to everyone in the fleet.
+    private var fleetSettingsSection: some View {
+        Section {
+            if fleet.isManager {
+                Picker("Distance Unit", selection: Binding(
+                    get: { unit },
+                    set: { newUnit in
+                        unit = newUnit
+                        fleet.setDistanceUnit(newUnit)
+                    }
+                )) {
+                    ForEach(DistanceUnit.allCases) { Text($0.displayName).tag($0) }
+                }
+                Toggle("Daily Checklist Reminder", isOn: Binding(
+                    get: { fleet.fleet?.checklistReminderTime != nil },
+                    set: { on in fleet.setChecklistReminder(on ? (fleet.fleet?.checklistReminderTime ?? "06:30") : nil) }
+                ))
+                if let time = fleet.fleet?.checklistReminderTime, let parsed = ChecklistReminder.parse(time) {
+                    DatePicker("Reminder Time", selection: Binding(
+                        get: { Calendar.current.date(bySettingHour: parsed.hour, minute: parsed.minute, second: 0, of: .now) ?? .now },
+                        set: { date in
+                            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                            fleet.setChecklistReminder(ChecklistReminder.format(hour: parts.hour ?? 6, minute: parts.minute ?? 30))
+                        }
+                    ), displayedComponents: .hourAndMinute)
+                }
+            } else {
+                LabeledContent("Distance Unit", value: unit.displayName)
+                LabeledContent("Daily Checklist Reminder", value: reminderDescription)
+            }
+        } header: {
+            Text("Fleet Settings")
+        } footer: {
+            Text(fleet.isManager
+                 ? "These apply to everyone in the fleet. Changing units doesn't convert readings already entered. The reminder is a notification on each member's phone every day."
+                 : "Set by your fleet's managers.")
+        }
+    }
+
+    private var reminderDescription: String {
+        guard let parsed = ChecklistReminder.parse(fleet.fleet?.checklistReminderTime),
+              let date = Calendar.current.date(bySettingHour: parsed.hour, minute: parsed.minute, second: 0, of: .now)
+        else { return "Off" }
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
+    // MARK: Sign out
+
+    /// Signing out wipes this phone's copy of the fleet, so check for work that
+    /// hasn't reached the server (checklists done offline, photos still uploading).
+    private func beginSignOut() {
+        checkingSignOut = true
+        Task {
+            let unsynced = await FirebaseSetup.hasUnsyncedChanges()
+            checkingSignOut = false
+            var problems: [String] = []
+            if unsynced {
+                problems.append("changes that haven't reached the server yet (such as checklists completed offline)")
+            }
+            if photoQueue.pendingCount > 0 {
+                problems.append(photoQueue.pendingCount == 1 ? "1 photo still waiting to upload"
+                                : "\(photoQueue.pendingCount) photos still waiting to upload")
+            }
+            if problems.isEmpty {
+                await signOut()
+            } else {
+                signOutWarning = "This phone has " + problems.joined(separator: " and ")
+                    + ". Signing out now will lose them. Get a connection and give them a minute to sync first."
+                confirmingSignOut = true
+            }
+        }
+    }
+
+    private func signOut() async {
+        photoQueue.removeAll()
+        session.stop()
+        await auth.signOut()
     }
 
     private var fleetSection: some View {
@@ -204,6 +294,7 @@ struct ProfileEditView: View {
                     Text("This profile is only used in \(fleet.fleet?.name ?? "this fleet"). Other fleets keep their own.")
                 }
             }
+            .keyboardDoneButton()
             .navigationTitle("Your Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -377,6 +468,7 @@ struct DeleteAccountView: View {
             do {
                 try await auth.reauthenticate(password: password)
                 try await session.deleteAllUserData()
+                PhotoUploadQueue.shared.removeAll()
                 try await auth.deleteAuthUser()
             } catch {
                 errorMessage = error.localizedDescription

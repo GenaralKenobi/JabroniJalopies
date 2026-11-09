@@ -164,13 +164,14 @@ struct DefectDetailView: View {
                     Button { action = .notDefect } label: {
                         Label("Not a Defect", systemImage: "xmark.seal")
                     }
-                    if isEquipment {
-                        Button(role: defect.unsafe ? nil : .destructive) {
-                            fleet.setUnsafe(!defect.unsafe, on: defect, owner: owner)
-                        } label: {
-                            Label(defect.unsafe ? "Clear \"Do Not Use\"" : "Mark \"Do Not Use\"",
-                                  systemImage: "exclamationmark.octagon")
-                        }
+                    // Managers can correct the safety flag either way (e.g. something flagged
+                    // unsafe by mistake, or a problem that turns out to be dangerous).
+                    let unsafeName = isEquipment ? "\"Do Not Use\"" : "\"Unsafe to Drive\""
+                    Button(role: defect.unsafe ? nil : .destructive) {
+                        fleet.setUnsafe(!defect.unsafe, on: defect, owner: owner)
+                    } label: {
+                        Label(defect.unsafe ? "Clear \(unsafeName)" : "Mark \(unsafeName)",
+                              systemImage: "exclamationmark.octagon")
                     }
                 }
             } else if fleet.isManager {
@@ -252,12 +253,22 @@ struct ReportDefectView: View {
     @State private var photos: [String: Data] = [:]
     @State private var errorMessage: String?
 
+    private var placeholder: String {
+        switch owner {
+        case .vehicle: return "What's wrong? (e.g. Cracked windshield)"
+        case .equipment(let id):
+            return fleet.equipment(id)?.type == .rope
+                ? "What's wrong? (e.g. Glazed section near the eye)"
+                : "What's wrong? (e.g. Chain brake sticks)"
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     LabeledContent("For", value: fleet.context(for: owner))
-                    TextField("What's wrong? (e.g. Chain brake sticks)", text: $title)
+                    TextField(placeholder, text: $title)
                     TextField("Details", text: $details, axis: .vertical)
                         .lineLimit(3...6)
                 }

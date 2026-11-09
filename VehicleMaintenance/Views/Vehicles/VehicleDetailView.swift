@@ -116,6 +116,10 @@ struct VehicleDetailView: View {
         }
         .confirmationDialog("Delete \(vehicle.displayName)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete Vehicle and All Records", role: .destructive) {
+                guard ConnectivityMonitor.shared.isOnline else {
+                    ErrorCenter.shared.message = "Deleting a vehicle needs a connection. Try again when you have signal."
+                    return
+                }
                 Task {
                     do {
                         try await fleet.delete(vehicle)
@@ -126,7 +130,7 @@ struct VehicleDetailView: View {
                 }
             }
         } message: {
-            Text("This permanently deletes its checklists, defects, photos and service history.")
+            Text("This permanently deletes its checklists, defects, photos, chain records and service history. Chainsaws and ropes on it are kept; move them to another truck from Settings → Chainsaws & Ropes.")
         }
     }
 
@@ -189,6 +193,16 @@ struct VehicleDetailView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                if let last = fleet.lastInspections[vehicleId] {
+                    Label("Last checklist \(Formatting.dayAndTime(last.completedAt)) by \(last.performedByName)",
+                          systemImage: Calendar.current.isDateInToday(last.completedAt) ? "checkmark.circle.fill" : "clock")
+                        .font(.footnote)
+                        .foregroundStyle(Calendar.current.isDateInToday(last.completedAt) ? Color.green : Color.secondary)
+                } else {
+                    Label("No checklist completed yet", systemImage: "clock")
+                        .font(.footnote)
+                        .foregroundStyle(Color.secondary)
+                }
             }
             Button {
                 showingReportProblem = true

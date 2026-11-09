@@ -24,6 +24,8 @@ struct InspectionFormView: View {
     @State private var confirmingCancel = false
     /// Repeating items that aren't due yet but the driver chose to do now.
     @State private var doingEarly: Set<String> = []
+    /// Guards against a double tap saving the checklist twice.
+    @State private var submitted = false
 
     struct IdentifiedString: Identifiable { let id: String }
 
@@ -143,9 +145,12 @@ struct InspectionFormView: View {
                             .padding(.vertical, 6)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(submitted)
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDoneButton()
             .navigationTitle(checklist.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -200,7 +205,8 @@ struct InspectionFormView: View {
                 get: { outcome != nil },
                 set: { if !$0 { outcome = nil; dismiss() } }
             )) {
-                Button("OK") { outcome = nil; dismiss() }
+                // Closing the alert runs the binding above, which closes the form once.
+                Button("OK") {}
             } message: {
                 Text(outcome?.message ?? "")
             }
@@ -233,6 +239,7 @@ struct InspectionFormView: View {
     }
 
     private func submit() {
+        guard !submitted else { return }
         let existing = openDefectsByItem
         let checklist = activeChecklist
         if let error = InspectionPlanner.validate(template: checklist, answers: answers, openDefectsByItem: existing) {
@@ -251,6 +258,7 @@ struct InspectionFormView: View {
         do {
             try fleet.submit(plan, vehicle: vehicle, odometer: NumberParsing.int(odometerText), photos: usedPhotos,
                              repeatingItemIds: checklist.items.filter { $0.frequency != nil }.map(\.id))
+            submitted = true
         } catch {
             validationMessage = error.localizedDescription
             return

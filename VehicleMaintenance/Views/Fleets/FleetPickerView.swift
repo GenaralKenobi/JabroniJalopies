@@ -140,6 +140,7 @@ struct CreateFleetView: View {
                     Text(errorMessage).foregroundStyle(.red)
                 }
             }
+            .keyboardDoneButton()
             .navigationTitle("New Fleet")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -189,6 +190,7 @@ struct AcceptInviteView: View {
                     Text(errorMessage).foregroundStyle(.red)
                 }
             }
+            .keyboardDoneButton()
             .navigationTitle("Join Fleet")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -5,12 +5,36 @@ extension FleetModel {
     // MARK: Equipment (managers)
 
     @discardableResult
-    func save(_ item: Equipment) throws -> String {
-        let ref = item.id.map { FS.equipment(fleetId, $0) } ?? FS.equipmentCollection(fleetId).document()
+    func add(_ item: Equipment) throws -> String {
+        let ref = FS.equipmentCollection(fleetId).document()
         let batch = FS.db.batch()
         try batch.setData(from: item, forDocument: ref)
-        commitInBackground(batch, "Saving \(item.type.displayName.lowercased())")
+        commitInBackground(batch, "Adding \(item.type.displayName.lowercased())")
         return ref.documentID
+    }
+
+    /// Saves edits from the equipment form. Only the form's fields are written, so a
+    /// move or an approved rope reduction made meanwhile isn't undone. The length is
+    /// only written if the manager changed it.
+    func update(_ edited: Equipment, from original: Equipment) {
+        guard let id = original.id else { return }
+        func optional(_ value: Double?) -> Any { value.map { $0 as Any } ?? FieldValue.delete() }
+        var fields: [AnyHashable: Any] = [
+            "name": edited.name,
+            "make": edited.make,
+            "model": edited.model,
+            "serialNumber": edited.serialNumber,
+            "notes": edited.notes,
+            "diameter": edited.diameter,
+            "barLengthInches": optional(edited.barLengthInches),
+            "minLengthFeet": optional(edited.minLengthFeet),
+        ]
+        if edited.lengthFeet != original.lengthFeet {
+            fields["lengthFeet"] = optional(edited.lengthFeet)
+        }
+        let batch = FS.db.batch()
+        batch.updateData(fields, forDocument: FS.equipment(fleetId, id))
+        commitInBackground(batch, "Saving \(edited.displayName)")
     }
 
     func move(_ item: Equipment, to vehicleId: String) {
@@ -36,8 +60,8 @@ extension FleetModel {
                                   submittedByName: myName, submittedAt: now, expireAt: Retention.expiry(from: now))
         let batch = FS.db.batch()
         try batch.setData(from: change, forDocument: FS.lengthChanges(fleetId, ropeId).document())
-        bumpRecordCount(1, in: batch)
         commitInBackground(batch, "Submitting rope length change")
+        bumpRecordCount(1)
     }
 
     func review(_ change: LengthChange, of rope: Equipment, approve: Bool) {
@@ -106,8 +130,8 @@ extension FleetModel {
             counts[FieldPath(["counts", item.sizeKey])] = FieldValue.increment(Int64(item.countChange))
         }
         batch.updateData(counts, forDocument: FS.chainInventory(fleetId, vehicleId))
-        bumpRecordCount(1, in: batch)
         commitInBackground(batch, kind.label)
+        bumpRecordCount(1)
     }
 
     /// Chain logs across every truck since a date (manager totals). Needs a connection for fresh data.

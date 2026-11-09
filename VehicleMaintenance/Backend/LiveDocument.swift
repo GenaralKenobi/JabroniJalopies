@@ -11,9 +11,15 @@ final class LiveDocument<T: Decodable> {
     @ObservationIgnored nonisolated(unsafe) private var listener: ListenerRegistration?
 
     init(_ reference: DocumentReference) {
-        listener = reference.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, _ in
+        listener = reference.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
             MainActor.assumeIsolated {
-                guard let self, let snapshot else { return }
+                guard let self else { return }
+                if error != nil {
+                    // No access (or it was deleted): show "not found" instead of spinning forever.
+                    self.exists = false
+                    return
+                }
+                guard let snapshot else { return }
                 self.exists = snapshot.exists
                 self.value = try? snapshot.data(as: T.self)
                 self.hasPendingWrites = snapshot.metadata.hasPendingWrites

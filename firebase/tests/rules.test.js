@@ -77,11 +77,23 @@ beforeEach(async () => {
 
 describe('fleets and members', () => {
   it('lets anyone create a fleet and become its manager in one batch', async () => {
-    const d = db('newbie');
+    const d = db('newbie', verified('newbie@example.com'));
     const batch = writeBatch(d);
     batch.set(doc(d, 'fleets/f2'), { name: 'New', createdBy: 'newbie' });
-    batch.set(doc(d, 'fleets/f2/members/newbie'), { role: 'manager', seesAllVehicles: true, displayName: 'N' });
+    batch.set(doc(d, 'fleets/f2/members/newbie'), {
+      role: 'manager', seesAllVehicles: true, displayName: 'N', email: 'newbie@example.com',
+    });
     await assertSucceeds(batch.commit());
+  });
+
+  it('requires the profile email to be the login email', async () => {
+    const d = db('faker', verified('faker@example.com'));
+    const batch = writeBatch(d);
+    batch.set(doc(d, 'fleets/f3'), { name: 'New', createdBy: 'faker' });
+    batch.set(doc(d, 'fleets/f3/members/faker'), {
+      role: 'manager', seesAllVehicles: true, displayName: 'F', email: 'boss@example.com',
+    });
+    await assertFails(batch.commit());
   });
 
   it('blocks making yourself manager of an existing fleet', async () => {
@@ -146,11 +158,21 @@ describe('invites', () => {
   it('lets the invitee join with the invited role only', async () => {
     const d = db('newuser', verified('new@example.com'));
     const asManager = writeBatch(d);
-    asManager.set(doc(d, `fleets/${FLEET}/members/newuser`), { role: 'manager', seesAllVehicles: true, inviteId: 'inv1' });
+    asManager.set(doc(d, `fleets/${FLEET}/members/newuser`), {
+      role: 'manager', seesAllVehicles: true, inviteId: 'inv1', email: 'new@example.com',
+    });
     await assertFails(asManager.commit());
 
+    const wrongEmail = writeBatch(d);
+    wrongEmail.set(doc(d, `fleets/${FLEET}/members/newuser`), {
+      role: 'driver', seesAllVehicles: true, inviteId: 'inv1', displayName: 'New', email: 'someone-else@example.com',
+    });
+    await assertFails(wrongEmail.commit());
+
     const batch = writeBatch(d);
-    batch.set(doc(d, `fleets/${FLEET}/members/newuser`), { role: 'driver', seesAllVehicles: true, inviteId: 'inv1', displayName: 'New' });
+    batch.set(doc(d, `fleets/${FLEET}/members/newuser`), {
+      role: 'driver', seesAllVehicles: true, inviteId: 'inv1', displayName: 'New', email: 'new@example.com',
+    });
     batch.update(doc(d, 'invites/inv1'), { status: 'accepted', acceptedBy: 'newuser', respondedAt: serverTimestamp() });
     batch.set(doc(d, `users/newuser/memberships/${FLEET}`), { fleetName: 'Acme' });
     await assertSucceeds(batch.commit());
@@ -158,7 +180,7 @@ describe('invites', () => {
 
   it('does not let a different user use the invite', async () => {
     await assertFails(setDoc(doc(db('thief', verified('thief@example.com')), `fleets/${FLEET}/members/thief`), {
-      role: 'driver', seesAllVehicles: true, inviteId: 'inv1',
+      role: 'driver', seesAllVehicles: true, inviteId: 'inv1', email: 'thief@example.com',
     }));
   });
 });

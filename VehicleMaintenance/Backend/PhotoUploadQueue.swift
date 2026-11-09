@@ -14,8 +14,9 @@ import UIKit
 final class PhotoUploadQueue {
     static let shared = PhotoUploadQueue()
     static let backgroundTaskId = "com.genaralkenobi.maintenance.photo-upload"
-    /// Give up on a photo after this many failed attempts (e.g. no longer a member).
-    static let maxAttempts = 30
+    /// Give up on a photo after this many attempts that failed for reasons retrying
+    /// can't fix (e.g. no longer a member). Network failures are never counted.
+    static let maxAttempts = 10
 
     struct Job: Codable, Identifiable, Equatable {
         var id: String  // photo id
@@ -112,16 +113,27 @@ final class PhotoUploadQueue {
                 try await upload(job)
                 finish(job)
             } catch {
+                // Weak or no signal never counts against a photo; only errors that
+                // retrying can't fix (no permission, storage not set up) do.
+                guard Self.isPermanent(error) else {
+                    if !ConnectivityMonitor.shared.isOnline { break }
+                    continue
+                }
                 guard let index = jobs.firstIndex(where: { $0.id == job.id }) else { continue }
                 jobs[index].attempts += 1
                 if jobs[index].attempts >= Self.maxAttempts {
                     finish(job)
                 }
                 saveManifest()
-                // Network problems: stop for now and wait for the connection to return.
-                if !ConnectivityMonitor.shared.isOnline { break }
             }
         }
+    }
+
+    private static func isPermanent(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        guard nsError.domain == StorageErrorDomain else { return false }
+        let permanent: [StorageErrorCode] = [.unauthorized, .unauthenticated, .bucketNotFound, .projectNotFound, .invalidArgument]
+        return permanent.map(\.rawValue).contains(nsError.code)
     }
 
     private func upload(_ job: Job) async throws {
@@ -134,19 +146,34 @@ final class PhotoUploadQueue {
         metadata.contentType = "image/jpeg"
         _ = try await Storage.storage().reference(withPath: path).putFileAsync(from: url, metadata: metadata)
 
-        // Attach to the defect and count it toward the fleet's storage use.
-        let batch = FS.db.batch()
-        batch.updateData([
+        // Attach to the defect. If the defect was deleted meanwhile (e.g. old records
+        // cleared by a manager), there's nothing to attach to and nothing to report.
+        job.owner.defects(fleetId: job.fleetId).document(job.defectId).updateData([
             "photos.\(job.id).status": DefectPhotoStatus.uploaded.rawValue,
             "photos.\(job.id).path": path,
             "photos.\(job.id).byteCount": size,
             "updatedAt": Date.now,
-        ], forDocument: job.owner.defects(fleetId: job.fleetId).document(job.defectId))
-        batch.updateData([
+        ]) { error in
+            MainActor.assumeIsolated {
+                guard let error, (error as NSError).code != FirestoreErrorCode.notFound.rawValue else { return }
+                ErrorCenter.shared.report(error, "Attaching photo")
+            }
+        }
+        // Count it toward the fleet's storage use (an estimate; failures don't matter).
+        FS.fleet(job.fleetId).updateData([
             "usage.photoBytes": FieldValue.increment(Int64(size)),
             "usage.photoCount": FieldValue.increment(Int64(1)),
-        ], forDocument: FS.fleet(job.fleetId))
-        commitInBackground(batch, "Attaching photo")
+        ]) { _ in }
+    }
+
+    /// Discards every waiting photo (used when signing out, so the next person to
+    /// sign in on this phone can't see or upload them).
+    func removeAll() {
+        for job in jobs {
+            try? FileManager.default.removeItem(at: fileURL(job.id))
+        }
+        jobs.removeAll()
+        saveManifest()
     }
 
     private func finish(_ job: Job) {

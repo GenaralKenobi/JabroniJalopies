@@ -162,6 +162,10 @@ struct EquipmentDetailView: View {
         .sheet(isPresented: $showingReduction) { LengthReductionFormView(rope: item) }
         .confirmationDialog("Remove \(item.displayName)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Remove and Delete History", role: .destructive) {
+                guard ConnectivityMonitor.shared.isOnline else {
+                    ErrorCenter.shared.message = "Removing equipment needs a connection. Try again when you have signal."
+                    return
+                }
                 Task {
                     do {
                         try await fleet.delete(item)
@@ -313,6 +317,7 @@ struct LengthReductionFormView: View {
                 }
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
+            .keyboardDoneButton()
             .navigationTitle("Length Reduction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -369,12 +374,10 @@ struct EquipmentFormView: View {
                         }
                     case .rope:
                         TextField("Diameter (e.g. 1/2 in)", text: $draft.diameter)
-                        if original == nil {
-                            HStack {
-                                Text("Length")
-                                TextField("—", text: $lengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
-                                Text("ft").foregroundStyle(Color.secondary)
-                            }
+                        HStack {
+                            Text("Length")
+                            TextField("—", text: $lengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                            Text("ft").foregroundStyle(Color.secondary)
                         }
                         HStack {
                             Text("Minimum length")
@@ -386,11 +389,12 @@ struct EquipmentFormView: View {
                     TextField("Notes", text: $draft.notes, axis: .vertical)
                 } footer: {
                     if draft.type == .rope && original != nil {
-                        Text("To shorten the rope, use Submit Length Reduction on its page.")
+                        Text("As a manager you can correct the length here, for example after replacing the rope. Drivers submit reductions from the rope's page for approval.")
                     }
                 }
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
+            .keyboardDoneButton()
             .navigationTitle(original == nil ? "Add \(draft.type.displayName)" : "Edit \(draft.type.displayName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -407,11 +411,23 @@ struct EquipmentFormView: View {
         item.name = item.name.trimmed
         item.barLengthInches = item.type == .chainsaw ? NumberParsing.decimal(barText) : nil
         if item.type == .rope {
-            if original == nil { item.lengthFeet = NumberParsing.decimal(lengthText) }
+            // Only take the typed length if it was changed, so an untouched field never
+            // overwrites a reduction approved while the form was open.
+            let initialText = original?.lengthFeet.map { $0.formatted() } ?? ""
+            if lengthText != initialText {
+                item.lengthFeet = NumberParsing.decimal(lengthText)
+            } else {
+                item.lengthFeet = original?.lengthFeet
+            }
             item.minLengthFeet = NumberParsing.decimal(minLengthText)
         }
+        if let original {
+            fleet.update(item, from: original)
+            dismiss()
+            return
+        }
         do {
-            try fleet.save(item)
+            try fleet.add(item)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

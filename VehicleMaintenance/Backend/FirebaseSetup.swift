@@ -40,6 +40,21 @@ enum FirebaseSetup {
         Firestore.firestore().settings = settings
     }
 
+    /// True if this phone has changes the server hasn't confirmed yet (e.g. checklists
+    /// completed offline). Waits up to `timeout` seconds for them to sync first.
+    static func hasUnsyncedChanges(timeout: TimeInterval = 4) async -> Bool {
+        guard isConfigured else { return false }
+        return await withCheckedContinuation { continuation in
+            let state = OnceFlag()
+            Firestore.firestore().waitForPendingWrites { _ in
+                if state.claim() { continuation.resume(returning: false) }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+                if state.claim() { continuation.resume(returning: true) }
+            }
+        }
+    }
+
     /// Removes the on-device copy of fleet data (called on sign-out).
     static func clearLocalCache() async {
         let db = Firestore.firestore()
@@ -50,6 +65,20 @@ enum FirebaseSetup {
             // Not fatal: the cache is still protected by iOS data protection.
         }
         applyFirestoreSettings()
+    }
+
+    /// Lets exactly one of two racing callbacks win.
+    private final class OnceFlag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var claimed = false
+
+        func claim() -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            if claimed { return false }
+            claimed = true
+            return true
+        }
     }
 
     private static func configureForEmulator() {

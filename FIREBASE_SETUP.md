@@ -83,8 +83,10 @@ If photo uploads fail, download `GoogleService-Info.plist` again after enabling 
 
 **On the free (Spark) plan:**
 - You get 1 GiB of stored data, 50,000 reads a day and 20,000 writes a day.
-- If the fleet goes over, Firebase rejects new writes until the next day, or until data is deleted.
+- If the fleet goes over a daily limit, syncing stops until the next day. Over the storage limit, writes are rejected until data is deleted. Phones keep working offline in the meantime.
 - Nothing is ever charged.
+- **Reads add up faster than you'd expect.** Each time someone opens the app after a while away, it re-reads the fleet's trucks, defects, reminders and so on. That's roughly 10 reads per truck. With 25 trucks and 25 people opening the app a few times a day, you can reach 50,000 reads.
+- **Recommendation:** use Blaze with a budget alert. The free allowance is the same, and going over costs about 6 cents per 100,000 reads.
 
 **On Blaze:**
 - Usage over the free allowances is billed. It's usually cents, at about $0.026 per GB of photos per month.

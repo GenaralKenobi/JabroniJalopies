@@ -17,6 +17,14 @@ enum Formatting {
         "\(value.formatted(.number.precision(.fractionLength(0...1)))) ft"
     }
 
+    /// "today at 6:12 AM", "yesterday at 4:30 PM", or "Nov 3 at 6:05 AM".
+    static func dayAndTime(_ date: Date, calendar: Calendar = .current) -> String {
+        let time = date.formatted(date: .omitted, time: .shortened)
+        if calendar.isDateInToday(date) { return "today at \(time)" }
+        if calendar.isDateInYesterday(date) { return "yesterday at \(time)" }
+        return "\(date.formatted(.dateTime.month(.abbreviated).day())) at \(time)"
+    }
+
     static func shortDate(_ date: Date) -> String {
         date.formatted(date: .abbreviated, time: .omitted)
     }

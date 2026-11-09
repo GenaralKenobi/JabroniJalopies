@@ -171,9 +171,12 @@ service cloud.firestore {
           // The fleet's creator becomes its first manager, in the same batch as the fleet.
           (!exists(fleetPath(fleetId))
             && getAfter(fleetPath(fleetId)).data.createdBy == request.auth.uid
-            && request.resource.data.role == 'manager')
+            && request.resource.data.role == 'manager'
+            && request.resource.data.email == myEmail())
           // Someone accepting an invite sent to their verified email address.
+          // The email on their profile must be their real (login) email.
           || (emailVerified()
+            && request.resource.data.email == myEmail()
             && request.resource.data.inviteId is string
             && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.fleetId == fleetId
             && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.email == myEmail()

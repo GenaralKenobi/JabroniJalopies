@@ -126,6 +126,17 @@ struct VehicleRow: View {
                 Text(Formatting.distance(vehicle.odometer, unit: unit))
                     .font(.caption)
                     .foregroundStyle(Color.secondary)
+                if !fleet.checklists(for: vehicle.id ?? "").isEmpty {
+                    if let last = fleet.lastInspections[vehicle.id ?? ""], Calendar.current.isDateInToday(last.completedAt) {
+                        Label("Checked today", systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(Color.green)
+                    } else {
+                        Label("Not checked today", systemImage: "circle.dashed")
+                            .font(.caption)
+                            .foregroundStyle(Color.secondary)
+                    }
+                }
             }
 
             Spacer(minLength: 8)

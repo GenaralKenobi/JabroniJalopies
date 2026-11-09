@@ -45,6 +45,52 @@ enum ReminderNotifications {
     }
 }
 
+/// The daily "do your checklist" reminder. A manager sets the time for the whole
+/// fleet; every member's phone schedules it locally (no server needed).
+enum ChecklistReminder {
+    static func identifier(_ fleetId: String) -> String { "checklist-\(fleetId)" }
+
+    /// Parses "HH:mm" into hour and minute.
+    static func parse(_ time: String?) -> (hour: Int, minute: Int)? {
+        guard let parts = time?.split(separator: ":"), parts.count == 2,
+              let hour = Int(parts[0]), let minute = Int(parts[1]),
+              (0..<24).contains(hour), (0..<60).contains(minute) else { return nil }
+        return (hour, minute)
+    }
+
+    static func format(hour: Int, minute: Int) -> String {
+        String(format: "%02d:%02d", hour, minute)
+    }
+
+    /// Schedules (or removes, when `time` is nil) this fleet's daily reminder.
+    static func sync(fleetId: String, fleetName: String, time: String?) {
+        let center = UNUserNotificationCenter.current()
+        let id = identifier(fleetId)
+        guard let parsed = parse(time) else {
+            center.removePendingNotificationRequests(withIdentifiers: [id])
+            return
+        }
+        let hour = parsed.hour, minute = parsed.minute
+        Task {
+            let settings = await center.notificationSettings()
+            if settings.authorizationStatus == .notDetermined {
+                guard await ReminderNotifications.requestAuthorization() else { return }
+            }
+            let content = UNMutableNotificationContent()
+            content.title = "Vehicle checklist"
+            content.body = "Complete today's checklist before heading out (\(fleetName))."
+            content.sound = .default
+            let trigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: hour, minute: minute), repeats: true)
+            // Same identifier replaces any earlier schedule.
+            try? await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+        }
+    }
+
+    static func cancel(fleetId: String) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier(fleetId)])
+    }
+}
+
 /// Warns managers when the fleet is approaching Firebase's free storage allowance.
 enum UsageAlerts {
     static func check(_ report: UsageReport, fleetId: String, fleetName: String) {
