@@ -40,7 +40,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.generalkenobi.jabronijalopies
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: "Jabroni Jalopies"
+        INFOPLIST_KEY_CFBundleDisplayName: Jalopies
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         # The app uses no custom encryption; skips the export-compliance question in App Store Connect.
