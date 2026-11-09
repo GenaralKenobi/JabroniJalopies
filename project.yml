@@ -33,14 +33,14 @@ targets:
       properties:
         NSAccentColorName: AccentColor
         UIBackgroundModes: [fetch]
-        BGTaskSchedulerPermittedIdentifiers: [com.generalkenobi.crewready.photo-upload]
+        BGTaskSchedulerPermittedIdentifiers: [com.generalkenobi.jabronisjalopies.photo-upload]
         NSCameraUsageDescription: Take photos of vehicle problems so your fleet manager can see them.
         NSPhotoLibraryUsageDescription: Attach existing photos to vehicle problems and vehicle profiles.
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.generalkenobi.crewready
+        PRODUCT_BUNDLE_IDENTIFIER: com.generalkenobi.jabronisjalopies
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: CrewReady
+        INFOPLIST_KEY_CFBundleDisplayName: "Jabroni's Jalopies"
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         # The app uses no custom encryption; skips the export-compliance question in App Store Connect.

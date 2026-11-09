@@ -1,7 +1,7 @@
 # Your to-do list and open questions
 
-- **App:** CrewReady
-- **Bundle ID:** `com.generalkenobi.crewready`
+- **App:** Jabroni's Jalopies
+- **Bundle ID:** `com.generalkenobi.jabronisjalopies`
 - **Company:** Tailgate Labs
 - **Devices:** iPhone and iPad
 - **Release:** public App Store (eventually)
@@ -12,33 +12,33 @@ Decisions for you to check are in [DECISIONS.md](DECISIONS.md).
 
 ### Now: GitHub (5 minutes)
 
-- [ ] **Rename the repository to `CrewReady`.** Go to Settings → General → Repository name. The app's Privacy Policy and Help links point at `https://genaralkenobi.github.io/CrewReady/`. If you'd rather keep the current name, tell me and I'll change the links.
+- [ ] **Rename the repository to `JabronisJalopies`.** Go to Settings → General → Repository name. The app's Privacy Policy and Help links point at `https://genaralkenobi.github.io/JabronisJalopies/`. If you'd rather keep the current name, tell me and I'll change the links.
 - [ ] **Turn on GitHub Pages.** Go to Settings → Pages → Build and deployment. Choose **Deploy from a branch**, then branch **main** and folder **/docs**. This publishes:
-  - Support page: `https://genaralkenobi.github.io/CrewReady/`
-  - Privacy policy: `https://genaralkenobi.github.io/CrewReady/privacy`
-- [ ] **Create your iCloud Hide My Email address.** On iPhone, go to Settings → your name → iCloud → Hide My Email → Create New Address. Label it "CrewReady support". Send it to me, or replace `[CONTACT EMAIL]` in `docs/privacy.md` and `docs/index.md` yourself.
+  - Support page: `https://genaralkenobi.github.io/JabronisJalopies/`
+  - Privacy policy: `https://genaralkenobi.github.io/JabronisJalopies/privacy`
+- [ ] **Create your iCloud Hide My Email address.** On iPhone, go to Settings → your name → iCloud → Hide My Email → Create New Address. Label it "Jabroni's Jalopies support". Send it to me, or replace `[CONTACT EMAIL]` in `docs/privacy.md` and `docs/index.md` yourself.
 
 ### Now: Firebase (about 15 minutes in a browser)
 
 Full steps are in [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 - [ ] Create the Firebase project, with **Google Analytics off**.
-- [ ] Add the iOS app with bundle ID **`com.generalkenobi.crewready`**.
+- [ ] Add the iOS app with bundle ID **`com.generalkenobi.jabronisjalopies`**.
 - [ ] Download `GoogleService-Info.plist` and upload it to `VehicleMaintenance/Resources/` in this repository. The repository is public, so after uploading, also do the next step.
-- [ ] **Restrict the API key**, because the repository is public. In Google Cloud console → APIs & Services → Credentials, open the "iOS key", choose **iOS apps**, and add the bundle ID `com.generalkenobi.crewready`. The security rules are what actually protect the data; this step stops other apps from using your key.
+- [ ] **Restrict the API key**, because the repository is public. In Google Cloud console → APIs & Services → Credentials, open the "iOS key", choose **iOS apps**, and add the bundle ID `com.generalkenobi.jabronisjalopies`. The security rules are what actually protect the data; this step stops other apps from using your key.
 - [ ] Turn on **Email/Password** sign-in.
 - [ ] Create the Firestore database in **us-central1**.
 - [ ] Deploy the security rules (automatic GitHub workflow, or paste them in by hand).
 - [ ] Switch to the **Blaze** plan and set a **$5 budget alert**. This is recommended, and required for photos and instant alerts.
 - [ ] Optional: enable Cloud Storage for defect photos.
-- [ ] Optional: in Authentication → Templates, set the sender name to **CrewReady**.
+- [ ] Optional: in Authentication → Templates, set the sender name to **Jabroni's Jalopies**.
 
 ### When your Apple developer account is approved
 
 Full steps are in [TESTFLIGHT.md](TESTFLIGHT.md).
 
-- [ ] Register the bundle ID **`com.generalkenobi.crewready`**.
-- [ ] In App Store Connect, create the app named **CrewReady**.
+- [ ] Register the bundle ID **`com.generalkenobi.jabronisjalopies`**.
+- [ ] In App Store Connect, create the app named **Jabroni's Jalopies**.
 - [ ] Create an App Store Connect API key with **Admin** access.
 - [ ] Add the four GitHub secrets, then tell me. I'll run the first TestFlight upload and fix anything that comes up.
 - [ ] **Seller name.** If you enrolled as an **individual**, the App Store shows your legal name as the seller. "Tailgate Labs" appears in the app and on its website, but not as the seller. To show "Tailgate Labs" as the seller, you'd need a registered business and an Organization developer account, which requires a D-U-N-S number.
@@ -46,11 +46,11 @@ Full steps are in [TESTFLIGHT.md](TESTFLIGHT.md).
 ### Before the public App Store release
 
 - [ ] **Listing:**
-  - name **CrewReady**
+  - name **Jabroni's Jalopies**
   - subtitle (suggestion: "Truck checklists & defects")
   - description
-  - **support URL** `https://genaralkenobi.github.io/CrewReady/`
-  - **privacy policy URL** `https://genaralkenobi.github.io/CrewReady/privacy`
+  - **support URL** `https://genaralkenobi.github.io/JabronisJalopies/`
+  - **privacy policy URL** `https://genaralkenobi.github.io/JabronisJalopies/privacy`
 - [ ] **Screenshots:** CI now captures iPhone and 13" iPad screenshots on every push; see the `ci-screenshots` branch. Pick the ones you like.
 - [ ] **App Privacy questions:**
   - **Data collected:** name, email address, phone number, photos, other user content, and user ID.

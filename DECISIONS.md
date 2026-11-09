@@ -49,10 +49,11 @@ These are choices I made without being sure they match how you work. Each one is
 23. **Managers can change the safety flag on any defect, either way.** That includes a truck's "Unsafe to drive", so a driver's mistaken flag can be cleared without closing the defect.
 24. **Managers can correct a rope's length directly** in its edit screen, for example after replacing the rope. Drivers still go through approval.
 25. **Signing out checks for unsynced work first.** If checklists done offline or photos haven't uploaded yet, the app warns that signing out will lose them and suggests waiting for signal. If you sign out anyway, waiting photos are deleted from the phone, so the next person to sign in can't see them.
+26. **A manager closing a defect doesn't lose an offline checklist.** If a driver offline marks a defect "still a problem" while a manager closes it, the checklist is still saved and the driver is told to report the problem again if it's still there. The app doesn't reopen the closed defect or create a new one automatically.
+
 ## From your latest answers
 
 27. **Managers can still see email addresses and phone numbers; drivers can't.** You asked for these not to be visible. I read that as "not visible to other drivers", because managers invite people by email and may need to call them. Drivers see only names and roles. This is enforced by the server, not just hidden in the app. If managers shouldn't see them either, I'll hide them completely.
 28. **The checklist reminder starts as Monday–Friday** when a manager turns it on. They can tap any days of the week to change that.
-29. **CrewReady and Tailgate Labs.** I checked the App Store and trademark search results and found no app called CrewReady and no company called Tailgate Labs. That check is not legal clearance. The App Store confirms whether an app name is free when you create the app record.
-
-26. **A manager closing a defect doesn't lose an offline checklist.** If a driver offline marks a defect "still a problem" while a manager closes it, the checklist is still saved and the driver is told to report the problem again if it's still there. The app doesn't reopen the closed defect or create a new one automatically.
+29. **Jabroni's Jalopies and Tailgate Labs.** A web search found no app, business or trademark called "Jabroni's Jalopies", and earlier checks found no company called Tailgate Labs. That check is not legal clearance. The App Store confirms whether an app name is free when you create the app record.
+30. **The home screen label is the full name, "Jabroni's Jalopies".** On the iPhone home screen, iOS cuts long names short, so it will probably show as "Jabroni's Jal…". The App Store name isn't affected. I can set a shorter home screen label, such as "Jalopies", without changing the App Store name.

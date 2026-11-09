@@ -4,7 +4,7 @@ GitHub Actions builds, signs and uploads the app for you. Signing uses Apple's
 **cloud-managed certificates** through an App Store Connect API key, so you never
 need Xcode, Keychain or a certificate file. You can do all of the setup below in a web browser.
 
-Bundle ID used by this project: **`com.generalkenobi.crewready`**
+Bundle ID used by this project: **`com.generalkenobi.jabronisjalopies`**
 (to change it, edit `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml`).
 
 ## 1. Join the Apple Developer Program
@@ -24,8 +24,8 @@ You need this to put apps on TestFlight or the App Store. It costs $99 a year.
 
 1. Go to <https://developer.apple.com/account/resources/identifiers/list> and click **+**.
 2. Choose **App IDs**, then **App**, then **Continue**.
-3. For **Description**, enter `CrewReady`.
-4. For **Bundle ID**, choose **Explicit** and enter `com.generalkenobi.crewready`.
+3. For **Description**, enter `Jabroni's Jalopies`.
+4. For **Bundle ID**, choose **Explicit** and enter `com.generalkenobi.jabronisjalopies`.
 5. Leave the capabilities as they are, then click **Continue** and **Register**.
 
 ## 4. Create the app in App Store Connect
@@ -33,9 +33,9 @@ You need this to put apps on TestFlight or the App Store. It costs $99 a year.
 1. Go to <https://appstoreconnect.apple.com/apps>, click **+**, then **New App**.
 2. Fill in the form:
    - **Platform:** iOS
-   - **Name:** **CrewReady**. If App Store Connect says the name is taken, try "CrewReady Fleet". You can change it later.
+   - **Name:** **Jabroni's Jalopies**. If App Store Connect says the name is taken, try "Jabroni's Jalopies Fleet". You can change it later.
    - **Primary language:** your choice
-   - **Bundle ID:** `com.generalkenobi.crewready`
+   - **Bundle ID:** `com.generalkenobi.jabronisjalopies`
    - **SKU:** anything, for example `maintenance-001`
    - **User access:** Full Access
 

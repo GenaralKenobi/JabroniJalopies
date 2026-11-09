@@ -199,9 +199,9 @@ struct MemberDetailView: View {
 enum InviteMessage {
     static func text(for invite: Invite) -> String {
         """
-        You've been invited to join "\(invite.fleetName)" as a \(invite.role.displayName.lowercased()) in the CrewReady app.
+        You've been invited to join "\(invite.fleetName)" as a \(invite.role.displayName.lowercased()) in the Jabroni's Jalopies app.
 
-        1. Install the CrewReady app.
+        1. Install the Jabroni's Jalopies app.
         2. Create an account with this email address: \(invite.email)
         3. Confirm your email, then tap Join.
         """

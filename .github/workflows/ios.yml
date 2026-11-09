@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUNDLE_ID: com.generalkenobi.crewready
+  BUNDLE_ID: com.generalkenobi.jabronisjalopies
 
 jobs:
   firebase-rules:
@@ -150,7 +150,7 @@ jobs:
           mkdir -p screenshots
           # Keep the app's log so demo/sign-in problems are visible in CI.
           xcrun simctl spawn "$UDID" log stream --level info \
-            --predicate 'subsystem == "com.generalkenobi.crewready" OR (process == "VehicleMaintenance" AND messageType == error)' \
+            --predicate 'subsystem == "com.generalkenobi.jabronisjalopies" OR (process == "VehicleMaintenance" AND messageType == error)' \
             > build/app.log 2>&1 &
           LOG_PID=$!
 

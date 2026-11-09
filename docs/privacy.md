@@ -1,13 +1,13 @@
 ---
-title: CrewReady Privacy Policy
+title: Jabroni's Jalopies Privacy Policy
 permalink: /privacy
 ---
 
-# CrewReady Privacy Policy
+# Jabroni's Jalopies Privacy Policy
 
 **Effective date:** November 9, 2026
 
-This policy explains how **Tailgate Labs** ("we") handles information in the **CrewReady** app ("the app"), which fleets use to track vehicle checklists, defects, equipment and maintenance.
+This policy explains how **Tailgate Labs** ("we") handles information in the **Jabroni's Jalopies** app ("the app"), which fleets use to track vehicle checklists, defects, equipment and maintenance.
 
 ## Who controls fleet data
 

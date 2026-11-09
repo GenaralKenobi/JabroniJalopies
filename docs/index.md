@@ -1,13 +1,13 @@
 ---
-title: CrewReady
+title: "Jabroni's Jalopies"
 permalink: /
 ---
 
-# CrewReady
+# Jabroni's Jalopies
 
 **Truck checklists, defects, chainsaws, ropes and maintenance for crews, even without signal.**
 
-CrewReady is an iPhone and iPad app for fleets:
+Jabroni's Jalopies is an iPhone and iPad app for fleets:
 - **Morning checklists:** drivers complete them before heading out.
 - **Defects:** problems reach the manager with photos.
 - **Spec card:** each truck has a quick-reference card for its fluids, tires and pressures.
@@ -33,4 +33,4 @@ In the app, go to **Settings → Delete Account**. Or email us and we'll do it f
 
 ---
 
-CrewReady is made by Tailgate Labs.
+Jabroni's Jalopies is made by Tailgate Labs.
