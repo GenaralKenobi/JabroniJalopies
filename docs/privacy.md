@@ -1,13 +1,13 @@
 ---
-title: Jabroni's Jalopies Privacy Policy
+title: Jabroni Jalopies Privacy Policy
 permalink: /privacy
 ---
 
-# Jabroni's Jalopies Privacy Policy
+# Jabroni Jalopies Privacy Policy
 
 **Effective date:** November 9, 2026
 
-This policy explains how **Tailgate Labs** ("we") handles information in the **Jabroni's Jalopies** app ("the app"), which fleets use to track vehicle checklists, defects, equipment and maintenance.
+This policy explains how **Tailgate Labs** ("we") handles information in the **Jabroni Jalopies** app ("the app"), which fleets use to track vehicle checklists, defects, equipment and maintenance.
 
 ## Who controls fleet data
 

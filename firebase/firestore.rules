@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Security rules for Jabroni's Jalopies.
+// Security rules for Jabroni Jalopies.
 //
 // Data layout
 //   users/{uid}                                  private to the user

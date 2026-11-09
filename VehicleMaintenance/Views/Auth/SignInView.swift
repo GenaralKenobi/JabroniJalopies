@@ -23,7 +23,7 @@ struct SignInView: View {
                         Image(systemName: "wrench.and.screwdriver.fill")
                             .font(.system(size: 44))
                             .foregroundStyle(.tint)
-                        Text("Jabroni's Jalopies")
+                        Text("Jabroni Jalopies")
                             .font(.title2.bold())
                         Text("Checklists, defects and maintenance for your vehicles — even without signal.")
                             .font(.subheadline)

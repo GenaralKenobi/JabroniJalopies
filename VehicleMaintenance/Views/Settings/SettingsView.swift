@@ -73,7 +73,7 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
-                    LabeledContent("Jabroni's Jalopies", value: Bundle.main.appVersion)
+                    LabeledContent("Jabroni Jalopies", value: Bundle.main.appVersion)
                     Text("Made by Tailgate Labs")
                         .font(.footnote)
                         .foregroundStyle(Color.secondary)
@@ -329,7 +329,7 @@ struct WeekdayPicker: View {
 
 enum AppLinks {
     /// Published from docs/ by GitHub Pages (see YOUR_TODO.md). The same URLs go in App Store Connect.
-    static let site = "https://genaralkenobi.github.io/JabronisJalopies"
+    static let site = "https://genaralkenobi.github.io/JabroniJalopies"
     static let privacyPolicy = URL(string: "\(site)/privacy")!
     static let support = URL(string: "\(site)/")!
 }

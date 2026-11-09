@@ -1,13 +1,13 @@
 ---
-title: "Jabroni's Jalopies"
+title: "Jabroni Jalopies"
 permalink: /
 ---
 
-# Jabroni's Jalopies
+# Jabroni Jalopies
 
 **Truck checklists, defects, chainsaws, ropes and maintenance for crews, even without signal.**
 
-Jabroni's Jalopies is an iPhone and iPad app for fleets:
+Jabroni Jalopies is an iPhone and iPad app for fleets:
 - **Morning checklists:** drivers complete them before heading out.
 - **Defects:** problems reach the manager with photos.
 - **Spec card:** each truck has a quick-reference card for its fluids, tires and pressures.
@@ -33,4 +33,4 @@ In the app, go to **Settings → Delete Account**. Or email us and we'll do it f
 
 ---
 
-Jabroni's Jalopies is made by Tailgate Labs.
+Jabroni Jalopies is made by Tailgate Labs.
