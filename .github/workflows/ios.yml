@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUNDLE_ID: com.genaralkenobi.maintenance
+  BUNDLE_ID: com.generalkenobi.crewready
 
 jobs:
   firebase-rules:
@@ -150,7 +150,7 @@ jobs:
           mkdir -p screenshots
           # Keep the app's log so demo/sign-in problems are visible in CI.
           xcrun simctl spawn "$UDID" log stream --level info \
-            --predicate 'subsystem == "com.genaralkenobi.maintenance" OR (process == "VehicleMaintenance" AND messageType == error)' \
+            --predicate 'subsystem == "com.generalkenobi.crewready" OR (process == "VehicleMaintenance" AND messageType == error)' \
             > build/app.log 2>&1 &
           LOG_PID=$!
 
@@ -183,6 +183,29 @@ jobs:
           kill $LOG_PID 2>/dev/null || true
           echo "--- App log (demo + errors) ---"
           grep -E "DEMO|rror" build/app.log | head -60 || true
+
+          # iPad screenshots (the App Store needs 13" iPad images for an iPad-capable app).
+          IPAD=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | test("iPad Pro.*13"))] | last | .udid')
+          if [ -z "$IPAD" ] || [ "$IPAD" = "null" ]; then
+            IPAD=$(xcrun simctl list devices available -j \
+              | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPad"))] | last | .udid')
+          fi
+          if [ -n "$IPAD" ] && [ "$IPAD" != "null" ]; then
+            xcrun simctl list devices available | grep "$IPAD"
+            UDID="$IPAD"
+            xcrun simctl boot "$UDID" || true
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
+            xcrun simctl install "$UDID" "$APP"
+            WAIT=30 shoot ipad-01-fleet light -initialTab fleet
+            shoot ipad-02-vehicle light -initialTab fleet -demoScreen vehicle
+            shoot ipad-03-checklist light -initialTab fleet -demoScreen checklist
+            shoot ipad-04-defects light -initialTab defects
+            xcrun simctl shutdown "$UDID" || true
+          else
+            echo "No iPad simulator available; skipping iPad screenshots."
+          fi
 
       - name: Publish screenshots to the ci-screenshots branch
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'

@@ -12,7 +12,8 @@ struct MembersView: View {
                         NavigationLink {
                             MemberDetailView(memberId: member.id ?? "")
                         } label: {
-                            MemberRow(member: member, isMe: member.id == fleet.uid)
+                            MemberRow(member: member, isMe: member.id == fleet.uid,
+                                      email: fleet.contacts[member.id ?? ""]?.email)
                         }
                     } else {
                         MemberRow(member: member, isMe: member.id == fleet.uid)
@@ -20,6 +21,10 @@ struct MembersView: View {
                 }
             } header: {
                 Text("Members (\(fleet.members.count))")
+            } footer: {
+                Text(fleet.isManager
+                     ? "Email addresses and phone numbers are only visible to managers."
+                     : "Only managers can see members' email addresses and phone numbers.")
             }
 
             if fleet.isManager {
@@ -65,6 +70,8 @@ struct MembersView: View {
 struct MemberRow: View {
     let member: Member
     var isMe = false
+    /// Only passed in for managers.
+    var email: String?
 
     var body: some View {
         HStack {
@@ -73,7 +80,9 @@ struct MemberRow: View {
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(member.displayName + (isMe ? " (you)" : ""))
-                Text(member.email).font(.caption).foregroundStyle(Color.secondary)
+                if let email {
+                    Text(email).font(.caption).foregroundStyle(Color.secondary)
+                }
             }
             Spacer()
             Text(member.role.displayName)
@@ -96,16 +105,20 @@ struct MemberDetailView: View {
             Form {
                 Section {
                     LabeledContent("Name", value: member.displayName)
-                    LabeledContent("Email", value: member.email)
-                    if !member.phone.isEmpty {
-                        LabeledContent("Phone") {
-                            if let url = URL(string: "tel:\(member.phone.filter { $0.isNumber || $0 == "+" })") {
-                                Link(member.phone, destination: url)
-                            } else {
-                                Text(member.phone)
+                    if let contact = fleet.contacts[memberId] {
+                        LabeledContent("Email", value: contact.email)
+                        if !contact.phone.isEmpty {
+                            LabeledContent("Phone") {
+                                if let url = URL(string: "tel:\(contact.phone.filter { $0.isNumber || $0 == "+" })") {
+                                    Link(contact.phone, destination: url)
+                                } else {
+                                    Text(contact.phone)
+                                }
                             }
                         }
                     }
+                } footer: {
+                    Text("Email and phone are only visible to managers.")
                 }
 
                 Section {
@@ -186,9 +199,9 @@ struct MemberDetailView: View {
 enum InviteMessage {
     static func text(for invite: Invite) -> String {
         """
-        You've been invited to join "\(invite.fleetName)" as a \(invite.role.displayName.lowercased()) in the Maintenance app.
+        You've been invited to join "\(invite.fleetName)" as a \(invite.role.displayName.lowercased()) in the CrewReady app.
 
-        1. Install the Maintenance app.
+        1. Install the CrewReady app.
         2. Create an account with this email address: \(invite.email)
         3. Confirm your email, then tap Join.
         """

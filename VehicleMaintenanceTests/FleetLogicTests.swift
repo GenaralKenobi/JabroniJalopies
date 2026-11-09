@@ -267,6 +267,20 @@ struct ChecklistReminderTests {
         #expect(ChecklistReminder.parse(nil) == nil)
         #expect(ChecklistReminder.format(hour: 6, minute: 5) == "06:05")
     }
+
+    @Test func describesReminderDays() {
+        #expect(ChecklistReminder.describe(nil) == "Every day")
+        #expect(ChecklistReminder.describe([1, 2, 3, 4, 5, 6, 7]) == "Every day")
+        #expect(ChecklistReminder.describe([2, 3, 4, 5, 6]) == "Weekdays")
+        #expect(ChecklistReminder.describe([7, 1]) == "Weekends")
+        #expect(ChecklistReminder.orderedDays.count == 7)
+    }
+}
+
+struct CurrencyTests {
+    @Test func costsAreAlwaysUSDollars() {
+        #expect(Formatting.currencyCode == "USD")
+    }
 }
 
 struct PeriodicScheduleTests {

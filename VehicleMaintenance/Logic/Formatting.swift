@@ -1,9 +1,8 @@
 import Foundation
 
 enum Formatting {
-    static var currencyCode: String {
-        Locale.current.currency?.identifier ?? "USD"
-    }
+    /// All costs are in US dollars, whatever region a phone is set to.
+    static let currencyCode = "USD"
 
     static func currency(_ value: Double) -> String {
         value.formatted(.currency(code: currencyCode))

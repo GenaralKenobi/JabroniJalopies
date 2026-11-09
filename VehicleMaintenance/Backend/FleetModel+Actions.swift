@@ -27,11 +27,16 @@ extension FleetModel {
         commitInBackground(batch, "Changing distance unit")
     }
 
-    /// Daily checklist reminder time for everyone in the fleet ("HH:mm"), or nil to turn it off.
-    func setChecklistReminder(_ time: String?) {
+    /// Checklist reminder for everyone in the fleet: time ("HH:mm") and weekdays
+    /// (1 = Sunday … 7 = Saturday). A nil time turns it off.
+    func setChecklistReminder(time: String?, days: [Int]) {
         let batch = FS.db.batch()
-        let value: Any = time ?? FieldValue.delete()
-        batch.updateData(["checklistReminderTime": value], forDocument: FS.fleet(fleetId))
+        if let time {
+            batch.updateData(["checklistReminderTime": time, "checklistReminderDays": days.sorted()],
+                             forDocument: FS.fleet(fleetId))
+        } else {
+            batch.updateData(["checklistReminderTime": FieldValue.delete()], forDocument: FS.fleet(fleetId))
+        }
         commitInBackground(batch, "Updating checklist reminder")
     }
 
@@ -113,9 +118,11 @@ extension FleetModel {
         let batch = FS.db.batch()
         batch.updateData([
             "displayName": profile.displayName.trimmed,
-            "phone": profile.phone.trimmed,
             "updatedAt": FieldValue.serverTimestamp(),
         ], forDocument: FS.members(fleetId).document(uid))
+        // Email and phone live in the private contacts record (only you and managers can read it).
+        batch.setData(["email": email, "phone": profile.phone.trimmed],
+                      forDocument: FS.contacts(fleetId).document(uid), merge: true)
         commitInBackground(batch, "Saving profile")
     }
 
@@ -150,6 +157,7 @@ extension FleetModel {
             throw AppError("A fleet needs at least one manager.")
         }
         let batch = FS.db.batch()
+        batch.deleteDocument(FS.contacts(fleetId).document(memberId))
         batch.deleteDocument(FS.members(fleetId).document(memberId))
         for vehicle in vehicles where vehicle.assignedUids.contains(memberId) {
             guard let vehicleId = vehicle.id else { continue }
@@ -163,7 +171,7 @@ extension FleetModel {
     func invite(email: String, role: FleetRole) throws -> Invite {
         let normalized = email.trimmed.lowercased()
         guard normalized.contains("@"), normalized.contains(".") else { throw AppError("Enter a valid email address.") }
-        if members.contains(where: { $0.email == normalized }) {
+        if contacts.values.contains(where: { $0.email == normalized }) {
             throw AppError("\(normalized) is already in this fleet.")
         }
         if invites.contains(where: { $0.email == normalized }) {

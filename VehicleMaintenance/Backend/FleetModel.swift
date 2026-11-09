@@ -32,6 +32,10 @@ final class FleetModel {
     private(set) var pendingLengthChanges: [String: [LengthChange]] = [:]
     /// The most recent completed checklist on each truck, keyed by vehicle id.
     private(set) var lastInspections: [String: Inspection] = [:]
+    /// Members' email and phone, keyed by uid. Managers get everyone's; others only their own.
+    private(set) var contacts: [String: MemberContact] = [:]
+    private var contactsListener: ListenerRegistration?
+    private var contactsListenerIsManager: Bool?
 
     private let onLostAccess: () -> Void
     private var baseListeners: [ListenerRegistration] = []
@@ -235,6 +239,9 @@ final class FleetModel {
         vehicleListener = nil
         vehicleQueryKey = nil
         inviteListener = nil
+        contactsListener?.remove()
+        contactsListener = nil
+        contactsListenerIsManager = nil
         equipmentByQuery.removeAll()
     }
 
@@ -308,6 +315,30 @@ final class FleetModel {
             equipmentListeners.removeAll()
             equipmentByQuery.removeAll()
             updateEquipmentListeners()
+        }
+
+        // Contact details: managers see everyone's, others only their own.
+        if contactsListenerIsManager != (me.role == .manager) {
+            contactsListenerIsManager = me.role == .manager
+            contactsListener?.remove()
+            contacts = [:]
+            if me.role == .manager {
+                contactsListener = firestoreListen(FS.contacts(fleetId)) { [weak self] (items: [MemberContact], _) in
+                    var map: [String: MemberContact] = [:]
+                    for item in items { if let id = item.id { map[id] = item } }
+                    self?.contacts = map
+                }
+            } else {
+                let myUid = self.uid
+                contactsListener = FS.contacts(fleetId).document(myUid).addSnapshotListener { [weak self] snapshot, _ in
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        if let contact = try? snapshot?.data(as: MemberContact.self) {
+                            self.contacts = [myUid: contact]
+                        }
+                    }
+                }
+            }
         }
 
         if me.role == .manager, inviteListener == nil {
@@ -446,7 +477,8 @@ final class FleetModel {
            UserDefaults.standard.string(forKey: DistanceUnit.storageKey) != unit {
             UserDefaults.standard.set(unit, forKey: DistanceUnit.storageKey)
         }
-        ChecklistReminder.sync(fleetId: fleetId, fleetName: fleet.name, time: fleet.checklistReminderTime)
+        ChecklistReminder.sync(fleetId: fleetId, fleetName: fleet.name, time: fleet.checklistReminderTime,
+                               days: fleet.checklistReminderDays)
         if lastSyncedFleetName != fleet.name {
             lastSyncedFleetName = fleet.name
             FS.memberships(uid).document(fleetId).setData(["fleetName": fleet.name], merge: true)

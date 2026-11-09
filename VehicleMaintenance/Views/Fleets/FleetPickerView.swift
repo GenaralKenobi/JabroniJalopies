@@ -134,7 +134,7 @@ struct CreateFleetView: View {
                 } header: {
                     Text("Your Profile in This Fleet")
                 } footer: {
-                    Text("Shown to other members of this fleet.")
+                    Text("Your name is shown to the fleet. Your phone number and email are only visible to managers.")
                 }
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
@@ -184,7 +184,7 @@ struct AcceptInviteView: View {
                 } header: {
                     Text("Your Profile in This Fleet")
                 } footer: {
-                    Text("Each fleet has its own profile, so you can use different details in different fleets.")
+                    Text("Each fleet has its own profile. Your name is shown to the fleet; your phone number and email are only visible to its managers.")
                 }
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)

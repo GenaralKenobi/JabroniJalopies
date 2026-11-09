@@ -17,7 +17,7 @@ You'll set up three things:
 ## 2. Add the iOS app
 
 1. On the project overview, click **Add app**, then **iOS**.
-2. Enter the bundle ID `com.genaralkenobi.maintenance`.
+2. Enter the bundle ID `com.generalkenobi.crewready`.
 3. Download **GoogleService-Info.plist**. Skip the "Add Firebase SDK" and "Add initialization code" steps, because the project already includes them.
 4. Add the file to this repository at `VehicleMaintenance/Resources/GoogleService-Info.plist`. On GitHub, open that folder, then click **Add file** → **Upload files**.
 

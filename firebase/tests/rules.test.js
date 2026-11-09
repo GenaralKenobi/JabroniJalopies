@@ -59,10 +59,13 @@ beforeEach(async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     const d = ctx.firestore();
     await setDoc(doc(d, `fleets/${FLEET}`), { name: 'Acme', createdBy: 'mia', usage: { photoBytes: 0 } });
-    const member = (role, seesAll) => ({ role, seesAllVehicles: seesAll, displayName: role, phone: '', email: '' });
+    const member = (role, seesAll) => ({ role, seesAllVehicles: seesAll, displayName: role });
     await setDoc(doc(d, `fleets/${FLEET}/members/mia`), member('manager', true));
     await setDoc(doc(d, `fleets/${FLEET}/members/dan`), member('driver', true));
     await setDoc(doc(d, `fleets/${FLEET}/members/rita`), member('driver', false));
+    for (const uid of ['mia', 'dan', 'rita']) {
+      await setDoc(doc(d, `fleets/${FLEET}/contacts/${uid}`), { email: `${uid}@example.com`, phone: '555-0100' });
+    }
     await setDoc(doc(d, `fleets/${FLEET}/vehicles/${VEHICLE}`), {
       name: 'Truck 1', odometer: 1000, assignedUids: ['rita'], specSections: [],
     });
@@ -80,20 +83,39 @@ describe('fleets and members', () => {
     const d = db('newbie', verified('newbie@example.com'));
     const batch = writeBatch(d);
     batch.set(doc(d, 'fleets/f2'), { name: 'New', createdBy: 'newbie' });
-    batch.set(doc(d, 'fleets/f2/members/newbie'), {
-      role: 'manager', seesAllVehicles: true, displayName: 'N', email: 'newbie@example.com',
-    });
+    batch.set(doc(d, 'fleets/f2/members/newbie'), { role: 'manager', seesAllVehicles: true, displayName: 'N' });
+    batch.set(doc(d, 'fleets/f2/contacts/newbie'), { email: 'newbie@example.com', phone: '' });
     await assertSucceeds(batch.commit());
   });
 
-  it('requires the profile email to be the login email', async () => {
+  it('requires the contact email to be the login email', async () => {
     const d = db('faker', verified('faker@example.com'));
     const batch = writeBatch(d);
     batch.set(doc(d, 'fleets/f3'), { name: 'New', createdBy: 'faker' });
-    batch.set(doc(d, 'fleets/f3/members/faker'), {
-      role: 'manager', seesAllVehicles: true, displayName: 'F', email: 'boss@example.com',
+    batch.set(doc(d, 'fleets/f3/members/faker'), { role: 'manager', seesAllVehicles: true, displayName: 'F' });
+    batch.set(doc(d, 'fleets/f3/contacts/faker'), { email: 'boss@example.com', phone: '' });
+    await assertFails(batch.commit());
+  });
+
+  it('keeps email and phone out of profiles the whole fleet can read', async () => {
+    const d = db('leaky', verified('leaky@example.com'));
+    const batch = writeBatch(d);
+    batch.set(doc(d, 'fleets/f4'), { name: 'New', createdBy: 'leaky' });
+    batch.set(doc(d, 'fleets/f4/members/leaky'), {
+      role: 'manager', seesAllVehicles: true, displayName: 'L', phone: '555-0199',
     });
     await assertFails(batch.commit());
+    await assertFails(updateDoc(doc(db('dan'), `fleets/${FLEET}/members/dan`), { phone: '555-0101' }));
+  });
+
+  it('shows contact details only to the person and managers', async () => {
+    await assertSucceeds(getDoc(doc(db('dan'), `fleets/${FLEET}/contacts/dan`)));
+    await assertFails(getDoc(doc(db('dan'), `fleets/${FLEET}/contacts/rita`)));
+    await assertFails(getDocs(collection(db('dan'), `fleets/${FLEET}/contacts`)));
+    await assertSucceeds(getDocs(collection(db('mia'), `fleets/${FLEET}/contacts`)));
+    await assertSucceeds(updateDoc(doc(db('dan'), `fleets/${FLEET}/contacts/dan`), { phone: '555-0102' }));
+    await assertFails(updateDoc(doc(db('dan'), `fleets/${FLEET}/contacts/dan`), { email: 'fake@example.com' }));
+    await assertFails(updateDoc(doc(db('mia'), `fleets/${FLEET}/contacts/dan`), { phone: '000' }));
   });
 
   it('blocks making yourself manager of an existing fleet', async () => {
@@ -158,21 +180,21 @@ describe('invites', () => {
   it('lets the invitee join with the invited role only', async () => {
     const d = db('newuser', verified('new@example.com'));
     const asManager = writeBatch(d);
-    asManager.set(doc(d, `fleets/${FLEET}/members/newuser`), {
-      role: 'manager', seesAllVehicles: true, inviteId: 'inv1', email: 'new@example.com',
-    });
+    asManager.set(doc(d, `fleets/${FLEET}/members/newuser`), { role: 'manager', seesAllVehicles: true, inviteId: 'inv1' });
     await assertFails(asManager.commit());
 
     const wrongEmail = writeBatch(d);
     wrongEmail.set(doc(d, `fleets/${FLEET}/members/newuser`), {
-      role: 'driver', seesAllVehicles: true, inviteId: 'inv1', displayName: 'New', email: 'someone-else@example.com',
+      role: 'driver', seesAllVehicles: true, inviteId: 'inv1', displayName: 'New',
     });
+    wrongEmail.set(doc(d, `fleets/${FLEET}/contacts/newuser`), { email: 'someone-else@example.com', phone: '' });
     await assertFails(wrongEmail.commit());
 
     const batch = writeBatch(d);
     batch.set(doc(d, `fleets/${FLEET}/members/newuser`), {
-      role: 'driver', seesAllVehicles: true, inviteId: 'inv1', displayName: 'New', email: 'new@example.com',
+      role: 'driver', seesAllVehicles: true, inviteId: 'inv1', displayName: 'New',
     });
+    batch.set(doc(d, `fleets/${FLEET}/contacts/newuser`), { email: 'new@example.com', phone: '' });
     batch.update(doc(d, 'invites/inv1'), { status: 'accepted', acceptedBy: 'newuser', respondedAt: serverTimestamp() });
     batch.set(doc(d, `users/newuser/memberships/${FLEET}`), { fleetName: 'Acme' });
     await assertSucceeds(batch.commit());
@@ -180,7 +202,7 @@ describe('invites', () => {
 
   it('does not let a different user use the invite', async () => {
     await assertFails(setDoc(doc(db('thief', verified('thief@example.com')), `fleets/${FLEET}/members/thief`), {
-      role: 'driver', seesAllVehicles: true, inviteId: 'inv1', email: 'thief@example.com',
+      role: 'driver', seesAllVehicles: true, inviteId: 'inv1',
     }));
   });
 });

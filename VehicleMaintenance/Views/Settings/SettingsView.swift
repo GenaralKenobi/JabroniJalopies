@@ -31,7 +31,7 @@ struct SettingsView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(me.displayName).foregroundStyle(Color.primary)
-                                    Text("\(me.role.displayName) · \(me.email)").font(.caption).foregroundStyle(Color.secondary)
+                                    Text("\(me.role.displayName) · \(session.email)").font(.caption).foregroundStyle(Color.secondary)
                                 }
                                 Spacer()
                                 Text("Edit").foregroundStyle(.tint)
@@ -56,6 +56,9 @@ struct SettingsView: View {
 
                 Section("Account") {
                     LabeledContent("Signed in as", value: session.email)
+                    Link(destination: AppLinks.support) {
+                        Label("Help & Support", systemImage: "questionmark.circle")
+                    }
                     Link(destination: AppLinks.privacyPolicy) {
                         Label("Privacy Policy", systemImage: "hand.raised")
                     }
@@ -70,7 +73,10 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
-                    LabeledContent("Version", value: Bundle.main.appVersion)
+                    LabeledContent("CrewReady", value: Bundle.main.appVersion)
+                    Text("Made by Tailgate Labs")
+                        .font(.footnote)
+                        .foregroundStyle(Color.secondary)
                 }
             }
             .navigationTitle("Settings")
@@ -133,37 +139,55 @@ struct SettingsView: View {
                 )) {
                     ForEach(DistanceUnit.allCases) { Text($0.displayName).tag($0) }
                 }
-                Toggle("Daily Checklist Reminder", isOn: Binding(
+                Toggle("Checklist Reminder", isOn: Binding(
                     get: { fleet.fleet?.checklistReminderTime != nil },
-                    set: { on in fleet.setChecklistReminder(on ? (fleet.fleet?.checklistReminderTime ?? "06:30") : nil) }
+                    set: { on in
+                        fleet.setChecklistReminder(time: on ? (fleet.fleet?.checklistReminderTime ?? "06:30") : nil,
+                                                   days: reminderDays)
+                    }
                 ))
                 if let time = fleet.fleet?.checklistReminderTime, let parsed = ChecklistReminder.parse(time) {
-                    DatePicker("Reminder Time", selection: Binding(
+                    DatePicker("Time", selection: Binding(
                         get: { Calendar.current.date(bySettingHour: parsed.hour, minute: parsed.minute, second: 0, of: .now) ?? .now },
                         set: { date in
                             let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
-                            fleet.setChecklistReminder(ChecklistReminder.format(hour: parts.hour ?? 6, minute: parts.minute ?? 30))
+                            fleet.setChecklistReminder(time: ChecklistReminder.format(hour: parts.hour ?? 6, minute: parts.minute ?? 30),
+                                                       days: reminderDays)
                         }
                     ), displayedComponents: .hourAndMinute)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Days")
+                        WeekdayPicker(selected: reminderDays) { days in
+                            // Unselecting every day turns the reminder off.
+                            fleet.setChecklistReminder(time: days.isEmpty ? nil : time, days: days.isEmpty ? reminderDays : days)
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
             } else {
                 LabeledContent("Distance Unit", value: unit.displayName)
-                LabeledContent("Daily Checklist Reminder", value: reminderDescription)
+                LabeledContent("Checklist Reminder", value: reminderDescription)
             }
         } header: {
             Text("Fleet Settings")
         } footer: {
             Text(fleet.isManager
-                 ? "These apply to everyone in the fleet. Changing units doesn't convert readings already entered. The reminder is a notification on each member's phone every day."
+                 ? "These apply to everyone in the fleet. Changing units doesn't convert readings already entered. The reminder is a notification on each member's phone at that time on the selected days."
                  : "Set by your fleet's managers.")
         }
+    }
+
+    /// The days currently set (Monday–Friday if none have been chosen yet).
+    private var reminderDays: [Int] {
+        fleet.fleet?.checklistReminderDays ?? (fleet.fleet?.checklistReminderTime == nil ? ChecklistReminder.defaultDays
+                                                : ChecklistReminder.weekdays)
     }
 
     private var reminderDescription: String {
         guard let parsed = ChecklistReminder.parse(fleet.fleet?.checklistReminderTime),
               let date = Calendar.current.date(bySettingHour: parsed.hour, minute: parsed.minute, second: 0, of: .now)
         else { return "Off" }
-        return date.formatted(date: .omitted, time: .shortened)
+        return "\(ChecklistReminder.describe(fleet.fleet?.checklistReminderDays)) at \(date.formatted(date: .omitted, time: .shortened))"
     }
 
     // MARK: Sign out
@@ -275,9 +299,39 @@ struct SettingsView: View {
     }
 }
 
+/// A row of day buttons (S M T W T F S) for picking reminder days.
+struct WeekdayPicker: View {
+    let selected: [Int]
+    let onChange: ([Int]) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(ChecklistReminder.orderedDays, id: \.weekday) { day in
+                let isOn = selected.contains(day.weekday)
+                Button {
+                    var days = Set(selected)
+                    if isOn { days.remove(day.weekday) } else { days.insert(day.weekday) }
+                    onChange(days.sorted())
+                } label: {
+                    Text(day.symbol)
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .foregroundStyle(isOn ? Color.white : Color.primary)
+                        .background(isOn ? Color.brand : Color(.tertiarySystemFill), in: Circle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(Calendar.current.weekdaySymbols[day.weekday - 1])
+                .accessibilityAddTraits(isOn ? .isSelected : [])
+            }
+        }
+    }
+}
+
 enum AppLinks {
-    /// Must be a public URL for the App Store listing. Update after publishing PRIVACY.md (see README).
-    static let privacyPolicy = URL(string: "https://github.com/GenaralKenobi/Maintenance-/blob/main/PRIVACY.md")!
+    /// Published from docs/ by GitHub Pages (see YOUR_TODO.md). The same URLs go in App Store Connect.
+    static let site = "https://genaralkenobi.github.io/CrewReady"
+    static let privacyPolicy = URL(string: "\(site)/privacy")!
+    static let support = URL(string: "\(site)/")!
 }
 
 struct ProfileEditView: View {
@@ -291,7 +345,7 @@ struct ProfileEditView: View {
                 Section {
                     ProfileFields(profile: $profile)
                 } footer: {
-                    Text("This profile is only used in \(fleet.fleet?.name ?? "this fleet"). Other fleets keep their own.")
+                    Text("This profile is only used in \(fleet.fleet?.name ?? "this fleet"). Your name is shown to the fleet; your phone number is only visible to its managers.")
                 }
             }
             .keyboardDoneButton()
@@ -308,7 +362,7 @@ struct ProfileEditView: View {
                 }
             }
             .onAppear {
-                profile = ProfileDraft(displayName: fleet.me?.displayName ?? "", phone: fleet.me?.phone ?? "")
+                profile = ProfileDraft(displayName: fleet.me?.displayName ?? "", phone: fleet.contacts[fleet.uid]?.phone ?? "")
             }
         }
     }

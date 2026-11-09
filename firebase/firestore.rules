@@ -1,13 +1,14 @@
 rules_version = '2';
 
-// Security rules for the Maintenance app.
+// Security rules for CrewReady.
 //
 // Data layout
 //   users/{uid}                                  private to the user
 //   users/{uid}/memberships/{fleetId}            the user's list of fleets
 //   invites/{inviteId}                           manager -> email invitations
 //   fleets/{fleetId}                             fleet name + usage counters
-//   fleets/{fleetId}/members/{uid}               per-fleet profile + role
+//   fleets/{fleetId}/members/{uid}               per-fleet profile (name) + role
+//   fleets/{fleetId}/contacts/{uid}              email + phone (the person and managers only)
 //   fleets/{fleetId}/checklists/{checklistId}    checklist templates
 //   fleets/{fleetId}/vehicles/{vehicleId}        vehicle, specs, assignments
 //     .../reminders/{id}                         maintenance schedule
@@ -167,16 +168,16 @@ service cloud.firestore {
       match /members/{uid} {
         allow read: if isMember(fleetId);
 
-        allow create: if signedIn() && request.auth.uid == uid && (
+        // Profiles are visible to the whole fleet, so they must never hold contact
+        // details; email and phone go in /contacts (managers and the person only).
+        allow create: if signedIn() && request.auth.uid == uid
+          && !request.resource.data.keys().hasAny(['email', 'phone']) && (
           // The fleet's creator becomes its first manager, in the same batch as the fleet.
           (!exists(fleetPath(fleetId))
             && getAfter(fleetPath(fleetId)).data.createdBy == request.auth.uid
-            && request.resource.data.role == 'manager'
-            && request.resource.data.email == myEmail())
+            && request.resource.data.role == 'manager')
           // Someone accepting an invite sent to their verified email address.
-          // The email on their profile must be their real (login) email.
           || (emailVerified()
-            && request.resource.data.email == myEmail()
             && request.resource.data.inviteId is string
             && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.fleetId == fleetId
             && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteId)).data.email == myEmail()
@@ -185,13 +186,29 @@ service cloud.firestore {
             && request.resource.data.seesAllVehicles == true)
         );
 
-        allow update: if
+        allow update: if !request.resource.data.keys().hasAny(['email', 'phone']) && (
           (isManager(fleetId) && isRole(request.resource.data.role))
           // Members can edit their own profile, but not their role or visibility.
           || (signedIn() && request.auth.uid == uid
-            && onlyChanges(['displayName', 'phone', 'updatedAt']));
+            && onlyChanges(['displayName', 'updatedAt'])));
 
         // Managers remove members; members can leave.
+        allow delete: if isManager(fleetId) || (signedIn() && request.auth.uid == uid);
+      }
+
+      // ----- contact details (email, phone): the person and managers only -----
+      match /contacts/{uid} {
+        allow read: if (signedIn() && request.auth.uid == uid) || isManager(fleetId);
+
+        // Written with the membership (when joining or creating the fleet) or later
+        // by the person; the email must be their real login email.
+        allow create: if signedIn() && request.auth.uid == uid
+          && request.resource.data.email == myEmail()
+          && (exists(memberPath(fleetId)) || existsAfter(memberPath(fleetId)));
+
+        allow update: if signedIn() && request.auth.uid == uid
+          && onlyChanges(['phone', 'updatedAt']);
+
         allow delete: if isManager(fleetId) || (signedIn() && request.auth.uid == uid);
       }
 

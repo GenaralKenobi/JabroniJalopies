@@ -95,9 +95,10 @@ final class SessionModel {
                                       usage: FleetUsage(photoBytes: 0, photoCount: 0, recordCount: 0),
                                       distanceUnit: DistanceUnit.current.rawValue),
                           forDocument: fleetRef)
-        try batch.setData(from: Member(role: .manager, displayName: profile.displayName.trimmed,
-                                       phone: profile.phone.trimmed, email: email, seesAllVehicles: true),
+        try batch.setData(from: Member(role: .manager, displayName: profile.displayName.trimmed, seesAllVehicles: true),
                           forDocument: FS.members(fleetId).document(uid))
+        try batch.setData(from: MemberContact(email: email, phone: profile.phone.trimmed),
+                          forDocument: FS.contacts(fleetId).document(uid))
         try batch.setData(from: Membership(fleetName: trimmedName), forDocument: FS.memberships(uid).document(fleetId))
         commitInBackground(batch, "Creating fleet")
 
@@ -115,10 +116,11 @@ final class SessionModel {
     func accept(_ invite: Invite, profile: ProfileDraft) throws {
         guard let inviteId = invite.id else { return }
         let batch = FS.db.batch()
-        try batch.setData(from: Member(role: invite.role, displayName: profile.displayName.trimmed,
-                                       phone: profile.phone.trimmed, email: email, seesAllVehicles: true,
+        try batch.setData(from: Member(role: invite.role, displayName: profile.displayName.trimmed, seesAllVehicles: true,
                                        inviteId: inviteId),
                           forDocument: FS.members(invite.fleetId).document(uid))
+        try batch.setData(from: MemberContact(email: email, phone: profile.phone.trimmed),
+                          forDocument: FS.contacts(invite.fleetId).document(uid))
         batch.updateData(["status": InviteStatus.accepted.rawValue,
                           "acceptedBy": uid,
                           "respondedAt": FieldValue.serverTimestamp()],
@@ -151,6 +153,7 @@ final class SessionModel {
             try await FleetDeleter.deleteFleetData(fleetId: fleetId)
         }
         let batch = FS.db.batch()
+        batch.deleteDocument(FS.contacts(fleetId).document(uid))
         batch.deleteDocument(FS.members(fleetId).document(uid))
         batch.deleteDocument(FS.memberships(uid).document(fleetId))
         try await batch.commit()

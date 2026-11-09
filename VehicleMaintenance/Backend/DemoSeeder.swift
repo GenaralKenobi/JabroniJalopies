@@ -8,7 +8,7 @@ import os
 enum DemoSeeder {
     static let email = "mia.manager@demo.test"
     static let password = "demo-password"
-    private static let log = Logger(subsystem: "com.genaralkenobi.maintenance", category: "demo")
+    private static let log = Logger(subsystem: "com.generalkenobi.crewready", category: "demo")
 
     @MainActor
     static func runIfRequested() async {

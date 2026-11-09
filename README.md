@@ -1,4 +1,4 @@
-# Fleet Maintenance (iOS)
+# CrewReady (iOS)
 
 A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect reporting, a quick-reference spec card for each vehicle, maintenance reminders, and service history. Managers and drivers share a fleet, and checklists work without signal.
 

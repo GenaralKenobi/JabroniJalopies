@@ -47,6 +47,7 @@ enum FleetDeleter {
             try await deleteEquipment(fleetId: fleetId, equipmentId: item.documentID)
         }
         try await deleteAll(FS.checklists(fleetId))
+        try await deleteAll(FS.contacts(fleetId))
         try await deleteAll(FS.invites.whereField("fleetId", isEqualTo: fleetId))
         try await FS.fleet(fleetId).delete()
     }

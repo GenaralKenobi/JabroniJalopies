@@ -13,7 +13,7 @@ import UIKit
 @Observable
 final class PhotoUploadQueue {
     static let shared = PhotoUploadQueue()
-    static let backgroundTaskId = "com.genaralkenobi.maintenance.photo-upload"
+    static let backgroundTaskId = "com.generalkenobi.crewready.photo-upload"
     /// Give up on a photo after this many attempts that failed for reasons retrying
     /// can't fix (e.g. no longer a member). Network failures are never counted.
     static let maxAttempts = 10

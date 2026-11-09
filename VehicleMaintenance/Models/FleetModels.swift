@@ -26,8 +26,10 @@ struct Fleet: Codable, Identifiable, Hashable {
     var usage: FleetUsage?
     /// "mi" or "km". Fleet-wide so everyone enters odometer readings in the same unit.
     var distanceUnit: String?
-    /// "HH:mm" local time for the daily checklist reminder on everyone's phone; nil = off.
+    /// "HH:mm" local time for the checklist reminder on everyone's phone; nil = off.
     var checklistReminderTime: String?
+    /// Days the reminder goes out (Calendar weekdays, 1 = Sunday … 7 = Saturday). nil = every day.
+    var checklistReminderDays: [Int]?
 }
 
 struct FleetUsage: Codable, Hashable {
@@ -42,12 +44,18 @@ struct Member: Codable, Identifiable, Hashable {
     @DocumentID var id: String?
     var role: FleetRole
     var displayName: String
-    var phone: String
-    var email: String
     /// When false, the member only sees vehicles whose `assignedUids` include them.
     var seesAllVehicles: Bool
     var inviteId: String?
     @ServerTimestamp var joinedAt: Date?
+}
+
+/// fleets/{fleetId}/contacts/{uid} — a member's email and phone. Kept apart from the
+/// member profile so only the member and the fleet's managers can read it.
+struct MemberContact: Codable, Identifiable, Hashable {
+    @DocumentID var id: String?
+    var email: String
+    var phone: String
 }
 
 /// users/{uid}/memberships/{fleetId} — lets a user list the fleets they belong to.

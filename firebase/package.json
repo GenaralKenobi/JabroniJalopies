@@ -1,7 +1,7 @@
 {
   "name": "maintenance-firebase",
   "private": true,
-  "description": "Security rules, indexes and rules tests for the Maintenance app",
+  "description": "Security rules, indexes and rules tests for CrewReady",
   "type": "module",
   "scripts": {
     "test": "firebase emulators:exec --only firestore,storage --project demo-maintenance 'node --test --test-concurrency=1 tests/rules.test.js tests/equipment.test.js'",

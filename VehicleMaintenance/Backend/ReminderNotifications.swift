@@ -45,10 +45,40 @@ enum ReminderNotifications {
     }
 }
 
-/// The daily "do your checklist" reminder. A manager sets the time for the whole
-/// fleet; every member's phone schedules it locally (no server needed).
+/// The "do your checklist" reminder. A manager sets the time and the days of the
+/// week for the whole fleet; every member's phone schedules it locally (no server).
 enum ChecklistReminder {
-    static func identifier(_ fleetId: String) -> String { "checklist-\(fleetId)" }
+    /// Calendar weekday numbers: 1 = Sunday … 7 = Saturday.
+    static let weekdays = Array(1...7)
+    static let defaultDays = [2, 3, 4, 5, 6]  // Monday–Friday
+
+    /// One repeating notification per selected weekday.
+    static func identifier(_ fleetId: String, weekday: Int) -> String { "checklist-\(fleetId)-\(weekday)" }
+
+    static func allIdentifiers(_ fleetId: String) -> [String] {
+        ["checklist-\(fleetId)"] + weekdays.map { identifier(fleetId, weekday: $0) }
+    }
+
+    /// Short day names in the order of the phone's calendar (e.g. starting Sunday in the US).
+    static var orderedDays: [(weekday: Int, symbol: String)] {
+        let calendar = Calendar.current
+        let symbols = calendar.veryShortStandaloneWeekdaySymbols
+        let first = calendar.firstWeekday
+        return (0..<7).map { offset in
+            let weekday = (first - 1 + offset) % 7 + 1
+            return (weekday, symbols[weekday - 1])
+        }
+    }
+
+    /// "Weekdays", "Every day", "Weekends" or e.g. "Mon, Wed, Fri".
+    static func describe(_ days: [Int]?) -> String {
+        let set = Set(days ?? weekdays)
+        if set.count == 7 { return "Every day" }
+        if set == Set(defaultDays) { return "Weekdays" }
+        if set == [1, 7] { return "Weekends" }
+        let names = Calendar.current.shortWeekdaySymbols
+        return orderedDays.map(\.weekday).filter(set.contains).map { names[$0 - 1] }.joined(separator: ", ")
+    }
 
     /// Parses "HH:mm" into hour and minute.
     static func parse(_ time: String?) -> (hour: Int, minute: Int)? {
@@ -62,15 +92,13 @@ enum ChecklistReminder {
         String(format: "%02d:%02d", hour, minute)
     }
 
-    /// Schedules (or removes, when `time` is nil) this fleet's daily reminder.
-    static func sync(fleetId: String, fleetName: String, time: String?) {
+    /// Schedules this fleet's reminder on the selected days (`days` nil = every day),
+    /// or removes it when `time` is nil or no days are selected.
+    static func sync(fleetId: String, fleetName: String, time: String?, days: [Int]?) {
         let center = UNUserNotificationCenter.current()
-        let id = identifier(fleetId)
-        guard let parsed = parse(time) else {
-            center.removePendingNotificationRequests(withIdentifiers: [id])
-            return
-        }
-        let hour = parsed.hour, minute = parsed.minute
+        center.removePendingNotificationRequests(withIdentifiers: allIdentifiers(fleetId))
+        let selected = Set(days ?? weekdays).intersection(weekdays)
+        guard let parsed = parse(time), !selected.isEmpty else { return }
         Task {
             let settings = await center.notificationSettings()
             if settings.authorizationStatus == .notDetermined {
@@ -80,14 +108,17 @@ enum ChecklistReminder {
             content.title = "Vehicle checklist"
             content.body = "Complete today's checklist before heading out (\(fleetName))."
             content.sound = .default
-            let trigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: hour, minute: minute), repeats: true)
-            // Same identifier replaces any earlier schedule.
-            try? await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+            for weekday in selected {
+                let components = DateComponents(hour: parsed.hour, minute: parsed.minute, weekday: weekday)
+                let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+                try? await center.add(UNNotificationRequest(identifier: identifier(fleetId, weekday: weekday),
+                                                            content: content, trigger: trigger))
+            }
         }
     }
 
     static func cancel(fleetId: String) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier(fleetId)])
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: allIdentifiers(fleetId))
     }
 }
 

@@ -95,8 +95,9 @@ async function main() {
       usage: { photoBytes: 1_350_000_000, photoCount: 2900, recordCount: 18400 },
     });
     await set(`${F}/members/${uid}`, {
-      role: 'manager', displayName: mia, phone: '555-0142', email: EMAIL, seesAllVehicles: true, joinedAt: daysAgo(400),
+      role: 'manager', displayName: mia, seesAllVehicles: true, joinedAt: daysAgo(400),
     });
+    await set(`${F}/contacts/${uid}`, { email: EMAIL, phone: '555-0142' });
     await set(`users/${uid}/memberships/demo-fleet`, { fleetName: 'Acme Delivery', joinedAt: daysAgo(400) });
 
     const items = [

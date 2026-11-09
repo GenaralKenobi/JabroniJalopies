@@ -12,6 +12,7 @@ enum FS {
     static var fleets: CollectionReference { db.collection("fleets") }
     static func fleet(_ fleetId: String) -> DocumentReference { fleets.document(fleetId) }
     static func members(_ fleetId: String) -> CollectionReference { fleet(fleetId).collection("members") }
+    static func contacts(_ fleetId: String) -> CollectionReference { fleet(fleetId).collection("contacts") }
     static func checklists(_ fleetId: String) -> CollectionReference { fleet(fleetId).collection("checklists") }
     static func vehicles(_ fleetId: String) -> CollectionReference { fleet(fleetId).collection("vehicles") }
     static func vehicle(_ fleetId: String, _ vehicleId: String) -> DocumentReference {
