@@ -44,6 +44,7 @@ final class FleetModel {
     private var perEquipment: [String: [ListenerRegistration]] = [:]
     private var stopped = false
     private var verifyingAccess = false
+    private var reconnects = 0
     private var lastSyncedFleetName: String?
 
     init(fleetId: String, uid: String, email: String, onLostAccess: @escaping () -> Void) {
@@ -259,7 +260,13 @@ final class FleetModel {
                         guard !self.stopped else { return }
                         self.verifyingAccess = false
                         if let snapshot, snapshot.exists {
-                            // Still a member: reconnect everything.
+                            // Still a member: reconnect everything (a few times at most, so an
+                            // unexpected server problem can't cause an endless reconnect loop).
+                            guard self.reconnects < 3 else {
+                                ErrorCenter.shared.message = "Some fleet data couldn't sync. Close and reopen the app to try again."
+                                return
+                            }
+                            self.reconnects += 1
                             self.removeAllListeners()
                             self.start()
                         } else if error == nil || error?.isPermissionDenied == true {
