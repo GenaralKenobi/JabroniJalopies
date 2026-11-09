@@ -163,7 +163,7 @@ jobs:
             xcrun simctl io "$UDID" screenshot "screenshots/${name}.png"
           }
 
-          WAIT=15 shoot 01-fleet light -initialTab fleet
+          WAIT=30 shoot 01-fleet light -initialTab fleet
           shoot 02-vehicle-unsafe light -initialTab fleet -demoScreen vehicle
           shoot 03-specs light -initialTab fleet -demoScreen specs
           shoot 04-checklist light -initialTab fleet -demoScreen checklist
