@@ -36,6 +36,12 @@ const yearsFromNow = (years) => {
   d.setFullYear(d.getFullYear() + years);
   return Timestamp.fromDate(d);
 };
+const daysFromNow = (days, hour = 0) => {
+  const d = new Date(now);
+  d.setDate(d.getDate() + days);
+  d.setHours(hour, 0, 0, 0);
+  return Timestamp.fromDate(d);
+};
 let idCounter = 0;
 const id = (prefix) => `${prefix}-${++idCounter}`;
 
@@ -122,12 +128,21 @@ async function main() {
       item('Warning lights on dash'),
       item('Fire extinguisher and first-aid kit'),
       { ...item('Fire extinguisher gauge in green'), frequency: { kind: 'weekly' } },
-      { ...item('Grease fittings'), frequency: { kind: 'monthly' } },
-      { ...item('Battery terminals clean and tight'), frequency: { kind: 'days', days: 14 } },
-      { ...item('Tire tread depth', { reading: '32nds' }), frequency: { kind: 'monthly' } },
+      { ...item('Chainsaw chain brake test'), frequency: { kind: 'weekly' } },
     ];
     const itemByPrefix = (prefix) => items.find((i) => i.title.startsWith(prefix));
     await set(`${F}/checklists/morning`, { name: 'Morning Checklist', items, vehicleIds: [], updatedAt: daysAgo(30) });
+    // Scheduled checklists: due on each truck monthly / every 14 days from when last done.
+    const monthlyItems = [item('Grease fittings'), item('Tire tread depth', { reading: '32nds' }),
+      item('Battery terminals clean and tight'), item('Brake pads (visual)', { unsafe: true })];
+    await set(`${F}/checklists/monthly`, {
+      name: 'Monthly Service', items: monthlyItems, vehicleIds: [], updatedAt: daysAgo(60),
+      schedule: { kind: 'monthly' }, firstDue: daysFromNow(20),
+    });
+    await set(`${F}/checklists/belts`, {
+      name: 'Belts & Filters', items: [item('Drive belts'), item('Engine air filter'), item('Cabin air filter')],
+      vehicleIds: [], updatedAt: daysAgo(60), schedule: { kind: 'days', days: 14 }, firstDue: daysFromNow(25),
+    });
     await set(`${F}/checklists/weekly`, {
       name: 'Weekly Walk-Around',
       items: [item('Body damage'), item('Coolant level'), item('Battery terminals'), item('Spare tire', { reading: 'PSI' })],
@@ -148,14 +163,29 @@ async function main() {
     }
 
     // Van 12: the weekly extinguisher check is due; grease and battery were done recently.
+    // Van 12: the extinguisher check was skipped 3 times (overdue), Monthly Service is overdue.
+    // Truck 3: Monthly Service due in ~10 days with a day planned; Belts & Filters due in 4 days, not planned.
     await set(`${F}/vehicles/van-12/checklistState/periodic`, {
-      lastDone: {
-        [itemByPrefix('Fire extinguisher gauge').id]: daysAgo(8),
-        [itemByPrefix('Grease').id]: daysAgo(6),
-        [itemByPrefix('Battery').id]: daysAgo(3),
-        [itemByPrefix('Tire tread').id]: daysAgo(20),
-      },
+      lastDone: { [itemByPrefix('Fire extinguisher gauge').id]: daysAgo(15), [itemByPrefix('Chainsaw chain').id]: daysAgo(1) },
+      skips: { [itemByPrefix('Fire extinguisher gauge').id]: 3 },
+      checklistLastDone: { monthly: daysAgo(35), belts: daysAgo(3) },
     });
+    await set(`${F}/vehicles/truck-3/checklistState/periodic`, {
+      lastDone: { [itemByPrefix('Fire extinguisher gauge').id]: daysAgo(1), [itemByPrefix('Chainsaw chain').id]: daysAgo(1) },
+      checklistLastDone: { monthly: daysAgo(20), belts: daysAgo(10) },
+    });
+    await set(`${F}/vehicles/van-7/checklistState/periodic`, {
+      lastDone: {}, checklistLastDone: { monthly: daysAgo(5), belts: daysAgo(2) },
+    });
+    {
+      // The monthly due date on Truck 3 (one month after it was last done, at midnight).
+      const due = daysAgo(20, 0).toDate();
+      due.setHours(0, 0, 0, 0);
+      due.setMonth(due.getMonth() + 1);
+      await set(`${F}/vehicles/truck-3`, {
+        checklistPlans: { monthly: { date: daysFromNow(6, 0), forDue: Timestamp.fromDate(due), byName: mia } },
+      }, { merge: true });
+    }
 
     const brakes = itemByPrefix('Brakes');
     const lights = itemByPrefix('Headlights');

@@ -18,6 +18,8 @@ struct Vehicle: Codable, Identifiable, Hashable {
     var assignedUids: [String]
     /// The one non-manager (the "truck lead") who may also edit this truck's contents list.
     var contentsEditorUid: String?
+    /// Dates managers picked for doing scheduled checklists on this truck, by checklist id.
+    var checklistPlans: [String: ChecklistPlan]?
     var specSections: [SpecSection]
     /// Small JPEG thumbnail stored inline so it works offline and on the free plan.
     var photo: Data?
@@ -77,4 +79,13 @@ struct TruckItem: Codable, Identifiable, Hashable {
     static func new(location: String = "") -> TruckItem {
         TruckItem(name: "", quantity: nil, location: location, notes: "")
     }
+}
+
+/// A manager's planned day for a scheduled checklist on one truck.
+struct ChecklistPlan: Codable, Hashable {
+    var date: Date
+    /// The due date this plan was made for. Once the checklist is done the due date
+    /// moves on, and the old plan no longer applies.
+    var forDue: Date
+    var byName: String?
 }

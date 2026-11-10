@@ -173,18 +173,46 @@ struct ReminderFormView: View {
 
 struct UpcomingView: View {
     @Environment(FleetModel.self) private var fleet
+    @State private var planning: ScheduledDue?
 
     var body: some View {
         NavigationStack {
             let entries = fleet.allReminders
+            // Managers see scheduled checklists due within two weeks or overdue; drivers see overdue ones.
+            let scheduled = fleet.allScheduledChecklists().filter {
+                fleet.isManager ? $0.status != .later : $0.status == .overdue
+            }
             Group {
-                if entries.isEmpty {
+                if entries.isEmpty && scheduled.isEmpty {
                     ContentUnavailableView("Nothing Scheduled", systemImage: "calendar.badge.checkmark",
                                            description: Text(fleet.isManager
-                                                             ? "Add maintenance reminders from a vehicle's page."
+                                                             ? "Add maintenance reminders from a vehicle's page, or give a checklist a schedule in Settings → Checklists."
                                                              : "Your manager hasn't scheduled any maintenance yet."))
                 } else {
                     List {
+                        if !scheduled.isEmpty {
+                            Section {
+                                ForEach(scheduled) { entry in
+                                    HStack {
+                                        NavigationLink(value: entry.vehicleId) {
+                                            ScheduledChecklistRow(entry: entry,
+                                                                  vehicleName: fleet.vehicle(entry.vehicleId)?.displayName)
+                                        }
+                                        if fleet.isManager {
+                                            Button(entry.plannedFor == nil ? "Plan" : "Change") { planning = entry }
+                                                .buttonStyle(.bordered)
+                                                .controlSize(.small)
+                                        }
+                                    }
+                                }
+                            } header: {
+                                Text("Scheduled Checklists")
+                            } footer: {
+                                if fleet.isManager {
+                                    Text("Due within \(ScheduledChecklists.alertLeadDays) days or overdue. Plan a day for each; drivers see one only if it becomes overdue.")
+                                }
+                            }
+                        }
                         ForEach(DueStatus.allCases.reversed(), id: \.self) { status in
                             let items = entries.filter { $0.reminder.status(currentOdometer: $0.vehicle.odometer) == status }
                             if !items.isEmpty {
@@ -202,6 +230,9 @@ struct UpcomingView: View {
             }
             .navigationTitle("Upcoming")
             .navigationDestination(for: String.self) { VehicleDetailView(vehicleId: $0) }
+            .sheet(item: $planning) { entry in
+                PlanChecklistView(entry: entry, vehicleName: fleet.vehicle(entry.vehicleId)?.displayName ?? "")
+            }
             .syncStatusBanner()
         }
     }

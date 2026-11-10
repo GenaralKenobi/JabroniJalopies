@@ -50,6 +50,13 @@ struct InspectionFormView: View {
     }
 
     private var lastDone: [String: Date] { fleet.checklistStates[vehicle.id ?? ""]?.lastDone ?? [:] }
+    private var skips: [String: Int] { fleet.checklistStates[vehicle.id ?? ""]?.skips ?? [:] }
+
+    /// For a scheduled (monthly / every N days) checklist: where it stands on this truck.
+    private var scheduledEntry: ScheduledDue? {
+        guard checklist.isScheduled, let vehicleId = vehicle.id else { return nil }
+        return fleet.scheduledChecklists(on: vehicleId).first { $0.checklistId == checklist.id }
+    }
 
     /// Items to answer now: every-time items, repeating items that are due (or have an open
     /// defect), and anything the driver chose to do early.
@@ -95,9 +102,16 @@ struct InspectionFormView: View {
                         Text(unit.abbreviation).foregroundStyle(Color.secondary)
                     }
                 } footer: {
-                    if !connectivity.isOnline {
-                        Label("You're offline. Your checklist will be saved on this phone and sent when you have signal.",
-                              systemImage: "wifi.slash")
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let entry = scheduledEntry, let schedule = checklist.schedule {
+                            Label("\(ScheduledChecklists.scheduleLabel(schedule)) checklist · \(ScheduledChecklists.statusText(entry))",
+                                  systemImage: entry.status == .overdue ? "exclamationmark.triangle.fill" : "calendar")
+                                .foregroundStyle(entry.status == .overdue ? Color.orange : Color.secondary)
+                        }
+                        if !connectivity.isOnline {
+                            Label("You're offline. Your checklist will be saved on this phone and sent when you have signal.",
+                                  systemImage: "wifi.slash")
+                        }
                     }
                 }
 
@@ -105,6 +119,7 @@ struct InspectionFormView: View {
                     Section {
                         ItemCard(item: item,
                                  lastDone: lastDone[item.id],
+                                 skips: skips[item.id] ?? 0,
                                  existingDefect: openDefectsByItem[item.id],
                                  answer: binding(for: item.id),
                                  photos: $photos,
@@ -270,7 +285,9 @@ struct InspectionFormView: View {
 
         do {
             try fleet.submit(plan, vehicle: vehicle, odometer: NumberParsing.int(odometerText), photos: usedPhotos,
-                             repeatingItemIds: checklist.items.filter { $0.frequency != nil }.map(\.id))
+                             repeatingItemIds: checklist.items.filter { $0.frequency != nil }.map(\.id),
+                             skippedItemIds: skipped.map(\.id),
+                             scheduledChecklistId: checklist.isScheduled ? checklist.id : nil)
             submitted = true
         } catch {
             validationMessage = error.localizedDescription
@@ -300,6 +317,7 @@ struct InspectionFormView: View {
 private struct ItemCard: View {
     let item: ChecklistItem
     let lastDone: Date?
+    let skips: Int
     let existingDefect: Defect?
     @Binding var answer: ItemAnswer
     @Binding var photos: [String: Data]
@@ -327,6 +345,14 @@ private struct ItemCard: View {
                         .foregroundStyle(Color.brand)
                         .background(Color.brand.opacity(0.12), in: Capsule())
                 }
+                if ScheduledChecklists.isSkippedTooOften(skips),
+                   let frequency = item.frequency, PeriodicSchedule.isDue(frequency, lastDone: lastDone) {
+                    Text("Overdue")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .foregroundStyle(.white)
+                        .background(Color.orange, in: Capsule())
+                }
                 if item.unsafeIfFailed {
                     Text("Safety")
                         .font(.caption2.weight(.bold))
@@ -340,10 +366,15 @@ private struct ItemCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(scheduleText(frequency))
                         .foregroundStyle(Color.secondary)
-                    Text(PeriodicSchedule.isDue(frequency, lastDone: lastDone)
-                         ? "Optional. If you skip it, it stays due until someone does it."
-                         : "Optional.")
-                        .foregroundStyle(Color.secondary)
+                    if ScheduledChecklists.isSkippedTooOften(skips) && PeriodicSchedule.isDue(frequency, lastDone: lastDone) {
+                        Text("Skipped on the last \(skips) checklists. Please do it today.")
+                            .foregroundStyle(Color.orange)
+                    } else {
+                        Text(PeriodicSchedule.isDue(frequency, lastDone: lastDone)
+                             ? "Optional. If you skip it, it stays due until someone does it."
+                             : "Optional.")
+                            .foregroundStyle(Color.secondary)
+                    }
                 }
                 .font(.caption)
             }

@@ -23,6 +23,7 @@ struct VehicleDetailView: View {
     @State private var didOpenDemoScreen = false
     @State private var demoSpecs = false
     @State private var demoContents = false
+    @State private var planning: ScheduledDue?
     @State private var addingEquipment: Equipment?
     @State private var demoChains = false
     @State private var demoEquipmentId: String?
@@ -65,6 +66,7 @@ struct VehicleDetailView: View {
                 }
             }
 
+            scheduledSection(vehicle, condition: condition)
             defectsSection(openDefects)
             chainsSection
             equipmentSection
@@ -91,6 +93,7 @@ struct VehicleDetailView: View {
         .navigationDestination(isPresented: $demoChains) { ChainsView(vehicleId: vehicleId) }
         .navigationDestination(item: $demoEquipmentId) { EquipmentDetailView(equipmentId: $0) }
         .sheet(isPresented: $showingEdit) { VehicleFormView(vehicle: vehicle) }
+        .sheet(item: $planning) { PlanChecklistView(entry: $0, vehicleName: vehicle.displayName) }
         .sheet(item: $addingEquipment) { EquipmentFormView(item: $0) }
         .sheet(isPresented: $showingReportProblem) { ReportDefectView(owner: .vehicle(vehicleId)) }
         .sheet(isPresented: $showingLogService) { ServiceRecordFormView(vehicle: vehicle) }
@@ -103,7 +106,7 @@ struct VehicleDetailView: View {
         }
         .confirmationDialog("Choose a Checklist", isPresented: $showingChecklistPicker, titleVisibility: .visible) {
             ForEach(checklists) { checklist in
-                Button(checklist.name) { start(checklist, condition: condition) }
+                Button(pickerLabel(checklist)) { start(checklist, condition: condition) }
             }
         }
         .alert("This Vehicle Is Marked Unsafe to Drive", isPresented: Binding(
@@ -171,6 +174,11 @@ struct VehicleDetailView: View {
                 if !alerts.isEmpty {
                     EquipmentAlertBanner(alerts: alerts)
                 }
+                let overdueScheduled = fleet.scheduledChecklists(on: vehicleId).filter { $0.status == .overdue }
+                let overdueItems = fleet.itemsSkippedTooOften(on: vehicleId)
+                if !overdueScheduled.isEmpty || !overdueItems.isEmpty {
+                    OverdueBanner(scheduled: overdueScheduled, items: overdueItems)
+                }
             }
             .frame(maxWidth: .infinity)
             .listRowBackground(Color.clear)
@@ -197,7 +205,7 @@ struct VehicleDetailView: View {
                             .font(.headline)
                         let due = fleet.dueRepeatingItems(on: vehicleId)
                         if !due.isEmpty {
-                            Text(due.count == 1 ? "Includes 1 weekly/monthly item" : "Includes \(due.count) weekly/monthly items")
+                            Text(due.count == 1 ? "Includes 1 weekly item" : "Includes \(due.count) weekly items")
                                 .font(.caption)
                         }
                     }
@@ -255,6 +263,47 @@ struct VehicleDetailView: View {
         } header: {
             Text("Open Defects")
         }
+    }
+
+    /// Monthly / every-N-days checklists. Managers see all of them and can plan a day;
+    /// drivers see the ones that are overdue (they can start any of them from Start Checklist).
+    @ViewBuilder
+    private func scheduledSection(_ vehicle: Vehicle, condition: VehicleCondition) -> some View {
+        let all = fleet.scheduledChecklists(on: vehicleId)
+        let shown = fleet.isManager ? all : all.filter { $0.status == .overdue }
+        if !shown.isEmpty {
+            Section {
+                ForEach(shown) { entry in
+                    HStack {
+                        Button {
+                            start(entry.checklist, condition: condition)
+                        } label: {
+                            ScheduledChecklistRow(entry: entry)
+                        }
+                        .buttonStyle(.plain)
+                        if fleet.isManager {
+                            Button(entry.plannedFor == nil ? "Plan" : "Change") { planning = entry }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                        }
+                    }
+                }
+            } header: {
+                Text(fleet.isManager ? "Scheduled Checklists" : "Overdue Checklists")
+            } footer: {
+                Text(fleet.isManager
+                     ? "You're alerted \(ScheduledChecklists.alertLeadDays) days before each is due. Drivers see one only if it becomes overdue. Tap one to start it."
+                     : "Tap one to start it.")
+            }
+        }
+    }
+
+    private func pickerLabel(_ checklist: ChecklistTemplate) -> String {
+        guard checklist.isScheduled,
+              let entry = fleet.scheduledChecklists(on: vehicleId).first(where: { $0.checklistId == checklist.id }) else {
+            return checklist.name
+        }
+        return entry.status == .overdue ? "\(checklist.name) (overdue)" : "\(checklist.name) (\(ScheduledChecklists.statusText(entry).lowercased()))"
     }
 
     @ViewBuilder

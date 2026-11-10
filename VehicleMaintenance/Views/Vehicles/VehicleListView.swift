@@ -115,6 +115,7 @@ struct VehicleRow: View {
         let condition = fleet.condition(of: vehicle.id)
         let alerts = fleet.equipmentAlerts(on: vehicleId)
         let due = fleet.reminderStatus(of: vehicle).flatMap { $0 == .ok ? nil : $0 }
+        let overdue = fleet.overdueCount(on: vehicleId)
 
         HStack(alignment: .top, spacing: 12) {
             VehicleThumbnail(data: vehicle.photo)
@@ -130,7 +131,7 @@ struct VehicleRow: View {
                     .font(.subheadline)
                     .foregroundStyle(Color.secondary)
 
-                if condition != .ok || !alerts.isEmpty || due != nil {
+                if condition != .ok || !alerts.isEmpty || due != nil || overdue > 0 {
                     FlowLayout(spacing: 6) {
                         if condition != .ok {
                             ConditionBadge(condition: condition, compact: true)
@@ -140,6 +141,9 @@ struct VehicleRow: View {
                         }
                         if let due {
                             StatusBadge(status: due)
+                        }
+                        if overdue > 0 {
+                            OverdueBadge(count: overdue)
                         }
                     }
                     .padding(.top, 2)

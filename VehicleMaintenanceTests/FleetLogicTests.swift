@@ -368,3 +368,87 @@ struct OptionalRepeatingItemTests {
         #expect(InspectionPlanner.validate(template: template(submitted), answers: [:], openDefectsByItem: [:]) == .nothingAnswered)
     }
 }
+
+struct ScheduledChecklistTests {
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }()
+
+    private func day(_ y: Int, _ m: Int, _ d: Int, hour: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: y, month: m, day: d, hour: hour))!
+    }
+
+    private func checklist(_ schedule: ItemFrequency?, firstDue: Date? = nil) -> ChecklistTemplate {
+        var checklist = ChecklistTemplate(name: "Monthly Service", items: [horn], vehicleIds: [],
+                                          schedule: schedule, firstDue: firstDue)
+        checklist.id = "monthly"
+        return checklist
+    }
+
+    private func truck(plans: [String: ChecklistPlan]? = nil) -> Vehicle {
+        var vehicle = Vehicle.new()
+        vehicle.id = "van-12"
+        vehicle.checklistPlans = plans
+        return vehicle
+    }
+
+    @Test func monthlyIsDueOneMonthAfterItWasLastDone() {
+        #expect(ScheduledChecklists.dueDate(schedule: .monthly, firstDue: nil, lastDone: day(2026, 11, 10, hour: 15),
+                                            calendar: calendar) == day(2026, 12, 10))
+        #expect(ScheduledChecklists.dueDate(schedule: .every(14), firstDue: nil, lastDone: day(2026, 11, 10, hour: 15),
+                                            calendar: calendar) == day(2026, 11, 24))
+    }
+
+    @Test func neverDoneUsesTheFirstDueDate() {
+        #expect(ScheduledChecklists.dueDate(schedule: .monthly, firstDue: day(2026, 12, 1, hour: 13), lastDone: nil,
+                                            calendar: calendar) == day(2026, 12, 1))
+        #expect(ScheduledChecklists.dueDate(schedule: .monthly, firstDue: nil, lastDone: nil, calendar: calendar) == nil)
+    }
+
+    @Test func managersAreAlertedTwoWeeksAheadAndDriversWhenOverdue() {
+        let due = day(2026, 12, 10)
+        #expect(ScheduledChecklists.alertDate(due: due, calendar: calendar) == day(2026, 11, 26))
+        #expect(ScheduledChecklists.status(due: due, now: day(2026, 11, 25, hour: 23), calendar: calendar) == .later)
+        #expect(ScheduledChecklists.status(due: due, now: day(2026, 11, 26, hour: 9), calendar: calendar) == .dueSoon)
+        #expect(ScheduledChecklists.status(due: due, now: day(2026, 12, 9, hour: 23), calendar: calendar) == .dueSoon)
+        #expect(ScheduledChecklists.status(due: due, now: day(2026, 12, 10, hour: 1), calendar: calendar) == .overdue)
+    }
+
+    @Test func aPlanOnlyAppliesToTheDueDateItWasMadeFor() {
+        let state = ChecklistState(checklistLastDone: ["monthly": day(2026, 11, 10, hour: 15)])
+        let current = ChecklistPlan(date: day(2026, 12, 4), forDue: day(2026, 12, 10))
+        let entry = ScheduledChecklists.entry(for: checklist(.monthly), vehicle: truck(plans: ["monthly": current]),
+                                              state: state, now: day(2026, 11, 30), calendar: calendar)
+        #expect(entry?.plannedFor == day(2026, 12, 4))
+        #expect(entry?.status == .dueSoon)
+
+        let old = ChecklistPlan(date: day(2026, 11, 8), forDue: day(2026, 11, 10))
+        let afterDone = ScheduledChecklists.entry(for: checklist(.monthly), vehicle: truck(plans: ["monthly": old]),
+                                                  state: state, now: day(2026, 11, 30), calendar: calendar)
+        #expect(afterDone?.plannedFor == nil)
+    }
+
+    @Test func everydayChecklistsAreNotScheduled() {
+        #expect(ScheduledChecklists.entry(for: checklist(nil), vehicle: truck(), state: nil) == nil)
+    }
+
+    @Test func threeSkipsInARowIsOverdue() {
+        #expect(!ScheduledChecklists.isSkippedTooOften(nil))
+        #expect(!ScheduledChecklists.isSkippedTooOften(2))
+        #expect(ScheduledChecklists.isSkippedTooOften(3))
+    }
+
+    @Test func oldStateDocumentsStillDecode() throws {
+        let json = #"{"lastDone": {}}"#.data(using: .utf8)!
+        let decoder = JSONDecoder()
+        let state = try decoder.decode(ChecklistState.self, from: json)
+        #expect(state.skips.isEmpty && state.checklistLastDone.isEmpty)
+    }
+
+    @Test func labels() {
+        #expect(ScheduledChecklists.scheduleLabel(.monthly) == "Monthly")
+        #expect(ScheduledChecklists.scheduleLabel(.every(14)) == "Every 14 days")
+    }
+}

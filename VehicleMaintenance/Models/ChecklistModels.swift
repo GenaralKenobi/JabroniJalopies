@@ -9,6 +9,13 @@ struct ChecklistTemplate: Codable, Identifiable, Hashable {
     /// Vehicles this checklist applies to. Empty means every vehicle.
     var vehicleIds: [String]
     var updatedAt: Date?
+    /// Set for a scheduled checklist that each truck needs monthly or every N days
+    /// (e.g. "Monthly Service"). nil for everyday checklists.
+    var schedule: ItemFrequency? = nil
+    /// When a scheduled checklist is first due on trucks that haven't done it yet.
+    var firstDue: Date? = nil
+
+    var isScheduled: Bool { schedule != nil }
 
     func applies(to vehicleId: String) -> Bool {
         vehicleIds.isEmpty || vehicleIds.contains(vehicleId)
@@ -57,9 +64,27 @@ struct ItemFrequency: Codable, Hashable {
     }
 }
 
-/// fleets/{f}/vehicles/{v}/checklistState/periodic — when each repeating item was last done on this truck.
+/// fleets/{f}/vehicles/{v}/checklistState/periodic — repeating-item and scheduled-checklist state for one truck.
 struct ChecklistState: Codable, Hashable {
+    /// When each repeating item (by item id) was last done on this truck.
     var lastDone: [String: Date]
+    /// When each scheduled checklist (by checklist id) was last done on this truck.
+    var checklistLastDone: [String: Date]
+    /// How many checklists in a row skipped each due repeating item (by item id). Reset when it's done.
+    var skips: [String: Int]
+
+    init(lastDone: [String: Date] = [:], checklistLastDone: [String: Date] = [:], skips: [String: Int] = [:]) {
+        self.lastDone = lastDone
+        self.checklistLastDone = checklistLastDone
+        self.skips = skips
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        lastDone = try container.decodeIfPresent([String: Date].self, forKey: .lastDone) ?? [:]
+        checklistLastDone = try container.decodeIfPresent([String: Date].self, forKey: .checklistLastDone) ?? [:]
+        skips = try container.decodeIfPresent([String: Int].self, forKey: .skips) ?? [:]
+    }
 }
 
 /// fleets/{f}/vehicles/{v}/inspections/{id} — a completed checklist. Never edited.

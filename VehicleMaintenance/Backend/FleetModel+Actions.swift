@@ -339,7 +339,8 @@ extension FleetModel {
     /// a problem is flagged as soon as any signal is available; photos are queued
     /// separately and attach whenever they finish uploading.
     func submit(_ plan: InspectionPlan, vehicle: Vehicle, odometer: Int?, photos: [String: Data],
-                repeatingItemIds: [String] = []) throws {
+                repeatingItemIds: [String] = [], skippedItemIds: [String] = [],
+                scheduledChecklistId: String? = nil) throws {
         guard let vehicleId = vehicle.id else { return }
 
         // 1. The checklist and any new defects, together. These are new documents the
@@ -378,13 +379,26 @@ extension FleetModel {
             }
         }
 
-        // 3. Repeating items count as done whether they passed or failed (a failure becomes a defect).
+        // 3. Schedule state. Repeating items count as done whether they passed or failed
+        //    (a failure becomes a defect); skipped ones add to their skip count; a scheduled
+        //    checklist records when it was done on this truck.
+        var state: [String: Any] = [:]
         if !repeatingItemIds.isEmpty {
             var lastDone: [String: Date] = [:]
             repeatingItemIds.forEach { lastDone[$0] = plan.inspection.completedAt }
-            let state = FS.db.batch()
-            state.setData(["lastDone": lastDone], forDocument: FS.checklistState(fleetId, vehicleId), merge: true)
-            commitInBackground(state, "Saving checklist schedule")
+            state["lastDone"] = lastDone
+        }
+        var skips: [String: Any] = [:]
+        repeatingItemIds.forEach { skips[$0] = 0 }
+        skippedItemIds.forEach { skips[$0] = FieldValue.increment(Int64(1)) }
+        if !skips.isEmpty { state["skips"] = skips }
+        if let scheduledChecklistId {
+            state["checklistLastDone"] = [scheduledChecklistId: plan.inspection.completedAt]
+        }
+        if !state.isEmpty {
+            let batch = FS.db.batch()
+            batch.setData(state, forDocument: FS.checklistState(fleetId, vehicleId), merge: true)
+            commitInBackground(batch, "Saving checklist schedule")
         }
 
         // 4. Odometer.

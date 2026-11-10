@@ -50,6 +50,8 @@ final class FleetModel {
     private var verifyingAccess = false
     private var reconnects = 0
     private var lastSyncedFleetName: String?
+    /// Batches schedule-alert updates while lots of truck data arrives at once.
+    @ObservationIgnored var scheduleAlertTask: Task<Void, Never>?
 
     init(fleetId: String, uid: String, email: String, onLostAccess: @escaping () -> Void) {
         self.fleetId = fleetId
@@ -217,6 +219,7 @@ final class FleetModel {
 
         baseListeners.append(firestoreListen(FS.checklists(fleetId)) { [weak self] (items: [ChecklistTemplate], _) in
             self?.checklists = items.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            self?.scheduleAlertsSoon()
         })
     }
 
@@ -309,6 +312,7 @@ final class FleetModel {
                 vehicles = items
                 vehiclesLoaded = true
                 updatePerVehicleListeners()
+                scheduleAlertsSoon()
                 updateEquipmentListeners()
             }
             equipmentListeners.values.forEach { $0.remove() }
@@ -352,8 +356,9 @@ final class FleetModel {
             inviteListener?.remove()
             inviteListener = nil
             invites = []
-            // Maintenance reminder notifications are for managers only.
+            // Maintenance reminder and schedule notifications are for managers only.
             ReminderNotifications.sync([], prefix: fleetId)
+            ScheduleAlerts.sync(fleetId: fleetId, alerts: [])
         }
     }
 
@@ -446,6 +451,7 @@ final class FleetModel {
             let stateListener = FS.checklistState(fleetId, vehicleId).addSnapshotListener { [weak self] snapshot, _ in
                 MainActor.assumeIsolated {
                     self?.checklistStates[vehicleId] = try? snapshot?.data(as: ChecklistState.self)
+                    self?.scheduleAlertsSoon()
                 }
             }
             let lastInspectionQuery = FS.inspections(fleetId, vehicleId).order(by: "completedAt", descending: true).limit(to: 1)

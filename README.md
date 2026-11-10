@@ -25,10 +25,14 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
 - For each item, the manager decides whether it also asks for a number reading (for example tire pressure in PSI) and whether it's a safety item.
 - When an item fails, the app asks for a photo, but a photo isn't required.
 - A failed safety item marks the vehicle **UNSAFE TO DRIVE**. Everyone sees a strong warning, including anyone who starts another checklist on that vehicle.
-- **Repeating items:** an item can repeat weekly, monthly or every N days instead of on every checklist.
-  - Weekly items reset every Monday and monthly items on the 1st of each month, so each one is done once per calendar week or month on each truck. "Every N days" items come back N days after they were last done.
-  - Each truck remembers when each repeating item was last done, and this works offline.
-  - Due repeating items are optional: a driver can skip one, and it keeps showing on that truck's checklists (marked "due since …") until someone does it.
+- **Weekly items:** an item on an everyday checklist can repeat weekly instead of every time. It resets every Monday.
+  - Each truck remembers when each weekly item was last done, and this works offline.
+  - Due weekly items are optional: a driver can skip one, and it keeps showing on that truck's checklists (marked "due since …") until someone does it.
+  - After **3 skips in a row** it's marked **Overdue** on the truck and the item, and managers get an alert.
+- **Scheduled checklists:** a checklist can be set to repeat **monthly** or **every N days** (for example "Monthly Service").
+  - It's due on each truck one month (or N days) after it was last done there; trucks that haven't done it yet use the checklist's first due date.
+  - **Managers are alerted two weeks before** it's due on a truck and can **plan a day** for it (Upcoming tab or the truck page).
+  - If it isn't done by the due date, everyone sees it marked **Overdue** on the fleet list and the truck page, so drivers know it needs doing.
   - When an item isn't due, it moves to a "Not due yet" section and can be done early.
   - The truck page shows how many repeating items are due.
 - If an item already has an open defect, the driver chooses **Still a problem** or **Looks fixed** (with a required note) instead of plain pass/fail. A later "pass" never erases an earlier problem.

@@ -143,3 +143,53 @@ enum UsageAlerts {
             UNNotificationRequest(identifier: "usage-\(fleetId)", content: content, trigger: nil))
     }
 }
+
+/// Managers' alerts for scheduled checklists coming due and for repeating items
+/// skipped too often. Each alert is sent once (per due date, or per skipping streak).
+enum ScheduleAlerts {
+    struct Alert {
+        var id: String
+        var title: String
+        var body: String
+        /// When to alert. nil, or a time already passed, means now (if not sent before).
+        var fireAt: Date?
+        /// Identifies this occurrence, so the same alert isn't sent twice.
+        var onceKey: String
+    }
+
+    static func sync(fleetId: String, alerts: [Alert], now: Date = .now) {
+        let prefix = "schedule-\(fleetId)-"
+        let sentKey = "scheduleAlertsSent-\(fleetId)"
+        let defaults = UserDefaults.standard
+        var sent = Set(defaults.stringArray(forKey: sentKey) ?? [])
+        let center = UNUserNotificationCenter.current()
+
+        var requests: [UNNotificationRequest] = []
+        for alert in alerts where !sent.contains(alert.onceKey) {
+            let content = UNMutableNotificationContent()
+            content.title = alert.title
+            content.body = alert.body
+            content.sound = .default
+            var trigger: UNNotificationTrigger?
+            if let fireAt = alert.fireAt, fireAt > now {
+                var components = Calendar.current.dateComponents([.year, .month, .day], from: fireAt)
+                components.hour = ReminderNotifications.notificationHour
+                trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            }
+            requests.append(UNNotificationRequest(identifier: prefix + alert.id, content: content, trigger: trigger))
+            sent.insert(alert.onceKey)
+        }
+
+        // Forget occurrences that no longer apply (done, re-planned, or no longer skipped),
+        // so a new due date or a new skipping streak alerts again.
+        let current = Set(alerts.map(\.onceKey))
+        defaults.set(Array(sent.intersection(current)), forKey: sentKey)
+
+        let wanted = Set(alerts.map { prefix + $0.id })
+        center.getPendingNotificationRequests { pending in
+            let stale = pending.map(\.identifier).filter { $0.hasPrefix(prefix) && !wanted.contains($0) }
+            center.removePendingNotificationRequests(withIdentifiers: stale)
+            requests.forEach { center.add($0) }
+        }
+    }
+}
