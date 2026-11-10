@@ -30,10 +30,10 @@ struct OverdueBanner: View {
             Label("Overdue on This Truck", systemImage: "calendar.badge.exclamationmark")
                 .font(.headline)
             ForEach(scheduled) { entry in
-                Text("• \(entry.checklist.name) — \(ScheduledChecklists.statusText(entry).lowercased())")
+                Text("• \(entry.checklist.name), due \(ScheduledChecklists.shortDate(entry.due))")
             }
             ForEach(items) { item in
-                Text("• \(item.title) — skipped on the last \(ScheduledChecklists.skipLimit)+ checklists")
+                Text("• \(item.title), skipped on \(ScheduledChecklists.skipLimit)+ checklists in a row")
             }
             Text("Please get these done. Start the checklist below.")
                 .font(.caption)
@@ -70,7 +70,7 @@ struct PlanChecklistView: View {
             Form {
                 Section {
                     LabeledContent("Truck", value: vehicleName)
-                    LabeledContent("Due", value: entry.due.formatted(date: .abbreviated, time: .omitted))
+                    LabeledContent("Due", value: ScheduledChecklists.shortDate(entry.due))
                     DatePicker("Planned for", selection: $date, in: Calendar.current.startOfDay(for: .now)..., displayedComponents: .date)
                 } footer: {
                     Text(date > entry.due
@@ -134,18 +134,11 @@ struct ScheduledChecklistRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(vehicleName.map { "\($0) · \(entry.checklist.name)" } ?? entry.checklist.name)
-                    .foregroundStyle(Color.primary)
-                Spacer()
-                if let schedule = entry.checklist.schedule {
-                    Text(ScheduledChecklists.scheduleLabel(schedule))
-                        .font(.caption2.weight(.bold))
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .foregroundStyle(Color.brand)
-                        .background(Color.brand.opacity(0.12), in: Capsule())
-                }
+            if let vehicleName {
+                Text(vehicleName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary)
             }
+            Text(entry.checklist.name + (entry.checklist.schedule.map { " · " + ScheduledChecklists.scheduleLabel($0) } ?? ""))
+                .foregroundStyle(Color.primary)
             Label(ScheduledChecklists.statusText(entry), systemImage: symbol)
                 .font(.caption)
                 .foregroundStyle(color)

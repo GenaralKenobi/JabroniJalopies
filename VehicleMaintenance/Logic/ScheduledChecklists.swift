@@ -82,12 +82,19 @@ enum ScheduledChecklists {
         schedule.kind == .days && (schedule.days ?? 1) > 1 ? "Every \(schedule.days ?? 1) days" : schedule.label
     }
 
+    /// "Dec 10" this year, "Jan 4, 2027" otherwise.
+    static func shortDate(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+        calendar.isDate(date, equalTo: now, toGranularity: .year)
+            ? date.formatted(.dateTime.month(.abbreviated).day())
+            : date.formatted(date: .abbreviated, time: .omitted)
+    }
+
     /// "Due Dec 10", "Planned Nov 20 · due Dec 10", "Overdue since Dec 10".
     static func statusText(_ entry: ScheduledDue) -> String {
-        let due = entry.due.formatted(date: .abbreviated, time: .omitted)
+        let due = shortDate(entry.due)
         if entry.status == .overdue { return "Overdue since \(due)" }
         if let planned = entry.plannedFor {
-            return "Planned \(planned.formatted(date: .abbreviated, time: .omitted)) · due \(due)"
+            return "Planned \(shortDate(planned)) · due \(due)"
         }
         return "Due \(due)"
     }
