@@ -17,7 +17,7 @@ Jabroni Jalopies is an iPhone and iPad app for fleets:
 
 ## Support
 
-Questions, problems or feature requests: email **[CONTACT EMAIL]**.
+Questions, problems or feature requests: email **[tailgatelabshr@icloud.com](mailto:tailgatelabshr@icloud.com)**.
 
 To join a fleet, ask your fleet manager to invite you, then create an account in the app with **the same email address they invited**. Confirm it from the email the app sends; check your spam folder if you can't find it.
 

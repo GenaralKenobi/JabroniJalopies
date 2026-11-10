@@ -68,7 +68,7 @@ Members of one fleet can never see another fleet's data. This is enforced by ser
 
 - **Edit your profile** in each fleet under Settings.
 - **Delete your account** in the app under Settings → Delete Account.
-- **Ask for access, correction or deletion** by contacting us at **[CONTACT EMAIL]**. We may need to involve your fleet's managers for fleet records. Depending on where you live, you may have additional rights:
+- **Ask for access, correction or deletion** by contacting us at **[tailgatelabshr@icloud.com](mailto:tailgatelabshr@icloud.com)**. We may need to involve your fleet's managers for fleet records. Depending on where you live, you may have additional rights:
   - **EU/UK (GDPR):** you can object, restrict processing, port your data, and complain to a supervisory authority.
   - **California (CCPA/CPRA):** you can know what we collect, delete it, correct it, and not be discriminated against for exercising these rights. We don't sell or share personal information.
 
@@ -89,4 +89,4 @@ If we change this policy, we'll update the effective date above. For significant
 ## Contact
 
 Tailgate Labs
-Email: [CONTACT EMAIL]
+Email: [tailgatelabshr@icloud.com](mailto:tailgatelabshr@icloud.com)

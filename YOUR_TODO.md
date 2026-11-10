@@ -16,7 +16,7 @@ Decisions for you to check are in [DECISIONS.md](DECISIONS.md).
 - [ ] **Turn on GitHub Pages.** Go to Settings → Pages → Build and deployment. Choose **Deploy from a branch**, then branch **main** and folder **/docs**. This publishes:
   - Support page: `https://genaralkenobi.github.io/JabroniJalopies/`
   - Privacy policy: `https://genaralkenobi.github.io/JabroniJalopies/privacy`
-- [ ] **Create your iCloud Hide My Email address.** On iPhone, go to Settings → your name → iCloud → Hide My Email → Create New Address. Label it "Jabroni Jalopies support". Send it to me, or replace `[CONTACT EMAIL]` in `docs/privacy.md` and `docs/index.md` yourself.
+- [x] **Company contact email:** tailgatelabshr@icloud.com. It appears on the support page and in the privacy policy. Also use it as the App Store Connect contact and for Apple's review team.
 
 ### Now: Firebase (about 15 minutes in a browser)
 
