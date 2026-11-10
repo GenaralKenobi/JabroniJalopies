@@ -9,7 +9,7 @@ These are choices I made without being sure they match how you work. Each one is
    - Monthly items reset on the **1st** of each month.
    - Weeks start on Monday on every phone, whatever its region setting, so the whole fleet agrees.
    - **"Every N days" items still count from when they were last done**, because they don't match a calendar period. Tell me if you'd rather they reset on fixed dates.
-2. **An item counts as done whether it passed or failed.** A failed item becomes a defect, and the defect tracks the problem from there. The alternative is that a failed weekly item stays due until it passes.
+2. **An item counts as done whether it passed or failed** (confirmed by you). A failed item becomes a defect, and the defect tracks the problem from there.
 3. **Due repeating items are required.** When a weekly item is due, it has to be answered pass or fail like every other item before the checklist can be submitted. The alternative is letting drivers skip it and keep it due.
 4. **Items that aren't due are hidden, but can be done early.** They're listed under "Not due yet" with a **Do Now** button. Doing one again counts for the current week or month, so a weekly item done again is still due next Monday. An "every N days" item done early starts its N days again.
 5. **A repeating item with an open defect always appears**, even if it isn't due, so drivers can mark it "still a problem" or "looks fixed".
