@@ -333,3 +333,38 @@ struct PeriodicScheduleTests {
         #expect(ItemFrequency.every(0).days == 1)
     }
 }
+
+struct OptionalRepeatingItemTests {
+    private var weekly: ChecklistItem {
+        var item = ChecklistItem(id: "grease", title: "Grease fittings", requiresReading: false, readingLabel: "", unsafeIfFailed: false)
+        item.frequency = .weekly
+        return item
+    }
+
+    @Test func repeatingItemsCanBeSkippedButEveryTimeItemsCannot() {
+        let items = [horn, weekly]
+        let answers = ["horn": ItemAnswer(verdict: .pass)]
+        #expect(InspectionPlanner.itemsToSubmit(items, answers: answers).map(\.id) == ["horn"])
+        #expect(InspectionPlanner.skippedItems(items, answers: answers).map(\.id) == ["grease"])
+        #expect(InspectionPlanner.validate(template: template(InspectionPlanner.itemsToSubmit(items, answers: answers)),
+                                           answers: answers, openDefectsByItem: [:]) == nil)
+
+        let none: [String: ItemAnswer] = [:]
+        #expect(InspectionPlanner.validate(template: template(InspectionPlanner.itemsToSubmit(items, answers: none)),
+                                           answers: none, openDefectsByItem: [:]) == .unanswered(["Horn"]))
+    }
+
+    @Test func answeredRepeatingItemsAreSavedAndChecked() {
+        let answers = ["horn": ItemAnswer(verdict: .pass), "grease": ItemAnswer(verdict: .fail)]
+        let submitted = InspectionPlanner.itemsToSubmit([horn, weekly], answers: answers)
+        #expect(submitted.map(\.id) == ["horn", "grease"])
+        let plan = InspectionPlanner.plan(template: template(submitted), answers: answers, openDefectsByItem: [:],
+                                          person: person, odometer: nil, now: now, makeId: sequentialIds())
+        #expect(plan.newDefects.count == 1)
+    }
+
+    @Test func aChecklistWithEverythingSkippedCannotBeSubmitted() {
+        let submitted = InspectionPlanner.itemsToSubmit([weekly], answers: [:])
+        #expect(InspectionPlanner.validate(template: template(submitted), answers: [:], openDefectsByItem: [:]) == .nothingAnswered)
+    }
+}

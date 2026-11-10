@@ -49,9 +49,11 @@ enum InspectionValidationError: Equatable, LocalizedError {
     case unanswered([String])
     case missingReading([String])
     case missingFixNote([String])
+    case nothingAnswered
 
     var errorDescription: String? {
         switch self {
+        case .nothingAnswered: "Answer at least one item, or cancel the checklist."
         case .unanswered(let items): "Mark pass or fail for: \(items.joined(separator: ", "))."
         case .missingReading(let items): "Enter a number for: \(items.joined(separator: ", "))."
         case .missingFixNote(let items): "Add a note explaining why these look fixed: \(items.joined(separator: ", "))."
@@ -65,11 +67,27 @@ enum InspectionPlanner {
         var name: String
     }
 
+    /// Repeating (weekly, monthly, every N days) items are optional: a driver can skip one,
+    /// and a skipped item isn't recorded as done, so it keeps appearing until someone does it.
+    static func isOptional(_ item: ChecklistItem) -> Bool { item.frequency != nil }
+
+    /// The items that go into the saved checklist: every required item, plus the repeating
+    /// items the driver answered. Skipped repeating items are left out entirely.
+    static func itemsToSubmit(_ items: [ChecklistItem], answers: [String: ItemAnswer]) -> [ChecklistItem] {
+        items.filter { !isOptional($0) || answers[$0.id]?.verdict != nil }
+    }
+
+    /// Repeating items the driver left unanswered.
+    static func skippedItems(_ items: [ChecklistItem], answers: [String: ItemAnswer]) -> [ChecklistItem] {
+        items.filter { isOptional($0) && answers[$0.id]?.verdict == nil }
+    }
+
     static func validate(
         template: ChecklistTemplate,
         answers: [String: ItemAnswer],
         openDefectsByItem: [String: Defect]
     ) -> InspectionValidationError? {
+        if template.items.isEmpty { return .nothingAnswered }
         let unanswered = template.items.filter { answers[$0.id]?.verdict == nil }.map(\.title)
         if !unanswered.isEmpty { return .unanswered(unanswered) }
 

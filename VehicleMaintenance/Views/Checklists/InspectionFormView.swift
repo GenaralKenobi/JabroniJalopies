@@ -67,13 +67,20 @@ struct InspectionFormView: View {
         return checklist.items.filter { !active.contains($0.id) }
     }
 
-    private var activeChecklist: ChecklistTemplate {
-        var copy = checklist
-        copy.items = activeItems
-        return copy
+    private var requiredItems: [ChecklistItem] { activeItems.filter { !InspectionPlanner.isOptional($0) } }
+    private var answeredRequiredCount: Int { requiredItems.filter { answers[$0.id]?.verdict != nil }.count }
+    /// Due repeating items left unanswered (not ones opened early, which aren't due anyway).
+    private var skippedItems: [ChecklistItem] {
+        InspectionPlanner.skippedItems(activeItems, answers: answers)
+            .filter { PeriodicSchedule.isDue($0.frequency, lastDone: lastDone[$0.id]) }
     }
 
-    private var answeredCount: Int { activeItems.filter { answers[$0.id]?.verdict != nil }.count }
+    /// What gets validated and saved: required items plus the repeating items that were answered.
+    private var checklistToSubmit: ChecklistTemplate {
+        var copy = checklist
+        copy.items = InspectionPlanner.itemsToSubmit(activeItems, answers: answers)
+        return copy
+    }
 
     var body: some View {
         NavigationStack {
@@ -139,7 +146,7 @@ struct InspectionFormView: View {
 
                 Section {
                     Button(action: submit) {
-                        Text("Submit Checklist (\(answeredCount)/\(activeItems.count))")
+                        Text("Submit Checklist (\(answeredRequiredCount)/\(requiredItems.count))")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
@@ -147,6 +154,11 @@ struct InspectionFormView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(submitted)
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                } footer: {
+                    let skipped = skippedItems.count
+                    if skipped > 0 {
+                        Text("\(skipped) repeating item\(skipped == 1 ? "" : "s") not done. \(skipped == 1 ? "It stays" : "They stay") due and will show on the next checklist for this truck until someone does \(skipped == 1 ? "it" : "them").")
+                    }
                 }
             }
             .scrollDismissesKeyboard(.interactively)
@@ -241,7 +253,8 @@ struct InspectionFormView: View {
     private func submit() {
         guard !submitted else { return }
         let existing = openDefectsByItem
-        let checklist = activeChecklist
+        let checklist = checklistToSubmit
+        let skipped = skippedItems
         if let error = InspectionPlanner.validate(template: checklist, answers: answers, openDefectsByItem: existing) {
             validationMessage = error.localizedDescription
             return
@@ -265,7 +278,8 @@ struct InspectionFormView: View {
         }
 
         let offlineNote = connectivity.isOnline ? "" : "\n\nSaved on this phone. It will be sent automatically when you have signal."
-        let photoNote = usedPhotos.isEmpty ? "" : "\n\nPhotos will upload in the background."
+        let photoNote = (usedPhotos.isEmpty ? "" : "\n\nPhotos will upload in the background.")
+            + (skipped.isEmpty ? "" : "\n\nNot done yet (still due): \(skipped.map(\.title).joined(separator: ", ")).")
         if !plan.unsafeItems.isEmpty {
             outcome = Outcome(
                 title: "⚠️ Do Not Drive This Vehicle",
@@ -276,7 +290,7 @@ struct InspectionFormView: View {
                 title: "Checklist Saved",
                 message: "\(count) problem\(count == 1 ? "" : "s") reported to your manager.\(offlineNote)\(photoNote)")
         } else {
-            outcome = Outcome(title: "All Good", message: "Checklist saved.\(offlineNote)")
+            outcome = Outcome(title: "All Good", message: "Checklist saved.\(offlineNote)\(photoNote)")
         }
     }
 }
@@ -291,6 +305,15 @@ private struct ItemCard: View {
     @Binding var photos: [String: Data]
     let photosEnabled: Bool
     let onFail: () -> Void
+
+    private func scheduleText(_ frequency: ItemFrequency) -> String {
+        guard let lastDone else { return "Not done on this truck yet" }
+        let done = "Last done on this truck \(lastDone.formatted(date: .abbreviated, time: .omitted))"
+        if let due = PeriodicSchedule.nextDue(frequency, lastDone: lastDone), due <= .now {
+            return "\(done) · due since \(due.formatted(date: .abbreviated, time: .omitted))"
+        }
+        return done
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -313,11 +336,16 @@ private struct ItemCard: View {
                 }
             }
 
-            if item.frequency != nil {
-                Text(lastDone.map { "Last done on this truck \($0.formatted(date: .abbreviated, time: .omitted))" }
-                     ?? "Not done on this truck yet")
-                    .font(.caption)
-                    .foregroundStyle(Color.secondary)
+            if let frequency = item.frequency {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(scheduleText(frequency))
+                        .foregroundStyle(Color.secondary)
+                    Text(PeriodicSchedule.isDue(frequency, lastDone: lastDone)
+                         ? "Optional. If you skip it, it stays due until someone does it."
+                         : "Optional.")
+                        .foregroundStyle(Color.secondary)
+                }
+                .font(.caption)
             }
 
             if let existingDefect {
