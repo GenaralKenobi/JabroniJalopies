@@ -130,17 +130,23 @@ struct ChainSize: Codable, Identifiable, Hashable {
 /// fleets/{f}/vehicles/{v}/chains/inventory — the truck's chain sizes and how many sharp chains it has.
 struct ChainInventory: Codable, Hashable {
     var sizes: [ChainSize]
-    /// Sharp chains on the truck, keyed by `ChainSize.key`. Changed only by increments
-    /// so offline logs from several people add up correctly. Can dip below zero if the
-    /// count drifted; the app shows 0 and asks a manager to correct it.
+    /// Sharp chains on the truck, keyed by `ChainSize.key`. Logs change it by increments
+    /// so offline logs from several people add up. It can go below zero, for example when
+    /// chains were added on a phone that hasn't synced yet.
     var counts: [String: Int]
     var updatedAt: Date?
+    /// When a manager last counted the chains on the truck. Logs made before this are
+    /// not applied to the counts: the manager's count already includes them.
+    var correctedAt: Date?
+    var correctedByName: String?
+    /// The time of the log that last changed the counts (checked by the security rules).
+    var lastLoggedAt: Date?
 
     func count(_ size: ChainSize) -> Int { counts[size.key] ?? 0 }
 
     var sortedSizes: [ChainSize] { sizes.sorted { $0.inches < $1.inches } }
 
-    var needsCorrection: Bool { counts.values.contains { $0 < 0 } }
+    var hasNegativeCount: Bool { sizes.contains { count($0) < 0 } }
 }
 
 enum ChainLogKind: String, Codable {
@@ -155,7 +161,7 @@ enum ChainLogKind: String, Codable {
         switch self {
         case .usedBox: "Used chain box emptied"
         case .added: "Chains added"
-        case .correction: "Count corrected"
+        case .correction: "Chains counted by a manager"
         }
     }
 
@@ -174,8 +180,10 @@ struct ChainLogItem: Codable, Hashable {
     var dull: Int
     var discarded: Int
     var added: Int
-    /// Corrections: the change applied to the count.
+    /// Corrections: the change from what the app showed.
     var adjustment: Int
+    /// Corrections: how many the manager counted on the truck.
+    var counted: Int? = nil
 
     var label: String { ChainSize.format(inches) }
     /// The net change this item made to the truck's count.
@@ -204,7 +212,9 @@ struct ChainLog: Codable, Identifiable, Hashable {
             case .added:
                 return item.added > 0 ? "\(item.label): +\(item.added)" : nil
             case .correction:
-                return item.adjustment != 0 ? "\(item.label): \(item.adjustment > 0 ? "+" : "")\(item.adjustment)" : nil
+                let change = item.adjustment == 0 ? "" : " (\(item.adjustment > 0 ? "+" : "")\(item.adjustment))"
+                return item.counted.map { "\(item.label): \($0)\(change)" }
+                    ?? (item.adjustment != 0 ? "\(item.label): \(item.adjustment > 0 ? "+" : "")\(item.adjustment)" : nil)
             }
         }
         .joined(separator: " · ")

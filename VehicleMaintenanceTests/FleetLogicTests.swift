@@ -209,10 +209,21 @@ struct ChainTests {
         #expect(correction.countChange == -2)
     }
 
-    @Test func inventoryFlagsNegativeCounts() {
+    @Test func countsCanGoBelowZero() {
         let inventory = ChainInventory(sizes: [ChainSize(inches: 16)], counts: ["in16": -2])
-        #expect(inventory.needsCorrection)
+        #expect(inventory.hasNegativeCount)
         #expect(inventory.count(ChainSize(inches: 16)) == -2)
+        #expect(!ChainInventory(sizes: [ChainSize(inches: 16)], counts: ["in16": 0]).hasNegativeCount)
+    }
+
+    @Test func managerCountsAreRecordedInTheLog() {
+        let item = ChainLogItem(sizeKey: "in16", inches: 16, dull: 0, discarded: 0, added: 0, adjustment: -2, counted: 4)
+        let log = ChainLog(kind: .correction, items: [item], loggedBy: "mia", loggedByName: "Mia",
+                           loggedAt: .now, expireAt: .now)
+        #expect(log.summary == "16\": 4 (-2)")
+        let confirmed = ChainLogItem(sizeKey: "in18", inches: 18, dull: 0, discarded: 0, added: 0, adjustment: 0, counted: 6)
+        #expect(ChainLog(kind: .correction, items: [confirmed], loggedBy: "mia", loggedByName: "Mia",
+                         loggedAt: .now, expireAt: .now).summary == "18\": 6")
     }
 
     @Test func fleetTotalsCombineTrucksAndPeriod() {
@@ -230,7 +241,7 @@ struct ChainTests {
         ]
         let totals = ChainTotals.make(inventories: [truckA, truckB], logs: logs, since: now.addingTimeInterval(-7 * 86_400))
         #expect(totals.rows.map(\.inches) == [16, 18])
-        #expect(totals.rows[0].onTrucks == 6)  // negative counts don't subtract
+        #expect(totals.rows[0].onTrucks == 5)  // a count below zero (adds still syncing) counts as it is
         #expect(totals.rows[0].dull == 2)
         #expect(totals.rows[0].discarded == 1)
         #expect(totals.rows[1].dull == 0)      // outside the period

@@ -23,7 +23,7 @@ struct ChainTotals: Equatable {
         for inventory in inventories {
             for size in inventory.sizes {
                 var r = row(size.inches)
-                r.onTrucks += max(0, inventory.count(size))
+                r.onTrucks += inventory.count(size)
                 byInches[size.inches] = r
             }
         }

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
-  collection, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, deleteDoc, where, writeBatch,
+  collection, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, deleteDoc, where, writeBatch, Timestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 
@@ -122,11 +122,28 @@ describe('rope length reductions', () => {
 describe('chains', () => {
   const inventory = `${F}/vehicles/truck1/chains/inventory`;
 
+  const at = (iso) => Timestamp.fromDate(new Date(iso));
+
   it('lets anyone on the truck change counts, but only managers change sizes', async () => {
-    await assertSucceeds(updateDoc(doc(db('rita'), inventory), { 'counts.in16': increment(-3) }));
+    await assertSucceeds(updateDoc(doc(db('rita'), inventory), { 'counts.in16': increment(-3), lastLoggedAt: at('2026-11-10T08:00:00Z') }));
+    await assertSucceeds(updateDoc(doc(db('rita'), inventory), { 'counts.in16': increment(-20), lastLoggedAt: at('2026-11-10T08:01:00Z') }));
     await assertFails(updateDoc(doc(db('rita'), inventory), { sizes: [] }));
-    await assertFails(updateDoc(doc(db('rita'), `${F}/vehicles/truck2/chains/inventory`), { 'counts.in16': increment(1) }));
+    await assertFails(updateDoc(doc(db('rita'), `${F}/vehicles/truck2/chains/inventory`), { 'counts.in16': increment(1), lastLoggedAt: at('2026-11-10T08:00:00Z') }));
     await assertSucceeds(updateDoc(doc(db('mia'), inventory), { sizes: [{ key: 'in18', inches: 18 }] }));
+  });
+
+  it("ignores logs made before a manager counted the chains", async () => {
+    await assertSucceeds(updateDoc(doc(db('mia'), inventory), {
+      'counts.in16': 7, correctedAt: at('2026-11-10T12:00:00Z'), correctedByName: 'Mia',
+    }));
+    // Logged at 11:00 on a phone without signal, arriving after the 12:00 count: rejected.
+    await assertFails(updateDoc(doc(db('dan'), inventory), { 'counts.in16': increment(4), lastLoggedAt: at('2026-11-10T11:00:00Z') }));
+    // Managers' own late logs too.
+    await assertFails(updateDoc(doc(db('mia'), inventory), { 'counts.in16': increment(4), lastLoggedAt: at('2026-11-10T11:30:00Z') }));
+    // Logged after the count: applied.
+    await assertSucceeds(updateDoc(doc(db('dan'), inventory), { 'counts.in16': increment(-2), lastLoggedAt: at('2026-11-10T13:00:00Z') }));
+    // Drivers can't fake a count.
+    await assertFails(updateDoc(doc(db('dan'), inventory), { 'counts.in16': 50, correctedAt: at('2026-11-10T14:00:00Z') }));
   });
 
   it('records used-box and added logs as permanent entries', async () => {

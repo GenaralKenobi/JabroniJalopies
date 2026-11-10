@@ -68,7 +68,8 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
 - **Chains:** each truck has its own chain sizes, set by managers, and shows how many sharp chains of each size it has.
   - **Empty Used Chain Box:** at the end of the day, record how many chains are dull and need resharpening, and how many are thrown away.
   - **Add Chains:** anyone can record chains put on any truck, new or back from sharpening.
-  - Counts change by adding and subtracting, so logs made offline by several people all count. If a count goes below zero, it's flagged for a manager to correct.
+  - Counts change by adding and subtracting, so logs made offline by several people all count. A count can go below zero (for example, chains added on a phone that hasn't synced yet) and is shown as it is.
+  - **Correct Counts** (managers) sets the counts to what the manager counted on the truck. Logs made before that, still syncing from someone's phone, are kept in the history but don't change the count.
 - **Managers only:** fleet-wide chain totals per size for the week, month and year, plus an all-equipment list that includes items not currently on a truck.
 
 ### Maintenance and services

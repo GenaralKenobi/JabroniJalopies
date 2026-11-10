@@ -107,14 +107,29 @@ extension FleetModel {
         try writeChainLog(.added, items: items, vehicleId: vehicleId)
     }
 
-    /// Managers set the counts to what's actually on the truck. Applied as an
-    /// adjustment, so logs still syncing from other phones aren't lost.
+    /// A manager counted the chains on the truck. The counts are set to exactly what they
+    /// counted, and any log made before this moment that's still syncing from someone's
+    /// phone is ignored (the security rules reject its count change), because the count
+    /// already includes it. Saving with no changes still confirms the count.
     func correctChainCounts(vehicleId: String, inventory: ChainInventory, actual: [String: Int]) throws {
+        let now = Date.now
         let items = inventory.sortedSizes.map { size in
-            ChainLogItem(sizeKey: size.key, inches: size.inches, dull: 0, discarded: 0, added: 0,
-                         adjustment: (actual[size.key] ?? inventory.count(size)) - inventory.count(size))
+            let counted = actual[size.key] ?? max(0, inventory.count(size))
+            return ChainLogItem(sizeKey: size.key, inches: size.inches, dull: 0, discarded: 0, added: 0,
+                                adjustment: counted - inventory.count(size), counted: counted)
         }
-        try writeChainLog(.correction, items: items, vehicleId: vehicleId)
+        guard !items.isEmpty else { throw AppError("This truck has no chain sizes yet.") }
+        let log = ChainLog(kind: .correction, items: items, loggedBy: uid, loggedByName: myName, loggedAt: now,
+                           expireAt: Retention.expiry(from: now))
+        let batch = FS.db.batch()
+        try batch.setData(from: log, forDocument: FS.chainLogs(fleetId, vehicleId).document())
+        var fields: [AnyHashable: Any] = ["updatedAt": now, "correctedAt": now, "correctedByName": myName]
+        for item in items {
+            fields[FieldPath(["counts", item.sizeKey])] = item.counted ?? 0
+        }
+        batch.updateData(fields, forDocument: FS.chainInventory(fleetId, vehicleId))
+        commitInBackground(batch, ChainLogKind.correction.label)
+        bumpRecordCount(1)
     }
 
     private func writeChainLog(_ kind: ChainLogKind, items: [ChainLogItem], vehicleId: String) throws {
@@ -123,14 +138,32 @@ extension FleetModel {
         let now = Date.now
         let log = ChainLog(kind: kind, items: meaningful, loggedBy: uid, loggedByName: myName, loggedAt: now,
                            expireAt: Retention.expiry(from: now))
-        let batch = FS.db.batch()
-        try batch.setData(from: log, forDocument: FS.chainLogs(fleetId, vehicleId).document())
-        var counts: [AnyHashable: Any] = ["updatedAt": now]
+
+        // 1. The log itself: always kept, even if the count change below is turned away.
+        let record = FS.db.batch()
+        try record.setData(from: log, forDocument: FS.chainLogs(fleetId, vehicleId).document())
+        commitInBackground(record, kind.label)
+
+        // 2. The count change, sent separately. If a manager counted the chains after this
+        //    log was made (it was waiting for signal), the rules reject it so the manager's
+        //    count stands; the log above is still saved.
+        var counts: [AnyHashable: Any] = ["updatedAt": now, "lastLoggedAt": now]
         for item in meaningful where item.countChange != 0 {
             counts[FieldPath(["counts", item.sizeKey])] = FieldValue.increment(Int64(item.countChange))
         }
-        batch.updateData(counts, forDocument: FS.chainInventory(fleetId, vehicleId))
-        commitInBackground(batch, kind.label)
+        let change = FS.db.batch()
+        change.updateData(counts, forDocument: FS.chainInventory(fleetId, vehicleId))
+        change.commit { error in
+            MainActor.assumeIsolated {
+                guard let error else { return }
+                let nsError = error as NSError
+                if nsError.domain == FirestoreErrorDomain, nsError.code == FirestoreErrorCode.permissionDenied.rawValue {
+                    ErrorCenter.shared.message = "Your chain log was saved. A manager counted the chains after you logged them, so the truck's count wasn't changed."
+                } else {
+                    ErrorCenter.shared.report(error, kind.label)
+                }
+            }
+        }
         bumpRecordCount(1)
     }
 

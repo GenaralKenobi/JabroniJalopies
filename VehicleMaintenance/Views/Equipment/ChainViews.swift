@@ -9,7 +9,7 @@ struct ChainSummaryRows: View {
         ForEach(inventory.sortedSizes) { size in
             let count = inventory.count(size)
             LabeledContent {
-                Text("\(max(0, count)) sharp")
+                Text("\(count) sharp")
                     .font(.body.weight(.semibold).monospacedDigit())
                     .foregroundStyle(count <= 0 ? Color.orange : Color.primary)
             } label: {
@@ -36,15 +36,20 @@ struct ChainsView: View {
             if let inventory, !inventory.sizes.isEmpty {
                 Section {
                     ChainSummaryRows(inventory: inventory)
-                    if inventory.needsCorrection {
-                        Label(fleet.isManager ? "Some counts went below zero. Use Correct Counts to match what's on the truck."
-                              : "Some counts look off. A manager will correct them.",
+                    if inventory.hasNegativeCount {
+                        Label(fleet.isManager
+                              ? "Below zero. Chains may have been added on a phone that hasn't synced yet. If it stays below zero, use Correct Counts after counting what's on the truck."
+                              : "Below zero. Chains may have been added on a phone that hasn't synced yet. If it stays that way, a manager will count them.",
                               systemImage: "exclamationmark.triangle.fill")
                             .font(.subheadline)
                             .foregroundStyle(.orange)
                     }
                 } header: {
                     Text("On This Truck")
+                } footer: {
+                    if let correctedAt = inventory.correctedAt {
+                        Text("Last counted by \(inventory.correctedByName ?? "a manager") \(Formatting.dayAndTime(correctedAt)).")
+                    }
                 }
 
                 Section {
@@ -61,7 +66,8 @@ struct ChainsView: View {
                         }
                     }
                 } footer: {
-                    Text("At the end of the day, take the chains out of the used chain box and record how many are dull (to resharpen) and how many are thrown away.")
+                    Text("At the end of the day, take the chains out of the used chain box and record how many are dull (to resharpen) and how many are thrown away."
+                         + (fleet.isManager ? " Correct Counts sets the counts to what you see on the truck; logs made before that, still waiting to sync on someone's phone, won't change them." : ""))
                 }
             } else {
                 Section {
@@ -163,7 +169,7 @@ struct ChainLogFormView: View {
                         HStack {
                             Text("\(size.label) chains")
                             Spacer()
-                            Text("\(max(0, inventory.count(size))) on truck").textCase(nil)
+                            Text("\(inventory.count(size)) on truck").textCase(nil)
                         }
                     }
                 }
@@ -362,7 +368,7 @@ struct ChainTotalsView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(vehicle.displayName).foregroundStyle(Color.primary)
-                                    Text(inventory.sortedSizes.map { "\($0.label): \(max(0, inventory.count($0)))" }.joined(separator: " · "))
+                                    Text(inventory.sortedSizes.map { "\($0.label): \(inventory.count($0))" }.joined(separator: " · "))
                                         .font(.caption).foregroundStyle(Color.secondary)
                                 }
                             }
