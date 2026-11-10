@@ -55,6 +55,8 @@ struct PlanChecklistView: View {
     @Environment(FleetModel.self) private var fleet
     @Environment(\.dismiss) private var dismiss
     @State private var date: Date
+    @AppStorage("addPlansToCalendar") private var addToCalendar = true
+    @State private var showingCalendar = false
 
     init(entry: ScheduledDue, vehicleName: String) {
         self.entry = entry
@@ -75,6 +77,15 @@ struct PlanChecklistView: View {
                          ? "That's after the due date, so drivers will see it marked Overdue from \(entry.due.formatted(date: .abbreviated, time: .omitted))."
                          : "Drivers see it marked Overdue only if it isn't done by the due date.")
                 }
+                Section {
+                    Toggle(isOn: $addToCalendar) {
+                        Label("Add to My Calendar", systemImage: "calendar.badge.plus")
+                    }
+                } footer: {
+                    Text(entry.plannedFor == nil
+                         ? "After saving, you can add it to any calendar on this phone."
+                         : "Changing the day doesn't move an event you added before; change or delete it in your calendar.")
+                }
                 if entry.plannedFor != nil {
                     Section {
                         Button("Remove Planned Day", role: .destructive) { save(nil) }
@@ -89,12 +100,27 @@ struct PlanChecklistView: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .sheet(isPresented: $showingCalendar) {
+            CalendarEventEditor(
+                title: "\(entry.checklist.name) — \(vehicleName)",
+                date: date,
+                notes: "Scheduled checklist for \(vehicleName), due \(entry.due.formatted(date: .abbreviated, time: .omitted)). Planned in Jabroni Jalopies."
+            ) { _ in
+                showingCalendar = false
+                dismiss()
+            }
+            .ignoresSafeArea()
+        }
     }
 
     private func save(_ date: Date?) {
         do {
             try fleet.plan(entry, on: date)
-            dismiss()
+            if date != nil, addToCalendar {
+                showingCalendar = true
+            } else {
+                dismiss()
+            }
         } catch {
             ErrorCenter.shared.report(error, "Planning \(entry.checklist.name)")
         }

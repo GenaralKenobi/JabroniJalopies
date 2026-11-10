@@ -31,7 +31,7 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
   - After **3 skips in a row** it's marked **Overdue** on the truck and the item, and managers get an alert.
 - **Scheduled checklists:** a checklist can be set to repeat **monthly** or **every N days** (for example "Monthly Service").
   - It's due on each truck one month (or N days) after it was last done there; trucks that haven't done it yet use the checklist's first due date.
-  - **Managers are alerted two weeks before** it's due on a truck and can **plan a day** for it (Upcoming tab or the truck page).
+  - **Managers are alerted two weeks before** it's due on a truck and can **plan a day** for it (Upcoming tab or the truck page), and add that day to their phone's calendar.
   - If it isn't done by the due date, everyone sees it marked **Overdue** on the fleet list and the truck page, so drivers know it needs doing.
   - When an item isn't due, it moves to a "Not due yet" section and can be done early.
   - The truck page shows how many repeating items are due.
