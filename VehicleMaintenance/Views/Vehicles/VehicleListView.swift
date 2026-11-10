@@ -96,7 +96,7 @@ struct VehicleListView: View {
 
     private func openDemoScreenIfNeeded() {
         guard !didOpenDemoScreen, let screen = DemoConfig.screen,
-              ["vehicle", "specs", "checklist", "defect", "truckchains", "equipment-detail"].contains(screen),
+              ["vehicle", "specs", "contents", "checklist", "defect", "truckchains", "equipment-detail"].contains(screen),
               !fleet.vehicles.isEmpty, fleet.openDefects.count >= fleet.vehicles.count,
               let worst = fleet.sortedVehicles.max(by: { fleet.condition(of: $0.id) < fleet.condition(of: $1.id) }),
               let id = worst.id else { return }

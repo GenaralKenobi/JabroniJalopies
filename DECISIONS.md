@@ -51,6 +51,15 @@ These are choices I made without being sure they match how you work. Each one is
 25. **Signing out checks for unsynced work first.** If checklists done offline or photos haven't uploaded yet, the app warns that signing out will lose them and suggests waiting for signal. If you sign out anyway, waiting photos are deleted from the phone, so the next person to sign in can't see them.
 26. **A manager closing a defect doesn't lose an offline checklist.** If a driver offline marks a defect "still a problem" while a manager closes it, the checklist is still saved and the driver is told to report the problem again if it's still there. The app doesn't reopen the closed defect or create a new one automatically.
 
+## What's on the truck
+
+31. **The truck lead can edit only that truck's contents list.** I read "set up that vehicle as his" as the contents list. The lead can't edit the truck's specs, details, checklists or anything else. I can let the lead edit the specs card too.
+32. **One lead per truck, and only a driver.** Managers can already edit every truck's list. A driver can be lead of more than one truck.
+33. **Picking a lead who can't see that truck gives them access to it.** If a driver only sees their assigned trucks, making them lead also adds the truck to their assigned trucks. Removing them as lead doesn't take that access away; a manager does that in Members.
+34. **Each item has a name, an optional quantity, a location and notes.** Items are grouped by location, such as "Cab" or "Left side box", with unplaced items under "Other". There's no expiry date or "last checked" date, and the contents aren't part of the morning checklist. I can add a "check the truck contents" checklist item, or expiry dates for things like first-aid kits and extinguishers.
+35. **Contents changes aren't kept as history.** The list shows what's on the truck now, and each item remembers who last changed it. Removing an item deletes it.
+36. **Copy from Another Truck adds only missing items.** It skips items with the same name and location that are already on the list, and never changes or removes anything.
+
 ## From your latest answers
 
 27. **Managers can still see email addresses and phone numbers; drivers can't.** You asked for these not to be visible. I read that as "not visible to other drivers", because managers invite people by email and may need to call them. Drivers see only names and roles. This is enforced by the server, not just hidden in the app. If managers shouldn't see them either, I'll hide them completely.

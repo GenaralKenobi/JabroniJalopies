@@ -166,6 +166,7 @@ jobs:
           WAIT=30 shoot 01-fleet light -initialTab fleet
           shoot 02-vehicle-unsafe light -initialTab fleet -demoScreen vehicle
           shoot 03-specs light -initialTab fleet -demoScreen specs
+          shoot 03b-contents light -initialTab fleet -demoScreen contents
           shoot 04-checklist light -initialTab fleet -demoScreen checklist
           shoot 05-defects light -initialTab defects
           shoot 06-upcoming light -initialTab upcoming

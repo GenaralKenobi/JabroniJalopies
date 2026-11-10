@@ -33,11 +33,12 @@ enum FS {
         vehicle(f, v).collection("chains").document("inventory")
     }
     static func chainLogs(_ f: String, _ v: String) -> CollectionReference { vehicle(f, v).collection("chainLogs") }
+    static func contents(_ f: String, _ v: String) -> CollectionReference { vehicle(f, v).collection("contents") }
     static func checklistState(_ f: String, _ v: String) -> DocumentReference {
         vehicle(f, v).collection("checklistState").document("periodic")
     }
 
-    static let vehicleSubcollections = ["reminders", "services", "costs", "inspections", "defects", "chains", "chainLogs", "checklistState"]
+    static let vehicleSubcollections = ["reminders", "services", "costs", "inspections", "defects", "chains", "chainLogs", "checklistState", "contents"]
     static let equipmentSubcollections = ["defects", "lengthChanges"]
 
     /// Encodes a value for use inside `updateData` (e.g. an array of structs or a map).

@@ -48,6 +48,11 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
 - A glanceable card for each vehicle: fluids, tires and wheels (with pressures emphasized), and parts and capacities.
 - Managers can edit values and add, rename or remove fields and whole sections. Empty fields are hidden from drivers.
 
+### What's on the truck
+- Each truck has a list of what it carries: item, optional quantity, where it's kept (e.g. "Left side box") and notes. Items are grouped by location and can be searched.
+- Everyone who can see the truck can view the list. Managers can edit it, and so can the truck's **lead**: one driver a manager picks for that truck.
+- Editors can **Copy from Another Truck** to set up similar trucks quickly; only items the truck doesn't already list are added.
+
 ### Chainsaws, ropes and chains
 - **Chainsaws and ropes** are tracked individually on each truck. Only managers can add them, edit them, or move them between trucks, and each item's history moves with it.
 - **Equipment problems:** anyone on the truck can report a problem on a saw or rope, with an optional photo, even offline.

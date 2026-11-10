@@ -22,6 +22,7 @@ struct VehicleDetailView: View {
     @State private var confirmingDelete = false
     @State private var didOpenDemoScreen = false
     @State private var demoSpecs = false
+    @State private var demoContents = false
     @State private var addingEquipment: Equipment?
     @State private var demoChains = false
     @State private var demoEquipmentId: String?
@@ -51,6 +52,17 @@ struct VehicleDetailView: View {
                 } label: {
                     Label("Fluids, Tires & Pressures", systemImage: "list.bullet.rectangle.portrait")
                 }
+                NavigationLink {
+                    TruckContentsView(vehicleId: vehicleId)
+                } label: {
+                    Label("What's on the Truck", systemImage: "shippingbox")
+                }
+            } footer: {
+                if let lead = fleet.truckLead(of: vehicle) {
+                    Text(lead.id == fleet.uid
+                         ? "You're this truck's lead: you can update what's on it."
+                         : "Truck lead: \(lead.displayName)")
+                }
             }
 
             defectsSection(openDefects)
@@ -75,6 +87,7 @@ struct VehicleDetailView: View {
             openDemoScreenIfNeeded(checklists: checklists)
         }
         .navigationDestination(isPresented: $demoSpecs) { SpecsView(vehicleId: vehicleId) }
+        .navigationDestination(isPresented: $demoContents) { TruckContentsView(vehicleId: vehicleId) }
         .navigationDestination(isPresented: $demoChains) { ChainsView(vehicleId: vehicleId) }
         .navigationDestination(item: $demoEquipmentId) { EquipmentDetailView(equipmentId: $0) }
         .sheet(isPresented: $showingEdit) { VehicleFormView(vehicle: vehicle) }
@@ -431,6 +444,7 @@ struct VehicleDetailView: View {
                 let assigned = fleet.members.filter { vehicle.assignedUids.contains($0.id ?? "") }
                 LabeledContent("Assigned Drivers",
                                value: assigned.isEmpty ? "None" : assigned.map(\.displayName).joined(separator: ", "))
+                LabeledContent("Truck Lead", value: fleet.truckLead(of: vehicle)?.displayName ?? "None")
             }
         }
     }
@@ -477,6 +491,7 @@ struct VehicleDetailView: View {
         didOpenDemoScreen = true
         switch screen {
         case "specs": demoSpecs = true
+        case "contents": demoContents = true
         case "checklist": activeChecklist = checklists.first
         case "truckchains": demoChains = true
         case "equipment-detail":

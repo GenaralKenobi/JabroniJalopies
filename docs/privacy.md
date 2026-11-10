@@ -27,6 +27,7 @@ If you use the app as a member of a fleet, your fleet's managers can see the inf
 | **Vehicle information** | Make, model, year, VIN, license plate, odometer readings, fluid and tire specifications, vehicle photo | To run the fleet's maintenance. |
 | **Inspection records** | Completed checklists: who completed them, when (by the phone's clock and when they reached our servers), results, readings and notes | To record vehicle condition and safety checks. |
 | **Defect reports and photos** | Description of a problem, who reported it, when, and optional photos | So problems get seen and repaired. |
+| **Truck contents** | What each truck carries and where it's kept, with who last changed each item and when | So crews know what's on the truck and where to find it. |
 | **Equipment and chain records** | Chainsaws and ropes on each truck, problems reported on them, rope length changes, and chain counts logged at the end of the day — with who logged them and when | To keep equipment safe and track chain use. |
 | **Service records** | Service type, date, odometer, shop, notes, and costs (costs are visible to managers only) | Maintenance history and sign-off. |
 | **Technical data** | Information our providers need to deliver the service, such as IP addresses in server logs | Security and reliability. |

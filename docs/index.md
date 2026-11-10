@@ -11,6 +11,7 @@ Jabroni Jalopies is an iPhone and iPad app for fleets:
 - **Morning checklists:** drivers complete them before heading out.
 - **Defects:** problems reach the manager with photos.
 - **Spec card:** each truck has a quick-reference card for its fluids, tires and pressures.
+- **What's on the truck:** a searchable list of what each truck carries and where, kept up to date by managers and each truck's lead.
 - **Equipment:** crews track chainsaws, rigging ropes and chains.
 - **Offline:** everything works without signal and syncs when the phone is back online.
 

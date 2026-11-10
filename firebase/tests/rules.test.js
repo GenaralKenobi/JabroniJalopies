@@ -288,6 +288,53 @@ describe('inspections and defects', () => {
   });
 });
 
+describe('truck contents', () => {
+  const contents = (vehicle = VEHICLE) => `fleets/${FLEET}/vehicles/${vehicle}/contents`;
+  const makeLead = (uid, vehicle = VEHICLE) => env.withSecurityRulesDisabled((ctx) =>
+    updateDoc(doc(ctx.firestore(), `fleets/${FLEET}/vehicles/${vehicle}`), { contentsEditorUid: uid }));
+  const item = { name: 'First-aid kit', quantity: 1, location: 'Cab', notes: '' };
+
+  it('lets everyone who can see the truck read its contents', async () => {
+    await assertSucceeds(getDocs(collection(db('dan'), contents())));
+    await assertSucceeds(getDocs(collection(db('rita'), contents())));
+    await assertFails(getDocs(collection(db('rita'), contents(RESTRICTED_VEHICLE))));
+    await assertFails(getDocs(collection(db('olly'), contents())));
+  });
+
+  it('lets managers edit contents, but not ordinary drivers', async () => {
+    await assertSucceeds(setDoc(doc(db('mia'), `${contents()}/i1`), item));
+    await assertFails(setDoc(doc(db('dan'), `${contents()}/i2`), item));
+    await assertFails(updateDoc(doc(db('dan'), `${contents()}/i1`), { quantity: 0 }));
+    await assertFails(deleteDoc(doc(db('dan'), `${contents()}/i1`)));
+  });
+
+  it('lets the truck lead edit that truck only', async () => {
+    await makeLead('dan');
+    await assertSucceeds(setDoc(doc(db('dan'), `${contents()}/i1`), item));
+    await assertSucceeds(updateDoc(doc(db('dan'), `${contents()}/i1`), { quantity: 2 }));
+    await assertSucceeds(deleteDoc(doc(db('dan'), `${contents()}/i1`)));
+    await assertFails(setDoc(doc(db('dan'), `${contents(RESTRICTED_VEHICLE)}/i1`), item));
+    await assertFails(setDoc(doc(db('rita'), `${contents()}/i3`), item));
+  });
+
+  it('does not let a truck lead who lost access keep editing', async () => {
+    await makeLead('rita', RESTRICTED_VEHICLE);
+    await assertFails(setDoc(doc(db('rita'), `${contents(RESTRICTED_VEHICLE)}/i1`), item));
+  });
+
+  it('lets only managers choose the truck lead', async () => {
+    await makeLead('dan');
+    await assertFails(updateDoc(doc(db('dan'), `fleets/${FLEET}/vehicles/${VEHICLE}`), { contentsEditorUid: 'rita' }));
+    await assertFails(updateDoc(doc(db('rita'), `fleets/${FLEET}/vehicles/${VEHICLE}`), { contentsEditorUid: 'rita' }));
+    await assertSucceeds(updateDoc(doc(db('mia'), `fleets/${FLEET}/vehicles/${VEHICLE}`), { contentsEditorUid: 'rita' }));
+  });
+
+  it('requires every item to have a name', async () => {
+    await assertFails(setDoc(doc(db('mia'), `${contents()}/i1`), { ...item, name: '' }));
+    await assertFails(setDoc(doc(db('mia'), `${contents()}/i1`), { quantity: 1 }));
+  });
+});
+
 describe('services and costs', () => {
   const service = `fleets/${FLEET}/vehicles/${VEHICLE}/services`;
 

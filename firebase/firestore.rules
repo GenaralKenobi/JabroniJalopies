@@ -10,7 +10,7 @@ rules_version = '2';
 //   fleets/{fleetId}/members/{uid}               per-fleet profile (name) + role
 //   fleets/{fleetId}/contacts/{uid}              email + phone (the person and managers only)
 //   fleets/{fleetId}/checklists/{checklistId}    checklist templates
-//   fleets/{fleetId}/vehicles/{vehicleId}        vehicle, specs, assignments
+//   fleets/{fleetId}/vehicles/{vehicleId}        vehicle, specs, assignments, truck lead
 //     .../reminders/{id}                         maintenance schedule
 //     .../services/{id}                          service log (driver entries need sign-off)
 //     .../costs/{serviceId}                      service costs (managers only)
@@ -19,6 +19,7 @@ rules_version = '2';
 //     .../checklistState/periodic                when repeating checklist items were last done
 //     .../chains/inventory                       chain sizes + counts on this truck
 //     .../chainLogs/{id}                         used-chain-box and chains-added logs
+//     .../contents/{id}                          what's kept on the truck (managers + truck lead edit)
 //   fleets/{fleetId}/equipment/{equipmentId}     chainsaws and ropes (movable between trucks)
 //     .../defects/{id}                           equipment problems
 //     .../lengthChanges/{id}                     rope length reductions awaiting approval
@@ -76,6 +77,12 @@ service cloud.firestore {
         || me(fleetId).seesAllVehicles == true
         || request.auth.uid in vehicleData(fleetId, vehicleId).assignedUids
       );
+    }
+
+    function canEditContents(fleetId, vehicleId) {
+      return isManager(fleetId)
+        || (canSeeVehicle(fleetId, vehicleId)
+          && vehicleData(fleetId, vehicleId).get('contentsEditorUid', null) == request.auth.uid);
     }
 
     function onlyChanges(keys) {
@@ -302,6 +309,17 @@ service cloud.firestore {
           // Anyone on the truck may change counts (logged in chainLogs); only managers change sizes.
           allow update: if isManager(fleetId)
             || (canSeeVehicle(fleetId, vehicleId) && onlyChanges(['counts', 'updatedAt']));
+        }
+
+        // What's kept on the truck. Everyone who can see the truck can read it;
+        // managers and the truck's lead (contentsEditorUid, set by a manager) edit it.
+        match /contents/{itemId} {
+          allow read: if canSeeVehicle(fleetId, vehicleId);
+          allow create, update: if canEditContents(fleetId, vehicleId)
+            && request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.name.size() <= 200;
+          allow delete: if canEditContents(fleetId, vehicleId);
         }
 
         // Used-chain-box emptying and chains added. Permanent records.

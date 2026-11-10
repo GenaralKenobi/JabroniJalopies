@@ -84,7 +84,7 @@ async function main() {
 
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    const set = (path, data) => setDoc(doc(db, path), data);
+    const set = (path, data, options) => setDoc(doc(db, path), data, options ?? {});
     const F = 'fleets/demo-fleet';
     const mia = 'Mia Rodriguez';
 
@@ -99,6 +99,14 @@ async function main() {
     });
     await set(`${F}/contacts/${uid}`, { email: EMAIL, phone: '555-0142' });
     await set(`users/${uid}/memberships/demo-fleet`, { fleetName: 'Acme Delivery', joinedAt: daysAgo(400) });
+    // Two drivers (profiles only; they never sign in to the emulators).
+    for (const [driverId, name, phone, email] of [
+      ['driver-dan', 'Dan Okafor', '555-0155', 'dan@demo.test'],
+      ['driver-ana', 'Ana Lima', '555-0167', 'ana@demo.test'],
+    ]) {
+      await set(`${F}/members/${driverId}`, { role: 'driver', displayName: name, seesAllVehicles: true, joinedAt: daysAgo(300) });
+      await set(`${F}/contacts/${driverId}`, { email, phone });
+    }
 
     const items = [
       item('Tires — inflation and tread', { unsafe: true }),
@@ -263,6 +271,33 @@ async function main() {
       amountFeet: 8, reason: 'Trimmed glazed end.', status: 'approved', submittedBy: 'driver-ana', submittedByName: 'Ana Lima',
       submittedAt: daysAgo(30), reviewedBy: uid, reviewedByName: mia, reviewedAt: daysAgo(29), expireAt: yearsFromNow(5),
     });
+
+    // Van 12's contents; Dan is its truck lead.
+    await set(`${F}/vehicles/van-12`, { contentsEditorUid: 'driver-dan' }, { merge: true });
+    const contents = [
+      ['Cab', 'First-aid kit', 1, ''],
+      ['Cab', 'Fire extinguisher (5 lb ABC)', 1, 'Behind the driver seat'],
+      ['Cab', 'Reflective triangles', 3, ''],
+      ['Cab', 'Spill kit', 1, 'Under the passenger seat'],
+      ['Left side box', 'Felling wedges', 6, ''],
+      ['Left side box', 'Bar oil (gallon)', 2, ''],
+      ['Left side box', 'Mix gas cans', 2, '50:1 — red cans only'],
+      ['Left side box', 'File kit', 1, ''],
+      ['Right side box', 'Hard hats', 4, ''],
+      ['Right side box', 'Chainsaw chaps', 4, ''],
+      ['Right side box', 'Ear muffs', 4, ''],
+      ['Right side box', 'Work gloves (pairs)', 8, ''],
+      ['Bed', 'Traffic cones', 6, ''],
+      ['Bed', 'Rakes', 2, ''],
+      ['Bed', 'Pole saw', 1, ''],
+      ['Bed', 'Rigging blocks', 2, ''],
+      ['', 'Rain gear', null, 'One set per person'],
+    ];
+    for (const [location, name, quantity, notes] of contents) {
+      await set(`${F}/vehicles/van-12/contents/${id('item')}`, {
+        name, quantity, location, notes, updatedAt: daysAgo(3), updatedBy: 'driver-dan', updatedByName: 'Dan Okafor',
+      });
+    }
 
     // Chains.
     const size = (inches) => ({ key: `in${String(inches).replace('.', '_')}`, inches });

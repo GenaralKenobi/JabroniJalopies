@@ -159,9 +159,11 @@ extension FleetModel {
         let batch = FS.db.batch()
         batch.deleteDocument(FS.contacts(fleetId).document(memberId))
         batch.deleteDocument(FS.members(fleetId).document(memberId))
-        for vehicle in vehicles where vehicle.assignedUids.contains(memberId) {
+        for vehicle in vehicles where vehicle.assignedUids.contains(memberId) || vehicle.contentsEditorUid == memberId {
             guard let vehicleId = vehicle.id else { continue }
-            batch.updateData(["assignedUids": FieldValue.arrayRemove([memberId])], forDocument: FS.vehicle(fleetId, vehicleId))
+            var fields: [AnyHashable: Any] = ["assignedUids": FieldValue.arrayRemove([memberId])]
+            if vehicle.contentsEditorUid == memberId { fields["contentsEditorUid"] = FieldValue.delete() }
+            batch.updateData(fields, forDocument: FS.vehicle(fleetId, vehicleId))
         }
         commitInBackground(batch, "Removing member")
     }

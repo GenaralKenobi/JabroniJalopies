@@ -16,6 +16,8 @@ struct Vehicle: Codable, Identifiable, Hashable {
     var odometerUpdatedBy: String?
     /// Drivers who can see this vehicle even when they can't see the whole fleet.
     var assignedUids: [String]
+    /// The one non-manager (the "truck lead") who may also edit this truck's contents list.
+    var contentsEditorUid: String?
     var specSections: [SpecSection]
     /// Small JPEG thumbnail stored inline so it works offline and on the free plan.
     var photo: Data?
@@ -57,4 +59,22 @@ struct SpecRow: Codable, Identifiable, Hashable {
     var id: String
     var label: String
     var value: String
+}
+
+/// fleets/{fleetId}/vehicles/{vehicleId}/contents/{itemId} — one thing kept on the truck.
+struct TruckItem: Codable, Identifiable, Hashable {
+    @DocumentID var id: String?
+    var name: String
+    /// nil when a count doesn't matter (e.g. "Rain gear").
+    var quantity: Int?
+    /// Where on the truck, e.g. "Left side box". Empty means no particular place.
+    var location: String
+    var notes: String
+    var updatedAt: Date?
+    var updatedBy: String?
+    var updatedByName: String?
+
+    static func new(location: String = "") -> TruckItem {
+        TruckItem(name: "", quantity: nil, location: location, notes: "")
+    }
 }
