@@ -216,6 +216,29 @@ struct ChainTests {
         #expect(!ChainInventory(sizes: [ChainSize(inches: 16)], counts: ["in16": 0]).hasNegativeCount)
     }
 
+    @Test func countIsTheManagersCountPlusLaterLogs() {
+        let s16 = ChainSize(inches: 16)
+        let counted = Date(timeIntervalSince1970: 1_800_000_000)
+        let inventory = ChainInventory(sizes: [s16], counts: ["in16": 10], correctedAt: counted, changes: [
+            // Made before the manager counted (arrived late): left out.
+            "early": ChainChange(at: counted.addingTimeInterval(-3600), d: ["in16": 6]),
+            // Made after: added on top, whatever order they arrived in.
+            "late1": ChainChange(at: counted.addingTimeInterval(600), d: ["in16": -3]),
+            "late2": ChainChange(at: counted.addingTimeInterval(1200), d: ["in16": 2]),
+        ])
+        #expect(inventory.count(s16) == 9)
+    }
+
+    @Test func beforeAnyCountEveryLogCounts() {
+        let s16 = ChainSize(inches: 16)
+        let inventory = ChainInventory(sizes: [s16], counts: [:], changes: [
+            "a": ChainChange(at: .now, d: ["in16": 5]),
+            "b": ChainChange(at: .now, d: ["in16": -7]),
+        ])
+        #expect(inventory.count(s16) == -2)
+        #expect(inventory.hasNegativeCount)
+    }
+
     @Test func managerCountsAreRecordedInTheLog() {
         let item = ChainLogItem(sizeKey: "in16", inches: 16, dull: 0, discarded: 0, added: 0, adjustment: -2, counted: 4)
         let log = ChainLog(kind: .correction, items: [item], loggedBy: "mia", loggedByName: "Mia",

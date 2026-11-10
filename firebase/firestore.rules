@@ -306,17 +306,11 @@ service cloud.firestore {
         match /chains/{docId} {
           allow read: if canSeeVehicle(fleetId, vehicleId);
           allow create, delete: if isManager(fleetId);
-          allow update: if
-            // A used-box or added log changing the counts (anyone on the truck, managers
-            // included). A log made before a manager last counted the chains is turned
-            // away, because the manager's count already includes it.
-            (canSeeVehicle(fleetId, vehicleId)
-              && onlyChanges(['counts', 'updatedAt', 'lastLoggedAt'])
-              && request.resource.data.lastLoggedAt is timestamp
-              && (resource.data.get('correctedAt', null) == null
-                || request.resource.data.lastLoggedAt > resource.data.correctedAt))
-            // Managers change sizes and set counted totals.
-            || (isManager(fleetId) && !onlyChanges(['counts', 'updatedAt', 'lastLoggedAt']));
+          // Anyone on the truck adds a log's change (changes.<logId>); the app works out the
+          // count as the manager's last count plus changes logged after it. Only managers
+          // change sizes or set counted totals.
+          allow update: if isManager(fleetId)
+            || (canSeeVehicle(fleetId, vehicleId) && onlyChanges(['changes', 'updatedAt']));
         }
 
         // What's kept on the truck. Everyone who can see the truck can read it;

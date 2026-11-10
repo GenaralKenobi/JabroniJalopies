@@ -67,7 +67,7 @@ struct ChainsView: View {
                     }
                 } footer: {
                     Text("At the end of the day, take the chains out of the used chain box and record how many are dull (to resharpen) and how many are thrown away."
-                         + (fleet.isManager ? " Correct Counts sets the counts to what you see on the truck; logs made before that, still waiting to sync on someone's phone, won't change them." : ""))
+                         + (fleet.isManager ? " Correct Counts makes what you count the new starting point; anything logged after it is added on top." : ""))
                 }
             } else {
                 Section {

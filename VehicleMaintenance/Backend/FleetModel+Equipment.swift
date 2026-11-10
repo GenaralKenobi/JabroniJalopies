@@ -107,10 +107,10 @@ extension FleetModel {
         try writeChainLog(.added, items: items, vehicleId: vehicleId)
     }
 
-    /// A manager counted the chains on the truck. The counts are set to exactly what they
-    /// counted, and any log made before this moment that's still syncing from someone's
-    /// phone is ignored (the security rules reject its count change), because the count
-    /// already includes it. Saving with no changes still confirms the count.
+    /// A manager counted the chains on the truck. Their count becomes the starting point:
+    /// logs made after it are added on top (whenever they arrive), and logs made before it
+    /// are left out. Works the same if the manager's phone is offline when they count.
+    /// Saving with no changes still confirms the count.
     func correctChainCounts(vehicleId: String, inventory: ChainInventory, actual: [String: Int]) throws {
         let now = Date.now
         let items = inventory.sortedSizes.map { size in
@@ -127,6 +127,11 @@ extension FleetModel {
         for item in items {
             fields[FieldPath(["counts", item.sizeKey])] = item.counted ?? 0
         }
+        // Tidy up: changes made before this count no longer matter. (Any that arrive
+        // later are ignored anyway, and tidied up at the next count.)
+        for (logId, change) in inventory.changes ?? [:] where change.at <= now {
+            fields[FieldPath(["changes", logId])] = FieldValue.delete()
+        }
         batch.updateData(fields, forDocument: FS.chainInventory(fleetId, vehicleId))
         commitInBackground(batch, ChainLogKind.correction.label)
         bumpRecordCount(1)
@@ -138,32 +143,20 @@ extension FleetModel {
         let now = Date.now
         let log = ChainLog(kind: kind, items: meaningful, loggedBy: uid, loggedByName: myName, loggedAt: now,
                            expireAt: Retention.expiry(from: now))
-
-        // 1. The log itself: always kept, even if the count change below is turned away.
-        let record = FS.db.batch()
-        try record.setData(from: log, forDocument: FS.chainLogs(fleetId, vehicleId).document())
-        commitInBackground(record, kind.label)
-
-        // 2. The count change, sent separately. If a manager counted the chains after this
-        //    log was made (it was waiting for signal), the rules reject it so the manager's
-        //    count stands; the log above is still saved.
-        var counts: [AnyHashable: Any] = ["updatedAt": now, "lastLoggedAt": now]
+        let logRef = FS.chainLogs(fleetId, vehicleId).document()
+        var delta: [String: Int] = [:]
         for item in meaningful where item.countChange != 0 {
-            counts[FieldPath(["counts", item.sizeKey])] = FieldValue.increment(Int64(item.countChange))
+            delta[item.sizeKey, default: 0] += item.countChange
         }
-        let change = FS.db.batch()
-        change.updateData(counts, forDocument: FS.chainInventory(fleetId, vehicleId))
-        change.commit { error in
-            MainActor.assumeIsolated {
-                guard let error else { return }
-                let nsError = error as NSError
-                if nsError.domain == FirestoreErrorDomain, nsError.code == FirestoreErrorCode.permissionDenied.rawValue {
-                    ErrorCenter.shared.message = "Your chain log was saved. A manager counted the chains after you logged them, so the truck's count wasn't changed."
-                } else {
-                    ErrorCenter.shared.report(error, kind.label)
-                }
-            }
+        let batch = FS.db.batch()
+        try batch.setData(from: log, forDocument: logRef)
+        if !delta.isEmpty {
+            batch.updateData([
+                FieldPath(["changes", logRef.documentID]): try FS.encode(ChainChange(at: now, d: delta)),
+                "updatedAt": now,
+            ], forDocument: FS.chainInventory(fleetId, vehicleId))
         }
+        commitInBackground(batch, kind.label)
         bumpRecordCount(1)
     }
 

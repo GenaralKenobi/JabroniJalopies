@@ -130,23 +130,41 @@ struct ChainSize: Codable, Identifiable, Hashable {
 /// fleets/{f}/vehicles/{v}/chains/inventory — the truck's chain sizes and how many sharp chains it has.
 struct ChainInventory: Codable, Hashable {
     var sizes: [ChainSize]
-    /// Sharp chains on the truck, keyed by `ChainSize.key`. Logs change it by increments
-    /// so offline logs from several people add up. It can go below zero, for example when
-    /// chains were added on a phone that hasn't synced yet.
+    /// The starting counts, keyed by `ChainSize.key`: what a manager last counted on the
+    /// truck (0 before anyone has counted).
     var counts: [String: Int]
     var updatedAt: Date?
-    /// When a manager last counted the chains on the truck. Logs made before this are
-    /// not applied to the counts: the manager's count already includes them.
+    /// When a manager last counted the chains on the truck.
     var correctedAt: Date?
     var correctedByName: String?
-    /// The time of the log that last changed the counts (checked by the security rules).
-    var lastLoggedAt: Date?
+    /// Every used-box / added log's effect on the counts, keyed by log id, with the time the
+    /// log was made. Each phone adds its own entry, so logs made offline never overwrite
+    /// each other and can arrive in any order.
+    var changes: [String: ChainChange]?
 
-    func count(_ size: ChainSize) -> Int { counts[size.key] ?? 0 }
+    /// The manager's last count plus every log made after it. Logs made before the count
+    /// are left out, because the manager's count already includes them.
+    func count(_ size: ChainSize) -> Int {
+        let base = counts[size.key] ?? 0
+        return activeChanges.reduce(base) { $0 + ($1.d[size.key] ?? 0) }
+    }
+
+    /// Log changes that count: those made after the manager's last count.
+    var activeChanges: [ChainChange] {
+        (changes ?? [:]).values.filter { change in correctedAt.map { change.at > $0 } ?? true }
+    }
 
     var sortedSizes: [ChainSize] { sizes.sorted { $0.inches < $1.inches } }
 
     var hasNegativeCount: Bool { sizes.contains { count($0) < 0 } }
+}
+
+/// One log's effect on a truck's chain counts.
+struct ChainChange: Codable, Hashable {
+    /// When the log was made on the phone.
+    var at: Date
+    /// Change per size key, e.g. ["in16": -3].
+    var d: [String: Int]
 }
 
 enum ChainLogKind: String, Codable {
