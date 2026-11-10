@@ -26,6 +26,7 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
 - When an item fails, the app asks for a photo, but a photo isn't required.
 - A failed safety item marks the vehicle **UNSAFE TO DRIVE**. Everyone sees a strong warning, including anyone who starts another checklist on that vehicle.
 - **Repeating items:** an item can repeat weekly, monthly or every N days instead of on every checklist.
+  - Weekly items reset every Monday and monthly items on the 1st of each month, so each one is done once per calendar week or month on each truck. "Every N days" items come back N days after they were last done.
   - Each truck remembers when each repeating item was last done, and this works offline.
   - When an item isn't due, it moves to a "Not due yet" section and can be done early.
   - The truck page shows how many repeating items are due.

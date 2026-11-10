@@ -4,13 +4,14 @@ These are choices I made without being sure they match how you work. Each one is
 
 ## Repeating checklist items (weekly / monthly / every N days)
 
-1. **The schedule runs from when the item was last done, not from the calendar.**
-   - "Weekly" means 7 days after it was last done on that truck, not "once per calendar week (Mon–Sun)".
-   - "Monthly" means the same date next month.
-   - The alternative is calendar periods, for example "any time this week" with a reset every Monday.
+1. **Weekly and monthly items follow the calendar** (changed at your request).
+   - Weekly items reset every **Monday**. An item done on Saturday is due again two days later, on Monday.
+   - Monthly items reset on the **1st** of each month.
+   - Weeks start on Monday on every phone, whatever its region setting, so the whole fleet agrees.
+   - **"Every N days" items still count from when they were last done**, because they don't match a calendar period. Tell me if you'd rather they reset on fixed dates.
 2. **An item counts as done whether it passed or failed.** A failed item becomes a defect, and the defect tracks the problem from there. The alternative is that a failed weekly item stays due until it passes.
 3. **Due repeating items are required.** When a weekly item is due, it has to be answered pass or fail like every other item before the checklist can be submitted. The alternative is letting drivers skip it and keep it due.
-4. **Items that aren't due are hidden, but can be done early.** They're listed under "Not due yet" with a **Do Now** button. Doing one early resets its schedule.
+4. **Items that aren't due are hidden, but can be done early.** They're listed under "Not due yet" with a **Do Now** button. Doing one again counts for the current week or month, so a weekly item done again is still due next Monday. An "every N days" item done early starts its N days again.
 5. **A repeating item with an open defect always appears**, even if it isn't due, so drivers can mark it "still a problem" or "looks fixed".
 6. **The schedule is tracked per truck, not per driver.** If anyone did the weekly check on Van 12 this week, nobody needs to do it again on Van 12 until next week.
 7. **The schedule belongs to the item in each checklist.** If two checklists both contain "Grease fittings", each one tracks its own schedule.

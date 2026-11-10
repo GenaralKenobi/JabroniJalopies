@@ -299,15 +299,35 @@ struct PeriodicScheduleTests {
         #expect(PeriodicSchedule.isDue(.weekly, lastDone: nil, now: day(2026, 6, 1), calendar: calendar))
     }
 
-    @Test func weeklyIsDueSevenDaysAfterTheDayItWasDone() {
-        let done = day(2026, 6, 1, hour: 16)
-        #expect(!PeriodicSchedule.isDue(.weekly, lastDone: done, now: day(2026, 6, 7, hour: 23), calendar: calendar))
-        #expect(PeriodicSchedule.isDue(.weekly, lastDone: done, now: day(2026, 6, 8, hour: 6), calendar: calendar))
+    // June 1, 2026 is a Monday.
+    @Test func weeklyResetsEveryMonday() {
+        let monday = day(2026, 6, 1, hour: 16)
+        #expect(!PeriodicSchedule.isDue(.weekly, lastDone: monday, now: day(2026, 6, 7, hour: 23), calendar: calendar))
+        #expect(PeriodicSchedule.isDue(.weekly, lastDone: monday, now: day(2026, 6, 8, hour: 0), calendar: calendar))
+
+        // Done on Saturday: due again two days later, on Monday, not seven days later.
+        let saturday = day(2026, 6, 6)
+        #expect(PeriodicSchedule.nextDue(.weekly, lastDone: saturday, calendar: calendar) == day(2026, 6, 8, hour: 0))
+        // Done on Sunday: still counts for the week that started the Monday before.
+        #expect(PeriodicSchedule.nextDue(.weekly, lastDone: day(2026, 6, 7), calendar: calendar) == day(2026, 6, 8, hour: 0))
     }
 
-    @Test func monthlyAndCustomIntervals() {
-        let done = day(2026, 1, 31)
-        #expect(PeriodicSchedule.nextDue(.monthly, lastDone: done, calendar: calendar) == day(2026, 2, 28, hour: 0))
+    @Test func weeksStartOnMondayWhateverTheRegion() {
+        var sundayFirst = calendar
+        sundayFirst.firstWeekday = 1
+        #expect(PeriodicSchedule.nextDue(.weekly, lastDone: day(2026, 6, 7), calendar: sundayFirst) == day(2026, 6, 8, hour: 0))
+        // Across a year boundary: Wednesday Dec 30, 2026 -> Monday Jan 4, 2027.
+        #expect(PeriodicSchedule.nextDue(.weekly, lastDone: day(2026, 12, 30), calendar: calendar) == day(2027, 1, 4, hour: 0))
+    }
+
+    @Test func monthlyResetsOnTheFirst() {
+        #expect(PeriodicSchedule.nextDue(.monthly, lastDone: day(2026, 1, 31), calendar: calendar) == day(2026, 2, 1, hour: 0))
+        #expect(PeriodicSchedule.nextDue(.monthly, lastDone: day(2026, 1, 1), calendar: calendar) == day(2026, 2, 1, hour: 0))
+        #expect(PeriodicSchedule.nextDue(.monthly, lastDone: day(2026, 12, 15), calendar: calendar) == day(2027, 1, 1, hour: 0))
+        #expect(!PeriodicSchedule.isDue(.monthly, lastDone: day(2026, 3, 2), now: day(2026, 3, 31, hour: 23), calendar: calendar))
+    }
+
+    @Test func customIntervalsCountFromWhenLastDone() {
         #expect(PeriodicSchedule.nextDue(.every(14), lastDone: day(2026, 6, 1), calendar: calendar) == day(2026, 6, 15, hour: 0))
         #expect(ItemFrequency.every(14).label == "Every 14 days")
         #expect(ItemFrequency.every(0).days == 1)

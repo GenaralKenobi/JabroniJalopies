@@ -76,7 +76,7 @@ struct ChecklistEditorView: View {
                 } header: {
                     Text("Items")
                 } footer: {
-                    Text("Every item is pass/fail. Turn on \"Record a number\" to also ask for a reading. Safety items mark the vehicle unsafe to drive when they fail. Repeating items only appear when they're due on that truck.")
+                    Text("Every item is pass/fail. Turn on \"Record a number\" to also ask for a reading. Safety items mark the vehicle unsafe to drive when they fail. Repeating items only appear when they're due on that truck: weekly items once each week (Monday to Sunday), monthly items once each calendar month, and \"every N days\" items N days after they were last done.")
                 }
 
                 Section {
