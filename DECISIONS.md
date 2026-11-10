@@ -11,7 +11,7 @@ These are choices I made without being sure they match how you work. Each one is
    - **"Every N days" items still count from when they were last done**, because they don't match a calendar period. Tell me if you'd rather they reset on fixed dates.
 2. **An item counts as done whether it passed or failed** (confirmed by you). A failed item becomes a defect, and the defect tracks the problem from there.
 3. **Drivers can skip due repeating items** (changed at your request). A skipped item isn't recorded as done, so it shows on every checklist for that truck until someone does it, with "due since" and its date. Every-time items are still required. A checklist can't be submitted with nothing answered.
-4. **Items that aren't due are hidden, but can be done early.** They're listed under "Not due yet" with a **Do Now** button. Doing one again counts for the current week or month, so a weekly item done again is still due next Monday. An "every N days" item done early starts its N days again.
+4. **Items that aren't due are hidden, but can be done early** (confirmed by you). They're listed under "Not due yet" with a **Do Now** button. Doing one again counts for the current week or month, so a weekly item done again is still due next Monday. An "every N days" item done early starts its N days again.
 5. **A repeating item with an open defect always appears**, even if it isn't due, so drivers can mark it "still a problem" or "looks fixed".
 6. **The schedule is tracked per truck, not per driver.** If anyone did the weekly check on Van 12 this week, nobody needs to do it again on Van 12 until next week.
 7. **The schedule belongs to the item in each checklist.** If two checklists both contain "Grease fittings", each one tracks its own schedule.
