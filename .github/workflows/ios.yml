@@ -59,8 +59,21 @@ jobs:
         uses: actions/cache@v5
         with:
           path: build/SourcePackages
-          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
-          restore-keys: spm-${{ runner.os }}-
+          key: spm-v2-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-v2-${{ runner.os }}-
+
+      - name: Drop an incomplete package cache
+        run: |
+          # A cached copy without its binary frameworks makes every build fail with
+          # "There is no XCFramework found"; start fresh instead.
+          for d in build/SourcePackages/artifacts/*/*/; do
+            [ -d "$d" ] || continue
+            if ! ls -d "$d"*.xcframework > /dev/null 2>&1; then
+              echo "Missing frameworks in $d; clearing the package cache."
+              rm -rf build/SourcePackages
+              break
+            fi
+          done
 
       - name: Pick an iPhone simulator
         id: sim
