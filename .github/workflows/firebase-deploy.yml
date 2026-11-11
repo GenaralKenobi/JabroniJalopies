@@ -61,12 +61,12 @@ jobs:
         if: env.SKIP != '1' && env.STORAGE_BUCKET != ''
         run: npx firebase deploy --only storage --project "$PROJECT_ID" --non-interactive
 
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v3
         if: env.SKIP != '1' && env.STORAGE_BUCKET != ''
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
         if: env.SKIP != '1' && env.STORAGE_BUCKET != ''
 
       - name: Apply 5-year photo retention
