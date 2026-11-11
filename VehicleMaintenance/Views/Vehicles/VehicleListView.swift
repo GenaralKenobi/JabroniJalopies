@@ -150,7 +150,7 @@ struct VehicleRow: View {
                 }
 
                 if !fleet.checklists(for: vehicleId).isEmpty {
-                    if let last = fleet.lastInspections[vehicleId], Calendar.current.isDateInToday(last.completedAt) {
+                    if let lastAt = vehicle.summary?.lastChecklistAt, Calendar.current.isDateInToday(lastAt) {
                         Label("Checked today", systemImage: "checkmark.circle.fill")
                             .font(.caption)
                             .foregroundStyle(Color.green)

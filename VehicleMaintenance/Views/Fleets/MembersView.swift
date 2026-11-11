@@ -20,7 +20,7 @@ struct MembersView: View {
                     }
                 }
             } header: {
-                Text("Members (\(fleet.members.count))")
+                Text(fleet.membersLoaded ? "Members (\(fleet.members.count))" : "Members")
             } footer: {
                 Text(fleet.isManager
                      ? "Email addresses and phone numbers are only visible to managers."
@@ -61,6 +61,8 @@ struct MembersView: View {
             }
         }
         .navigationTitle("Members")
+        .onAppear { fleet.watchMemberList(true) }
+        .onDisappear { fleet.watchMemberList(false) }
         .sheet(isPresented: $showingInvite) {
             InviteFormView()
         }

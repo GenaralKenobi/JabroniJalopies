@@ -165,17 +165,26 @@ async function main() {
     // Van 12: the weekly extinguisher check is due; grease and battery were done recently.
     // Van 12: the extinguisher check was skipped 3 times (overdue), Monthly Service is overdue.
     // Truck 3: Monthly Service due in ~10 days with a day planned; Belts & Filters due in 4 days, not planned.
-    await set(`${F}/vehicles/van-12/checklistState/periodic`, {
-      lastDone: { [itemByPrefix('Fire extinguisher gauge').id]: daysAgo(15), [itemByPrefix('Chainsaw chain').id]: daysAgo(1) },
-      skips: { [itemByPrefix('Fire extinguisher gauge').id]: 3 },
-      checklistLastDone: { monthly: daysAgo(35), belts: daysAgo(3) },
+    // Schedule state and summaries live on each truck's document. (Summary counts are
+    // left out here, so the app works them out from the records and fills them in.)
+    const merge = (path, data) => set(path, data, { merge: true });
+    await merge(`${F}/vehicles/van-12`, {
+      checklistState: {
+        lastDone: { [itemByPrefix('Fire extinguisher gauge').id]: daysAgo(15), [itemByPrefix('Chainsaw chain').id]: daysAgo(1) },
+        skips: { [itemByPrefix('Fire extinguisher gauge').id]: 3 },
+        checklistLastDone: { monthly: daysAgo(35), belts: daysAgo(3) },
+      },
+      summary: { lastChecklistAt: daysAgo(0, 6), lastChecklistBy: 'Dan Okafor' },
     });
-    await set(`${F}/vehicles/truck-3/checklistState/periodic`, {
-      lastDone: { [itemByPrefix('Fire extinguisher gauge').id]: daysAgo(1), [itemByPrefix('Chainsaw chain').id]: daysAgo(1) },
-      checklistLastDone: { monthly: daysAgo(20), belts: daysAgo(10) },
+    await merge(`${F}/vehicles/truck-3`, {
+      checklistState: {
+        lastDone: { [itemByPrefix('Fire extinguisher gauge').id]: daysAgo(1), [itemByPrefix('Chainsaw chain').id]: daysAgo(1) },
+        checklistLastDone: { monthly: daysAgo(20), belts: daysAgo(10) },
+      },
+      summary: { lastChecklistAt: daysAgo(1, 6), lastChecklistBy: 'Ana Lima' },
     });
-    await set(`${F}/vehicles/van-7/checklistState/periodic`, {
-      lastDone: {}, checklistLastDone: { monthly: daysAgo(5), belts: daysAgo(2) },
+    await merge(`${F}/vehicles/van-7`, {
+      checklistState: { lastDone: {}, checklistLastDone: { monthly: daysAgo(5), belts: daysAgo(2) } },
     });
     {
       // The monthly due date on Truck 3 (one month after it was last done, at midnight).

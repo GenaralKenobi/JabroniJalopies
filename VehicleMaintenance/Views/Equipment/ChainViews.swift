@@ -106,6 +106,8 @@ struct ChainsView: View {
             }
         }
         .navigationTitle("Chains — \(fleet.vehicle(vehicleId)?.displayName ?? "")")
+        .onAppear { fleet.watch(vehicle: vehicleId) }
+        .onDisappear { fleet.unwatch(vehicle: vehicleId) }
         .navigationBarTitleDisplayMode(.inline)
         .syncStatusBanner()
         .onAppear(perform: startListening)
@@ -381,6 +383,8 @@ struct ChainTotalsView: View {
             }
         }
         .navigationTitle("Chain Totals")
+        .onAppear { fleet.watchAllChains(true) }
+        .onDisappear { fleet.watchAllChains(false) }
         .overlay { if isLoading && logs.isEmpty { ProgressView() } }
         // Reload once the trucks have loaded (the screen can open before they arrive).
         .task(id: fleet.vehicles.count) { await load() }

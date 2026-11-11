@@ -18,6 +18,13 @@ struct Vehicle: Codable, Identifiable, Hashable {
     var assignedUids: [String]
     /// The one non-manager (the "truck lead") who may also edit this truck's contents list.
     var contentsEditorUid: String?
+    /// The truck lead's name, so drivers can see it without loading the member list.
+    var contentsEditorName: String?
+    /// A small summary of what's going on with this truck, so the fleet list can show
+    /// badges from this one document instead of loading every truck's records.
+    var summary: VehicleSummary?
+    /// When repeating checklist items and scheduled checklists were last done on this truck.
+    var checklistState: ChecklistState?
     /// Dates managers picked for doing scheduled checklists on this truck, by checklist id.
     var checklistPlans: [String: ChecklistPlan]?
     var specSections: [SpecSection]
@@ -88,4 +95,21 @@ struct ChecklistPlan: Codable, Hashable {
     /// moves on, and the old plan no longer applies.
     var forDue: Date
     var byName: String?
+}
+
+/// Kept on each truck's document and updated as things change (see FleetModel+Summary).
+/// A missing value means "not known yet": the app then loads the details to find out.
+struct VehicleSummary: Codable, Hashable {
+    var lastChecklistAt: Date?
+    var lastChecklistBy: String?
+    /// Open (or reported fixed) defects, and how many of those are safety defects.
+    var openDefects: Int?
+    var unsafeDefects: Int?
+    /// Driver-logged services waiting for a manager.
+    var pendingServices: Int?
+    /// The earliest maintenance reminder due date and lowest due odometer.
+    var nextDueDate: Date?
+    var nextDueOdometer: Int?
+    /// Whether the truck has any maintenance reminders at all.
+    var hasReminders: Bool?
 }

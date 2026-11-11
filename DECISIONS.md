@@ -70,3 +70,10 @@ These are choices I made without being sure they match how you work. Each one is
 41. **The checklist reminder starts as Monday–Friday** when a manager turns it on. They can tap any days of the week to change that.
 42. **Jabroni Jalopies and Tailgate Labs.** A web search found no app, business or trademark called "Jabroni Jalopies", and earlier checks found no company called Tailgate Labs. That check is not legal clearance. The App Store confirms whether an app name is free when you create the app record.
 43. **The home screen label is "Jalopies"**, as you asked. The App Store name, the sign-in screen and Settings all still say "Jabroni Jalopies". Apple asks that the home screen name be close to the App Store name so people can find the app. "Jalopies" is part of the full name, so it should be fine; if App Review objects, I'll switch it back to the full name.
+
+## Keeping costs down
+
+44. **Each truck (and each saw and rope) carries a small summary**, so the fleet list loads one record per truck. The summary holds open and unsafe defect counts, services waiting for sign-off, the next maintenance due date and odometer, and when the last checklist was done and by whom. A truck's full details load only while its page is open. The Upcoming tab, chain totals and the member list load only while they're on screen. For drivers, the Defects tab loads only trucks that have open defects. **Managers' phones still load every truck's defects, reminders and pending services**, because they need them for alerts and because it lets their phones keep every summary correct. Managers are usually a small share of users.
+45. **Anyone who can see a truck can update its summary.** That's needed so a driver's phone can record a new defect, even offline. A driver could in theory edit the summary by hand, but the defect records themselves are protected. The next time a manager's phone loads that truck, it checks the summary against those records and corrects it.
+46. **Drivers load only their own profile**, plus the full member list while they're on the Members screen. Settings shows the member count only when the list is loaded.
+

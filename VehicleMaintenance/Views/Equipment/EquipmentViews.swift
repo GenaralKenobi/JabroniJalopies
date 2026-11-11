@@ -138,6 +138,8 @@ struct EquipmentDetailView: View {
             }
         }
         .navigationTitle(item.displayName)
+        .onAppear { fleet.watch(equipment: equipmentId) }
+        .onDisappear { fleet.unwatch(equipment: equipmentId) }
         .navigationBarTitleDisplayMode(.inline)
         .syncStatusBanner()
         .toolbar {

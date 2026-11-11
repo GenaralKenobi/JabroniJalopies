@@ -7,6 +7,8 @@ extension FleetModel {
     @discardableResult
     func add(_ item: Equipment) throws -> String {
         let ref = FS.equipmentCollection(fleetId).document()
+        var item = item
+        item.summary = EquipmentSummary(openDefects: 0, unsafeDefects: 0, pendingLengthChanges: 0)
         let batch = FS.db.batch()
         try batch.setData(from: item, forDocument: ref)
         commitInBackground(batch, "Adding \(item.type.displayName.lowercased())")
@@ -61,6 +63,7 @@ extension FleetModel {
         let batch = FS.db.batch()
         try batch.setData(from: change, forDocument: FS.lengthChanges(fleetId, ropeId).document())
         commitInBackground(batch, "Submitting rope length change")
+        adjustSummary(of: .equipment(ropeId), ["pendingLengthChanges": 1])
         bumpRecordCount(1)
     }
 
@@ -77,6 +80,7 @@ extension FleetModel {
             batch.updateData(["lengthFeet": FieldValue.increment(-change.amountFeet)], forDocument: FS.equipment(fleetId, ropeId))
         }
         commitInBackground(batch, approve ? "Approving length change" : "Rejecting length change")
+        if change.status == .pending { adjustSummary(of: .equipment(ropeId), ["pendingLengthChanges": -1]) }
     }
 
     // MARK: Chains

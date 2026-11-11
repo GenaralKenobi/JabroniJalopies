@@ -10,7 +10,8 @@ rules_version = '2';
 //   fleets/{fleetId}/members/{uid}               per-fleet profile (name) + role
 //   fleets/{fleetId}/contacts/{uid}              email + phone (the person and managers only)
 //   fleets/{fleetId}/checklists/{checklistId}    checklist templates
-//   fleets/{fleetId}/vehicles/{vehicleId}        vehicle, specs, assignments, truck lead
+//   fleets/{fleetId}/vehicles/{vehicleId}        vehicle, specs, assignments, truck lead,
+//                                                summary (badge counts), checklist schedule state
 //     .../reminders/{id}                         maintenance schedule
 //     .../services/{id}                          service log (driver entries need sign-off)
 //     .../costs/{serviceId}                      service costs (managers only)
@@ -237,9 +238,12 @@ service cloud.firestore {
 
         allow create, delete: if isManager(fleetId);
 
+        // Anyone who can see the truck may record the odometer, update its summary
+        // (badge counts and last checklist, kept so lists don't load every record) and
+        // its checklist schedule state. Everything else is for managers.
         allow update: if isManager(fleetId)
           || (canSeeVehicle(fleetId, vehicleId)
-            && onlyChanges(['odometer', 'odometerUpdatedAt', 'odometerUpdatedBy'])
+            && onlyChanges(['odometer', 'odometerUpdatedAt', 'odometerUpdatedBy', 'summary', 'checklistState'])
             && request.resource.data.odometer is int);
 
         match /reminders/{reminderId} {
@@ -344,7 +348,10 @@ service cloud.firestore {
           || me(fleetId).seesAllVehicles == true
           || request.auth.uid in vehicleData(fleetId, resource.data.vehicleId).assignedUids
         );
-        allow write: if isManager(fleetId);
+        allow create, delete: if isManager(fleetId);
+        // Anyone who can see it may update its summary (open defect / pending counts).
+        allow update: if isManager(fleetId)
+          || (canSeeEquipment(fleetId, equipmentId) && onlyChanges(['summary']));
 
         match /defects/{defectId} {
           allow read: if canSeeEquipment(fleetId, equipmentId);

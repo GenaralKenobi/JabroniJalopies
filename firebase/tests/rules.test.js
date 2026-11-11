@@ -288,6 +288,18 @@ describe('inspections and defects', () => {
   });
 });
 
+describe('truck summaries', () => {
+  const truck = `fleets/${FLEET}/vehicles/${VEHICLE}`;
+
+  it('lets anyone who can see the truck update its summary and checklist state, nothing else', async () => {
+    await assertSucceeds(updateDoc(doc(db('dan'), truck), { 'summary.openDefects': 2, 'summary.lastChecklistBy': 'Dan' }));
+    await assertSucceeds(updateDoc(doc(db('rita'), truck), { 'checklistState.skips.item1': 1 }));
+    await assertFails(updateDoc(doc(db('dan'), truck), { name: 'Renamed' }));
+    await assertFails(updateDoc(doc(db('rita'), `fleets/${FLEET}/vehicles/${RESTRICTED_VEHICLE}`), { 'summary.openDefects': 0 }));
+    await assertFails(updateDoc(doc(db('olly'), truck), { 'summary.openDefects': 0 }));
+  });
+});
+
 describe('truck contents', () => {
   const contents = (vehicle = VEHICLE) => `fleets/${FLEET}/vehicles/${vehicle}/contents`;
   const makeLead = (uid, vehicle = VEHICLE) => env.withSecurityRulesDisabled((ctx) =>

@@ -11,8 +11,20 @@ extension FleetModel {
     }
 
     /// The person a manager picked to look after this truck's contents list, if they're still in the fleet.
+    /// Only available where the member list is loaded (managers); use `truckLeadName` for display.
     func truckLead(of vehicle: Vehicle?) -> Member? {
         vehicle?.contentsEditorUid.flatMap { member($0) }
+    }
+
+    /// The truck lead's name, from the member list if loaded or else as stored on the truck.
+    func truckLeadName(of vehicle: Vehicle?) -> String? {
+        guard let vehicle, vehicle.contentsEditorUid != nil else { return nil }
+        if membersLoaded { return truckLead(of: vehicle)?.displayName }
+        return vehicle.contentsEditorName
+    }
+
+    func isTruckLead(of vehicle: Vehicle?) -> Bool {
+        vehicle?.contentsEditorUid != nil && vehicle?.contentsEditorUid == uid
     }
 
     /// Managers pick the truck lead. A driver who can't see every vehicle is also
@@ -21,8 +33,14 @@ extension FleetModel {
         var fields: [AnyHashable: Any] = [:]
         if let memberId {
             fields["contentsEditorUid"] = memberId
+            if let name = member(memberId)?.displayName {
+                fields["contentsEditorName"] = name
+            } else {
+                fields["contentsEditorName"] = FieldValue.delete()
+            }
         } else {
             fields["contentsEditorUid"] = FieldValue.delete()
+            fields["contentsEditorName"] = FieldValue.delete()
         }
         if let memberId, let person = member(memberId), person.role != .manager, !person.seesAllVehicles {
             fields["assignedUids"] = FieldValue.arrayUnion([memberId])

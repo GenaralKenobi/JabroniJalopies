@@ -110,10 +110,10 @@ struct TruckContentsView: View {
             } footer: {
                 Text("Managers and the truck lead can change this list. Everyone who can see \(vehicle.displayName) can look at it.")
             }
-        } else if let lead = fleet.truckLead(of: vehicle) {
+        } else if let leadName = fleet.truckLeadName(of: vehicle) {
             Section {
                 LabeledContent {
-                    Text(lead.id == fleet.uid ? "You" : lead.displayName)
+                    Text(fleet.isTruckLead(of: vehicle) ? "You" : leadName)
                 } label: {
                     Label("Truck Lead", systemImage: "person.badge.key")
                 }

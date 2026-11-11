@@ -227,7 +227,11 @@ struct SettingsView: View {
         Section("Fleet") {
             LabeledContent("Fleet", value: fleet.fleet?.name ?? "")
             NavigationLink(value: "members") {
-                LabeledContent("Members", value: "\(fleet.members.count)")
+                if fleet.membersLoaded {
+                    LabeledContent("Members", value: "\(fleet.members.count)")
+                } else {
+                    Text("Members")
+                }
             }
             NavigationLink("Switch or Join Fleet") { FleetPickerView() }
             Button("Leave Fleet", role: .destructive) { confirmingLeave = true }

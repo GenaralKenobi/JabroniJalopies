@@ -11,18 +11,25 @@ final class FleetModel {
     let email: String
 
     private(set) var fleet: Fleet?
-    private(set) var members: [Member] = []
+    /// This person's own profile in the fleet.
+    private(set) var myMember: Member?
+    /// Everyone in the fleet. Managers always load it; others only while a screen that
+    /// needs it (Members) is open.
+    private(set) var allMembers: [Member]?
     private(set) var vehicles: [Vehicle] = []
     private(set) var vehiclesLoaded = false
     private(set) var checklists: [ChecklistTemplate] = []
     private(set) var invites: [Invite] = []
-    /// Keyed by vehicle id.
+    // Per-truck details, keyed by vehicle id. To keep reads (and cost) down, these are
+    // only loaded when needed: for a truck whose page is open, for screens that list
+    // them across the fleet while they're open, on managers' phones, or when the truck's
+    // summary says there's something there (see `wantedFeeds`).
     private(set) var reminders: [String: [Reminder]] = [:]
     private(set) var openDefects: [String: [Defect]] = [:]
     private(set) var pendingServices: [String: [ServiceRecord]] = [:]
     /// Chain sizes and counts, keyed by vehicle id.
     private(set) var chainInventories: [String: ChainInventory] = [:]
-    /// When repeating checklist items were last done, keyed by vehicle id.
+    /// When repeating checklist items were last done, keyed by vehicle id (from each truck's document).
     private(set) var checklistStates: [String: ChecklistState] = [:]
     /// Chainsaws and ropes on visible trucks (managers: all, including unassigned).
     private(set) var equipment: [Equipment] = []
@@ -30,8 +37,6 @@ final class FleetModel {
     private(set) var equipmentDefects: [String: [Defect]] = [:]
     /// Rope length reductions waiting for a manager, keyed by equipment id.
     private(set) var pendingLengthChanges: [String: [LengthChange]] = [:]
-    /// The most recent completed checklist on each truck, keyed by vehicle id.
-    private(set) var lastInspections: [String: Inspection] = [:]
     /// Members' email and phone, keyed by uid. Managers get everyone's; others only their own.
     private(set) var contacts: [String: MemberContact] = [:]
     private var contactsListener: ListenerRegistration?
@@ -42,10 +47,21 @@ final class FleetModel {
     private var vehicleListener: ListenerRegistration?
     private var vehicleQueryKey: String?
     private var inviteListener: ListenerRegistration?
-    private var perVehicle: [String: [ListenerRegistration]] = [:]
+    private var perVehicle: [String: [VehicleFeed: ListenerRegistration]] = [:]
     private var equipmentListeners: [String: ListenerRegistration] = [:]
     private var equipmentByQuery: [String: [Equipment]] = [:]
-    private var perEquipment: [String: [ListenerRegistration]] = [:]
+    private var perEquipment: [String: [EquipmentFeed: ListenerRegistration]] = [:]
+    private var myMemberListener: ListenerRegistration?
+    private var allMembersListener: ListenerRegistration?
+    // What screens currently need (reference counts).
+    @ObservationIgnored private var watchedVehicles: [String: Int] = [:]
+    @ObservationIgnored private var watchedEquipment: [String: Int] = [:]
+    @ObservationIgnored private var allRemindersWatchers = 0
+    @ObservationIgnored private var allChainsWatchers = 0
+    @ObservationIgnored private var memberListWatchers = 0
+
+    enum VehicleFeed: Hashable { case defects, reminders, pendingServices, chains }
+    enum EquipmentFeed: Hashable { case defects, lengthChanges }
     private var stopped = false
     private var verifyingAccess = false
     private var reconnects = 0
@@ -63,7 +79,10 @@ final class FleetModel {
 
     // MARK: Derived state
 
-    var me: Member? { members.first { $0.id == uid } }
+    var me: Member? { myMember }
+    /// Everyone in the fleet if loaded; otherwise just this person.
+    var members: [Member] { allMembers ?? (myMember.map { [$0] } ?? []) }
+    var membersLoaded: Bool { allMembers != nil }
     var isManager: Bool { me?.role == .manager }
     var myName: String { me?.displayName ?? email }
     var person: InspectionPlanner.Person { .init(uid: uid, name: myName) }
@@ -85,12 +104,17 @@ final class FleetModel {
 
     func condition(of vehicleId: String?) -> VehicleCondition {
         guard let vehicleId else { return .ok }
-        return VehicleCondition(openDefects: openDefects[vehicleId] ?? [])
+        if let defects = openDefects[vehicleId] { return VehicleCondition(openDefects: defects) }
+        return VehicleSummaries.condition(vehicle(vehicleId)?.summary)
     }
 
     func reminderStatus(of vehicle: Vehicle) -> DueStatus? {
-        guard let id = vehicle.id, let items = reminders[id], !items.isEmpty else { return nil }
-        return items.map { $0.status(currentOdometer: vehicle.odometer) }.max()
+        guard let id = vehicle.id else { return nil }
+        if let items = reminders[id] {
+            return items.isEmpty ? nil : items.map { $0.status(currentOdometer: vehicle.odometer) }.max()
+        }
+        // Not loaded on this phone: use the truck's summary.
+        return VehicleSummaries.reminderStatus(vehicle.summary, odometer: vehicle.odometer)
     }
 
     func checklists(for vehicleId: String) -> [ChecklistTemplate] {
@@ -205,17 +229,21 @@ final class FleetModel {
             }
         })
 
-        baseListeners.append(firestoreListen(FS.members(fleetId), onError: { [weak self] in self?.handleListenerError($0) }) {
-            [weak self] (items: [Member], snapshot) in
-            guard let self else { return }
-            members = items.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
-            if me == nil && !snapshot.metadata.isFromCache {
-                lostAccess()
-                return
+        // This person's own profile: their role and what they can see.
+        myMemberListener = FS.members(fleetId).document(uid).addSnapshotListener { [weak self] snapshot, error in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if let error { self.handleListenerError(error); return }
+                guard let snapshot else { return }
+                if !snapshot.exists && !snapshot.metadata.isFromCache {
+                    self.lostAccess()
+                    return
+                }
+                self.myMember = try? snapshot.data(as: Member.self)
+                self.configureRoleDependentListeners()
+                self.checkUsageAlert()
             }
-            configureRoleDependentListeners()
-            checkUsageAlert()
-        })
+        }
 
         baseListeners.append(firestoreListen(FS.checklists(fleetId)) { [weak self] (items: [ChecklistTemplate], _) in
             self?.checklists = items.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -231,13 +259,17 @@ final class FleetModel {
     private func removeAllListeners() {
         baseListeners.forEach { $0.remove() }
         baseListeners.removeAll()
+        myMemberListener?.remove()
+        myMemberListener = nil
+        allMembersListener?.remove()
+        allMembersListener = nil
         vehicleListener?.remove()
         inviteListener?.remove()
-        perVehicle.values.flatMap { $0 }.forEach { $0.remove() }
+        perVehicle.values.flatMap(\.values).forEach { $0.remove() }
         perVehicle.removeAll()
         equipmentListeners.values.forEach { $0.remove() }
         equipmentListeners.removeAll()
-        perEquipment.values.flatMap { $0 }.forEach { $0.remove() }
+        perEquipment.values.flatMap(\.values).forEach { $0.remove() }
         perEquipment.removeAll()
         vehicleListener = nil
         vehicleQueryKey = nil
@@ -310,6 +342,9 @@ final class FleetModel {
                 [weak self] (items: [Vehicle], _) in
                 guard let self else { return }
                 vehicles = items
+                var states: [String: ChecklistState] = [:]
+                for vehicle in items { if let id = vehicle.id { states[id] = vehicle.checklistState ?? ChecklistState() } }
+                checklistStates = states
                 vehiclesLoaded = true
                 updatePerVehicleListeners()
                 scheduleAlertsSoon()
@@ -344,6 +379,11 @@ final class FleetModel {
                 }
             }
         }
+
+        updateMemberListListener()
+        // What's loaded per truck depends on the role (managers load more).
+        updatePerVehicleListeners()
+        updatePerEquipmentListeners()
 
         if me.role == .manager, inviteListener == nil {
             let query = FS.invites
@@ -388,78 +428,184 @@ final class FleetModel {
         updatePerEquipmentListeners()
     }
 
-    private func updatePerEquipmentListeners() {
-        let ids = Set(equipment.compactMap(\.id))
-        for removed in Set(perEquipment.keys).subtracting(ids) {
-            perEquipment[removed]?.forEach { $0.remove() }
-            perEquipment[removed] = nil
-            equipmentDefects[removed] = nil
-            pendingLengthChanges[removed] = nil
-        }
-        for item in equipment where !perEquipment.keys.contains(item.id ?? "") {
-            guard let equipmentId = item.id else { continue }
-            var listeners: [ListenerRegistration] = []
-            let defectsQuery = FS.equipmentDefects(fleetId, equipmentId)
-                .whereField("status", in: [DefectStatus.open.rawValue, DefectStatus.reportedFixed.rawValue])
-            listeners.append(firestoreListen(defectsQuery) { [weak self] (items: [Defect], _) in
-                self?.equipmentDefects[equipmentId] = items.sorted { $0.reportedAt > $1.reportedAt }
-            })
-            if item.type == .rope {
-                let pendingQuery = FS.lengthChanges(fleetId, equipmentId)
-                    .whereField("status", isEqualTo: ReviewStatus.pending.rawValue)
-                listeners.append(firestoreListen(pendingQuery) { [weak self] (items: [LengthChange], _) in
-                    self?.pendingLengthChanges[equipmentId] = items.sorted { $0.submittedAt < $1.submittedAt }
-                })
+    // MARK: Loading details only when needed
+
+    /// A screen showing this truck's details is open (call `unwatch` when it closes).
+    func watch(vehicle vehicleId: String) {
+        watchedVehicles[vehicleId, default: 0] += 1
+        updatePerVehicleListeners()
+    }
+
+    func unwatch(vehicle vehicleId: String) {
+        watchedVehicles[vehicleId] = max(0, (watchedVehicles[vehicleId] ?? 0) - 1)
+        updatePerVehicleListeners()
+    }
+
+    func watch(equipment equipmentId: String) {
+        watchedEquipment[equipmentId, default: 0] += 1
+        updatePerEquipmentListeners()
+    }
+
+    func unwatch(equipment equipmentId: String) {
+        watchedEquipment[equipmentId] = max(0, (watchedEquipment[equipmentId] ?? 0) - 1)
+        updatePerEquipmentListeners()
+    }
+
+    /// The Upcoming tab is open: load every visible truck's reminders.
+    func watchAllReminders(_ on: Bool) {
+        allRemindersWatchers = max(0, allRemindersWatchers + (on ? 1 : -1))
+        updatePerVehicleListeners()
+    }
+
+    /// Fleet chain totals are open: load every truck's chain counts.
+    func watchAllChains(_ on: Bool) {
+        allChainsWatchers = max(0, allChainsWatchers + (on ? 1 : -1))
+        updatePerVehicleListeners()
+    }
+
+    /// The Members screen is open: load the whole member list (managers always have it).
+    func watchMemberList(_ on: Bool) {
+        memberListWatchers = max(0, memberListWatchers + (on ? 1 : -1))
+        updateMemberListListener()
+    }
+
+    private func updateMemberListListener() {
+        let wanted = isManager || memberListWatchers > 0
+        if wanted, allMembersListener == nil {
+            allMembersListener = firestoreListen(FS.members(fleetId)) { [weak self] (items: [Member], _) in
+                self?.allMembers = items.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
             }
-            perEquipment[equipmentId] = listeners
+        } else if !wanted, let listener = allMembersListener {
+            listener.remove()
+            allMembersListener = nil
+            allMembers = nil
         }
     }
 
+    /// Which details to load for a truck. Managers load defects, reminders and pending
+    /// services for every truck (their phones also keep the summaries right); drivers
+    /// rely on each truck's summary and load details only when they're needed.
+    private func wantedFeeds(for vehicle: Vehicle) -> Set<VehicleFeed> {
+        guard let id = vehicle.id else { return [] }
+        let watched = (watchedVehicles[id] ?? 0) > 0
+        var feeds: Set<VehicleFeed> = []
+        // A missing summary means "unknown", so load to find out.
+        if watched || isManager || (vehicle.summary?.openDefects ?? 1) != 0 { feeds.insert(.defects) }
+        if watched || isManager || allRemindersWatchers > 0 { feeds.insert(.reminders) }
+        if watched || isManager { feeds.insert(.pendingServices) }
+        if watched || allChainsWatchers > 0 { feeds.insert(.chains) }
+        return feeds
+    }
+
     private func updatePerVehicleListeners() {
-        let ids = Set(vehicles.compactMap(\.id))
-        for removed in Set(perVehicle.keys).subtracting(ids) {
-            perVehicle[removed]?.forEach { $0.remove() }
-            perVehicle[removed] = nil
-            reminders[removed] = nil
-            openDefects[removed] = nil
-            pendingServices[removed] = nil
-            chainInventories[removed] = nil
-            checklistStates[removed] = nil
-            lastInspections[removed] = nil
+        var byId: [String: Vehicle] = [:]
+        for vehicle in vehicles { if let id = vehicle.id { byId[id] = vehicle } }
+        for (vehicleId, feeds) in perVehicle {
+            let wanted = byId[vehicleId].map(wantedFeeds) ?? []
+            for (feed, listener) in feeds where !wanted.contains(feed) {
+                listener.remove()
+                perVehicle[vehicleId]?[feed] = nil
+                clear(feed, vehicleId: vehicleId)
+            }
+            if perVehicle[vehicleId]?.isEmpty == true { perVehicle[vehicleId] = nil }
         }
-        for vehicleId in ids.subtracting(perVehicle.keys) {
-            let remindersListener = firestoreListen(FS.reminders(fleetId, vehicleId)) { [weak self] (items: [Reminder], _) in
+        for (vehicleId, vehicle) in byId {
+            for feed in wantedFeeds(for: vehicle) where perVehicle[vehicleId]?[feed] == nil {
+                perVehicle[vehicleId, default: [:]][feed] = start(feed, vehicleId: vehicleId)
+            }
+        }
+    }
+
+    private func clear(_ feed: VehicleFeed, vehicleId: String) {
+        switch feed {
+        case .defects: openDefects[vehicleId] = nil
+        case .reminders: reminders[vehicleId] = nil
+        case .pendingServices: pendingServices[vehicleId] = nil
+        case .chains: chainInventories[vehicleId] = nil
+        }
+    }
+
+    private func start(_ feed: VehicleFeed, vehicleId: String) -> ListenerRegistration {
+        switch feed {
+        case .defects:
+            let query = FS.defects(fleetId, vehicleId)
+                .whereField("status", in: [DefectStatus.open.rawValue, DefectStatus.reportedFixed.rawValue])
+            return firestoreListen(query, includeMetadataChanges: true) { [weak self] (items: [Defect], snapshot) in
+                guard let self else { return }
+                openDefects[vehicleId] = items.sorted { $0.reportedAt > $1.reportedAt }
+                if snapshot.isServerConfirmed { reconcileDefectSummary(vehicleId: vehicleId, defects: items) }
+            }
+        case .reminders:
+            return firestoreListen(FS.reminders(fleetId, vehicleId), includeMetadataChanges: true) { [weak self] (items: [Reminder], snapshot) in
                 guard let self else { return }
                 reminders[vehicleId] = items.sorted { ($0.nextDueDate ?? .distantFuture) < ($1.nextDueDate ?? .distantFuture) }
                 syncReminderNotifications()
+                if snapshot.isServerConfirmed { reconcileReminderSummary(vehicleId: vehicleId, reminders: items) }
             }
-            let defectsQuery = FS.defects(fleetId, vehicleId)
-                .whereField("status", in: [DefectStatus.open.rawValue, DefectStatus.reportedFixed.rawValue])
-            let defectsListener = firestoreListen(defectsQuery) { [weak self] (items: [Defect], _) in
-                self?.openDefects[vehicleId] = items.sorted { $0.reportedAt > $1.reportedAt }
+        case .pendingServices:
+            let query = FS.services(fleetId, vehicleId).whereField("status", isEqualTo: ServiceStatus.pending.rawValue)
+            return firestoreListen(query, includeMetadataChanges: true) { [weak self] (items: [ServiceRecord], snapshot) in
+                guard let self else { return }
+                pendingServices[vehicleId] = items
+                if snapshot.isServerConfirmed { reconcilePendingSummary(vehicleId: vehicleId, count: items.count) }
             }
-            let pendingQuery = FS.services(fleetId, vehicleId)
-                .whereField("status", isEqualTo: ServiceStatus.pending.rawValue)
-            let pendingListener = firestoreListen(pendingQuery) { [weak self] (items: [ServiceRecord], _) in
-                self?.pendingServices[vehicleId] = items
-            }
-            let chainsListener = FS.chainInventory(fleetId, vehicleId).addSnapshotListener { [weak self] snapshot, _ in
+        case .chains:
+            return FS.chainInventory(fleetId, vehicleId).addSnapshotListener { [weak self] snapshot, _ in
                 MainActor.assumeIsolated {
                     self?.chainInventories[vehicleId] = try? snapshot?.data(as: ChainInventory.self)
                 }
             }
-            let stateListener = FS.checklistState(fleetId, vehicleId).addSnapshotListener { [weak self] snapshot, _ in
-                MainActor.assumeIsolated {
-                    self?.checklistStates[vehicleId] = try? snapshot?.data(as: ChecklistState.self)
-                    self?.scheduleAlertsSoon()
+        }
+    }
+
+    private func wantedFeeds(for item: Equipment) -> Set<EquipmentFeed> {
+        guard let id = item.id else { return [] }
+        let watched = (watchedEquipment[id] ?? 0) > 0
+        var feeds: Set<EquipmentFeed> = []
+        if watched || isManager || (item.summary?.openDefects ?? 1) != 0 { feeds.insert(.defects) }
+        if item.type == .rope, watched || isManager { feeds.insert(.lengthChanges) }
+        return feeds
+    }
+
+    private func updatePerEquipmentListeners() {
+        var byId: [String: Equipment] = [:]
+        for item in equipment { if let id = item.id { byId[id] = item } }
+        for (equipmentId, feeds) in perEquipment {
+            let wanted = byId[equipmentId].map(wantedFeeds) ?? []
+            for (feed, listener) in feeds where !wanted.contains(feed) {
+                listener.remove()
+                perEquipment[equipmentId]?[feed] = nil
+                switch feed {
+                case .defects: equipmentDefects[equipmentId] = nil
+                case .lengthChanges: pendingLengthChanges[equipmentId] = nil
                 }
             }
-            let lastInspectionQuery = FS.inspections(fleetId, vehicleId).order(by: "completedAt", descending: true).limit(to: 1)
-            let lastInspectionListener = firestoreListen(lastInspectionQuery) { [weak self] (items: [Inspection], _) in
-                self?.lastInspections[vehicleId] = items.first
+            if perEquipment[equipmentId]?.isEmpty == true { perEquipment[equipmentId] = nil }
+        }
+        for (equipmentId, item) in byId {
+            for feed in wantedFeeds(for: item) where perEquipment[equipmentId]?[feed] == nil {
+                perEquipment[equipmentId, default: [:]][feed] = start(feed, equipmentId: equipmentId)
             }
-            perVehicle[vehicleId] = [remindersListener, defectsListener, pendingListener, chainsListener, stateListener,
-                                     lastInspectionListener]
+        }
+    }
+
+    private func start(_ feed: EquipmentFeed, equipmentId: String) -> ListenerRegistration {
+        switch feed {
+        case .defects:
+            let query = FS.equipmentDefects(fleetId, equipmentId)
+                .whereField("status", in: [DefectStatus.open.rawValue, DefectStatus.reportedFixed.rawValue])
+            return firestoreListen(query, includeMetadataChanges: true) { [weak self] (items: [Defect], snapshot) in
+                guard let self else { return }
+                equipmentDefects[equipmentId] = items.sorted { $0.reportedAt > $1.reportedAt }
+                if snapshot.isServerConfirmed { reconcileEquipmentDefectSummary(equipmentId: equipmentId, defects: items) }
+            }
+        case .lengthChanges:
+            let query = FS.lengthChanges(fleetId, equipmentId).whereField("status", isEqualTo: ReviewStatus.pending.rawValue)
+            return firestoreListen(query, includeMetadataChanges: true) { [weak self] (items: [LengthChange], snapshot) in
+                guard let self else { return }
+                pendingLengthChanges[equipmentId] = items.sorted { $0.submittedAt < $1.submittedAt }
+                if snapshot.isServerConfirmed { reconcileLengthChangeSummary(equipmentId: equipmentId, count: items.count) }
+            }
         }
     }
 

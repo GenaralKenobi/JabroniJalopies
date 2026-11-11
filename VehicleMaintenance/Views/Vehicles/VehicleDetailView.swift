@@ -59,10 +59,10 @@ struct VehicleDetailView: View {
                     Label("What's on the Truck", systemImage: "shippingbox")
                 }
             } footer: {
-                if let lead = fleet.truckLead(of: vehicle) {
-                    Text(lead.id == fleet.uid
+                if let leadName = fleet.truckLeadName(of: vehicle) {
+                    Text(fleet.isTruckLead(of: vehicle)
                          ? "You're this truck's lead: you can update what's on it."
-                         : "Truck lead: \(lead.displayName)")
+                         : "Truck lead: \(leadName)")
                 }
             }
 
@@ -82,6 +82,8 @@ struct VehicleDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .syncStatusBanner()
         .toolbar { ToolbarItem(placement: .primaryAction) { menu(vehicle) } }
+        .onAppear { fleet.watch(vehicle: vehicleId) }
+        .onDisappear { fleet.unwatch(vehicle: vehicleId) }
         .task {
             if records == nil {
                 records = VehicleRecordsModel(fleetId: fleet.fleetId, vehicleId: vehicleId, includeCosts: fleet.isManager)
@@ -214,11 +216,11 @@ struct VehicleDetailView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                if let last = fleet.lastInspections[vehicleId] {
-                    Label("Last checklist \(Formatting.dayAndTime(last.completedAt)) by \(last.performedByName)",
-                          systemImage: Calendar.current.isDateInToday(last.completedAt) ? "checkmark.circle.fill" : "clock")
+                if let lastAt = vehicle.summary?.lastChecklistAt {
+                    Label("Last checklist \(Formatting.dayAndTime(lastAt))" + (vehicle.summary?.lastChecklistBy.map { " by \($0)" } ?? ""),
+                          systemImage: Calendar.current.isDateInToday(lastAt) ? "checkmark.circle.fill" : "clock")
                         .font(.footnote)
-                        .foregroundStyle(Calendar.current.isDateInToday(last.completedAt) ? Color.green : Color.secondary)
+                        .foregroundStyle(Calendar.current.isDateInToday(lastAt) ? Color.green : Color.secondary)
                 } else {
                     Label("No checklist completed yet", systemImage: "clock")
                         .font(.footnote)
@@ -493,7 +495,7 @@ struct VehicleDetailView: View {
                 let assigned = fleet.members.filter { vehicle.assignedUids.contains($0.id ?? "") }
                 LabeledContent("Assigned Drivers",
                                value: assigned.isEmpty ? "None" : assigned.map(\.displayName).joined(separator: ", "))
-                LabeledContent("Truck Lead", value: fleet.truckLead(of: vehicle)?.displayName ?? "None")
+                LabeledContent("Truck Lead", value: fleet.truckLeadName(of: vehicle) ?? "None")
             }
         }
     }

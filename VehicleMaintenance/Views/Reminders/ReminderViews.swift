@@ -229,6 +229,8 @@ struct UpcomingView: View {
                 }
             }
             .navigationTitle("Upcoming")
+            .onAppear { fleet.watchAllReminders(true) }
+            .onDisappear { fleet.watchAllReminders(false) }
             .navigationDestination(for: String.self) { VehicleDetailView(vehicleId: $0) }
             .sheet(item: $planning) { entry in
                 PlanChecklistView(entry: entry, vehicleName: fleet.vehicle(entry.vehicleId)?.displayName ?? "")

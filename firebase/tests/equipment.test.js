@@ -60,6 +60,12 @@ describe('equipment visibility and management', () => {
     await assertFails(setDoc(doc(db('dan'), `${F}/equipment/saw9`), { type: 'chainsaw', vehicleId: 'truck1' }));
     await assertSucceeds(updateDoc(doc(db('mia'), `${F}/equipment/saw1`), { vehicleId: 'truck2' }));
   });
+
+  it('lets anyone who can see equipment update its summary counts only', async () => {
+    await assertSucceeds(updateDoc(doc(db('rita'), `${F}/equipment/saw1`), { 'summary.openDefects': 1 }));
+    await assertFails(updateDoc(doc(db('rita'), `${F}/equipment/saw2`), { 'summary.openDefects': 1 }));
+    await assertFails(updateDoc(doc(db('rita'), `${F}/equipment/saw1`), { 'summary.openDefects': 1, name: 'x' }));
+  });
 });
 
 describe('equipment defects', () => {

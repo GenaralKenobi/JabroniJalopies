@@ -55,6 +55,9 @@ extension FleetModel {
     @discardableResult
     func add(_ vehicle: Vehicle) throws -> String {
         let ref = FS.vehicles(fleetId).document()
+        var vehicle = vehicle
+        // A new truck has nothing open, so phones don't need to load anything to check.
+        vehicle.summary = VehicleSummary(openDefects: 0, unsafeDefects: 0, pendingServices: 0, hasReminders: false)
         let batch = FS.db.batch()
         try batch.setData(from: vehicle, forDocument: ref)
         commitInBackground(batch, "Adding vehicle")
@@ -162,7 +165,10 @@ extension FleetModel {
         for vehicle in vehicles where vehicle.assignedUids.contains(memberId) || vehicle.contentsEditorUid == memberId {
             guard let vehicleId = vehicle.id else { continue }
             var fields: [AnyHashable: Any] = ["assignedUids": FieldValue.arrayRemove([memberId])]
-            if vehicle.contentsEditorUid == memberId { fields["contentsEditorUid"] = FieldValue.delete() }
+            if vehicle.contentsEditorUid == memberId {
+                fields["contentsEditorUid"] = FieldValue.delete()
+                fields["contentsEditorName"] = FieldValue.delete()
+            }
             batch.updateData(fields, forDocument: FS.vehicle(fleetId, vehicleId))
         }
         commitInBackground(batch, "Removing member")
@@ -248,6 +254,7 @@ extension FleetModel {
         commitInBackground(batch, "Saving service record")
         if isNew {
             bumpRecordCount(1)
+            if record.status == .pending { adjustSummary(of: .vehicle(vehicleId), ["pendingServices": 1]) }
         }
     }
 
@@ -268,6 +275,7 @@ extension FleetModel {
         }
         applyApprovedService(approved, vehicle: vehicle, in: batch)
         commitInBackground(batch, "Approving service")
+        if record.status == .pending { adjustSummary(of: .vehicle(vehicleId), ["pendingServices": -1]) }
     }
 
     func reject(_ record: ServiceRecord, vehicleId: String, note: String) {
@@ -281,6 +289,7 @@ extension FleetModel {
             "reviewNote": note.trimmed,
         ], forDocument: FS.services(fleetId, vehicleId).document(id))
         commitInBackground(batch, "Rejecting service")
+        if record.status == .pending { adjustSummary(of: .vehicle(vehicleId), ["pendingServices": -1]) }
     }
 
     func delete(_ record: ServiceRecord, vehicleId: String) {
@@ -291,6 +300,7 @@ extension FleetModel {
             batch.deleteDocument(FS.costs(fleetId, vehicleId).document(id))
         }
         commitInBackground(batch, "Deleting service record")
+        if record.status == .pending { adjustSummary(of: .vehicle(vehicleId), ["pendingServices": -1]) }
     }
 
     /// An approved service resets matching reminders and advances the odometer.
@@ -379,27 +389,33 @@ extension FleetModel {
             }
         }
 
-        // 3. Schedule state. Repeating items count as done whether they passed or failed
-        //    (a failure becomes a defect); skipped ones add to their skip count; a scheduled
-        //    checklist records when it was done on this truck.
-        var state: [String: Any] = [:]
-        if !repeatingItemIds.isEmpty {
-            var lastDone: [String: Date] = [:]
-            repeatingItemIds.forEach { lastDone[$0] = plan.inspection.completedAt }
-            state["lastDone"] = lastDone
+        // 3. The truck's own document: when this checklist was done (for the fleet list),
+        //    new defects in its summary, and schedule state. Repeating items count as done
+        //    whether they passed or failed (a failure becomes a defect); skipped ones add to
+        //    their skip count; a scheduled checklist records when it was done on this truck.
+        let completedAt = plan.inspection.completedAt
+        var fields: [AnyHashable: Any] = [
+            FieldPath(["summary", "lastChecklistAt"]): completedAt,
+            FieldPath(["summary", "lastChecklistBy"]): plan.inspection.performedByName,
+        ]
+        if !plan.newDefects.isEmpty {
+            fields[FieldPath(["summary", "openDefects"])] = FieldValue.increment(Int64(plan.newDefects.count))
+            let unsafe = plan.newDefects.filter(\.defect.unsafe).count
+            if unsafe > 0 { fields[FieldPath(["summary", "unsafeDefects"])] = FieldValue.increment(Int64(unsafe)) }
         }
-        var skips: [String: Any] = [:]
-        repeatingItemIds.forEach { skips[$0] = 0 }
-        skippedItemIds.forEach { skips[$0] = FieldValue.increment(Int64(1)) }
-        if !skips.isEmpty { state["skips"] = skips }
+        for itemId in repeatingItemIds {
+            fields[FieldPath(["checklistState", "lastDone", itemId])] = completedAt
+            fields[FieldPath(["checklistState", "skips", itemId])] = 0
+        }
+        for itemId in skippedItemIds {
+            fields[FieldPath(["checklistState", "skips", itemId])] = FieldValue.increment(Int64(1))
+        }
         if let scheduledChecklistId {
-            state["checklistLastDone"] = [scheduledChecklistId: plan.inspection.completedAt]
+            fields[FieldPath(["checklistState", "checklistLastDone", scheduledChecklistId])] = completedAt
         }
-        if !state.isEmpty {
-            let batch = FS.db.batch()
-            batch.setData(state, forDocument: FS.checklistState(fleetId, vehicleId), merge: true)
-            commitInBackground(batch, "Saving checklist schedule")
-        }
+        let truck = FS.db.batch()
+        truck.updateData(fields, forDocument: FS.vehicle(fleetId, vehicleId))
+        commitInBackground(truck, "Saving checklist schedule")
 
         // 4. Odometer.
         if let odometer, odometer > vehicle.odometer {
@@ -444,6 +460,7 @@ extension FleetModel {
         let batch = FS.db.batch()
         try batch.setData(from: defect, forDocument: ref)
         commitInBackground(batch, "Reporting problem")
+        adjustSummary(of: owner, ["openDefects": 1, "unsafeDefects": unsafe ? 1 : 0])
         bumpRecordCount(1)
         for (photoId, data) in photos {
             PhotoUploadQueue.shared.enqueue(data: data, photoId: photoId, fleetId: fleetId,
@@ -490,6 +507,9 @@ extension FleetModel {
             "history": FieldValue.arrayUnion([try FS.encode(event)]),
         ], forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Closing defect")
+        if defect.isOpen {
+            adjustSummary(of: owner, ["openDefects": -1, "unsafeDefects": defect.unsafe ? -1 : 0])
+        }
     }
 
     func reopen(_ defect: Defect, owner: DefectOwner, note: String) throws {
@@ -507,6 +527,9 @@ extension FleetModel {
             "history": FieldValue.arrayUnion([try FS.encode(event)]),
         ], forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Reopening defect")
+        if !defect.isOpen {
+            adjustSummary(of: owner, ["openDefects": 1, "unsafeDefects": defect.unsafe ? 1 : 0])
+        }
     }
 
     /// Managers can mark an equipment defect "do not use" (or clear it) after it's reported.
@@ -516,6 +539,9 @@ extension FleetModel {
         batch.updateData(["unsafe": unsafe, "updatedAt": Date.now],
                          forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Updating defect")
+        if defect.isOpen, defect.unsafe != unsafe {
+            adjustSummary(of: owner, ["unsafeDefects": unsafe ? 1 : -1])
+        }
     }
 
     func addPhotos(_ photos: [String: Data], to defect: Defect, owner: DefectOwner) throws {

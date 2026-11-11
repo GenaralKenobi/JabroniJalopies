@@ -40,6 +40,8 @@ struct Equipment: Codable, Identifiable, Hashable {
     var name: String
     /// The truck it's currently on.
     var vehicleId: String
+    /// Open defects and rope reductions waiting for a manager, so lists can skip loading them.
+    var summary: EquipmentSummary?
     var make: String
     var model: String
     var serialNumber: String
@@ -259,4 +261,10 @@ enum DefectOwner: Hashable {
             "fleets/\(fleetId)/equipment/\(id)/defects/\(defectId)/\(photoId).jpg"
         }
     }
+}
+
+struct EquipmentSummary: Codable, Hashable {
+    var openDefects: Int?
+    var unsafeDefects: Int?
+    var pendingLengthChanges: Int?
 }

@@ -486,3 +486,54 @@ struct ScheduledChecklistTests {
         #expect(ScheduledChecklists.scheduleLabel(.every(14)) == "Every 14 days")
     }
 }
+
+struct VehicleSummaryTests {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    private func reminder(lastDaysAgo: Double, months: Int?, lastOdometer: Int, distance: Int?) -> Reminder {
+        Reminder(serviceType: .oilChange, title: "", intervalDistance: distance, intervalMonths: months,
+                 lastServiceDate: now.addingTimeInterval(-lastDaysAgo * 86_400), lastServiceOdometer: lastOdometer,
+                 notificationsEnabled: true)
+    }
+
+    @Test func summaryGivesTheSameBadgeAsCheckingEveryReminder() {
+        let reminders = [
+            reminder(lastDaysAgo: 170, months: 6, lastOdometer: 10_000, distance: 50_000),  // date due soon
+            reminder(lastDaysAgo: 10, months: 12, lastOdometer: 50_000, distance: 5_000),   // odometer overdue
+        ]
+        let odometer = 55_200
+        let expected = reminders.map { $0.status(currentOdometer: odometer, now: now) }.max()
+        var summary = VehicleSummary()
+        for (key, value) in VehicleSummaries.reminderChanges(reminders, current: nil) {
+            switch key {
+            case "summary.nextDueDate": summary.nextDueDate = value as? Date
+            case "summary.nextDueOdometer": summary.nextDueOdometer = value as? Int
+            case "summary.hasReminders": summary.hasReminders = value as? Bool
+            default: break
+            }
+        }
+        #expect(VehicleSummaries.reminderStatus(summary, odometer: odometer, now: now) == expected)
+        #expect(expected == .overdue)
+    }
+
+    @Test func noRemindersMeansNoBadge() {
+        #expect(VehicleSummaries.reminderStatus(nil, odometer: 0) == nil)
+        #expect(VehicleSummaries.reminderStatus(VehicleSummary(hasReminders: false), odometer: 0) == nil)
+    }
+
+    @Test func conditionFromSummary() {
+        #expect(VehicleSummaries.condition(nil) == .ok)
+        #expect(VehicleSummaries.condition(VehicleSummary(openDefects: 2, unsafeDefects: 0)) == .needsAttention)
+        #expect(VehicleSummaries.condition(VehicleSummary(openDefects: 2, unsafeDefects: 1)) == .outOfService)
+    }
+
+    @Test func onlyDriftedValuesAreRewritten() {
+        let defects = [openDefect(item: horn), openDefect(item: lights, unsafe: true)]
+        #expect(VehicleSummaries.defectChanges(defects, openDefects: 2, unsafeDefects: 1).isEmpty)
+        let fixed = VehicleSummaries.defectChanges(defects, openDefects: 0, unsafeDefects: 1)
+        #expect(fixed.count == 1)
+        #expect(fixed["summary.openDefects"] as? Int == 2)
+        let unchanged = VehicleSummaries.reminderChanges([], current: VehicleSummary(hasReminders: false))
+        #expect(unchanged.isEmpty)
+    }
+}
