@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct ServiceRecordRow: View {
-    var unit: DistanceUnit = DistanceUnit.current
     let record: ServiceRecord
     let cost: Double?
     var showsReviewHint = false
+    var unit: DistanceUnit = DistanceUnit.current
 
     var body: some View {
         HStack(spacing: 12) {
