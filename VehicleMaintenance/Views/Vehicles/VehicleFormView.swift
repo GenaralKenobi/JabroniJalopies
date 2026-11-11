@@ -4,7 +4,7 @@ import SwiftUI
 struct VehicleFormView: View {
     @Environment(FleetModel.self) private var fleet
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+    private var unit: DistanceUnit { DistanceUnit.resolved(draft.readingUnit) }
 
     /// `nil` when adding a new vehicle.
     let original: Vehicle?
@@ -61,9 +61,15 @@ struct VehicleFormView: View {
 
                 Section("Details") {
                     HStack {
-                        TextField("Current odometer", text: $odometerText)
+                        TextField("Current \(unit.readingName.lowercased())", text: $odometerText)
                             .keyboardType(.numberPad)
                         Text(unit.abbreviation).foregroundStyle(Color.secondary)
+                    }
+                    Picker("Reading", selection: Binding(
+                        get: { DistanceUnit.resolved(draft.readingUnit) },
+                        set: { draft.readingUnit = $0.rawValue }
+                    )) {
+                        ForEach(DistanceUnit.allCases) { Text($0.displayName).tag($0) }
                     }
                     TextField("License plate", text: $draft.licensePlate)
                         .textInputAutocapitalization(.characters)

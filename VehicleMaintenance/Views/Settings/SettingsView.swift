@@ -137,7 +137,7 @@ struct SettingsView: View {
                         fleet.setDistanceUnit(newUnit)
                     }
                 )) {
-                    ForEach(DistanceUnit.allCases) { Text($0.displayName).tag($0) }
+                    ForEach(DistanceUnit.fleetOptions) { Text($0.displayName).tag($0) }
                 }
                 Toggle("Checklist Reminder", isOn: Binding(
                     get: { fleet.fleet?.checklistReminderTime != nil },
@@ -172,7 +172,7 @@ struct SettingsView: View {
             Text("Fleet Settings")
         } footer: {
             Text(fleet.isManager
-                 ? "These apply to everyone in the fleet. Changing units doesn't convert readings already entered. The reminder is a notification on each member's phone at that time on the selected days."
+                 ? "These apply to everyone in the fleet. Machines that run on hours are set per vehicle (Edit Vehicle → Reading). Changing units doesn't convert readings already entered. The reminder is a notification on each member's phone at that time on the selected days."
                  : "Set by your fleet's managers.")
         }
     }

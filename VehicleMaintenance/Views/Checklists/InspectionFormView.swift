@@ -10,7 +10,7 @@ struct InspectionFormView: View {
     @Environment(FleetModel.self) private var fleet
     @Environment(ConnectivityMonitor.self) private var connectivity
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+    private var unit: DistanceUnit { vehicle.unit }
 
     @State private var answers: [String: ItemAnswer] = [:]
     @State private var photos: [String: Data] = [:]
@@ -95,7 +95,7 @@ struct InspectionFormView: View {
                 Section {
                     LabeledContent("Vehicle", value: vehicle.displayName)
                     HStack {
-                        Text("Odometer")
+                        Text(unit.readingName)
                         TextField("Reading", text: $odometerText)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
@@ -103,8 +103,8 @@ struct InspectionFormView: View {
                     }
                 } footer: {
                     VStack(alignment: .leading, spacing: 6) {
-                        if let entry = scheduledEntry, let schedule = checklist.schedule {
-                            Label("\(ScheduledChecklists.scheduleLabel(schedule)) checklist · \(ScheduledChecklists.statusText(entry))",
+                        if let entry = scheduledEntry, let label = ScheduledChecklists.label(for: checklist, unit: vehicle.unit) {
+                            Label("\(label) checklist · \(ScheduledChecklists.statusText(entry))",
                                   systemImage: entry.status == .overdue ? "exclamationmark.triangle.fill" : "calendar")
                                 .foregroundStyle(entry.status == .overdue ? Color.orange : Color.secondary)
                         }

@@ -81,6 +81,11 @@ extension FleetModel {
         } else {
             fields["photo"] = FieldValue.delete()
         }
+        if let readingUnit = edited.readingUnit {
+            fields["readingUnit"] = readingUnit
+        } else {
+            fields["readingUnit"] = FieldValue.delete()
+        }
         if edited.odometer != original.odometer {
             fields["odometer"] = edited.odometer
             fields["odometerUpdatedAt"] = FieldValue.serverTimestamp()
@@ -412,6 +417,8 @@ extension FleetModel {
         }
         if let scheduledChecklistId {
             fields[FieldPath(["checklistState", "checklistLastDone", scheduledChecklistId])] = completedAt
+            // For hour / mile based checklists: the reading it was done at.
+            fields[FieldPath(["checklistState", "checklistLastReading", scheduledChecklistId])] = max(odometer ?? 0, vehicle.odometer)
         }
         let truck = FS.db.batch()
         truck.updateData(fields, forDocument: FS.vehicle(fleetId, vehicleId))

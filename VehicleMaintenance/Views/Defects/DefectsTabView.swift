@@ -58,7 +58,7 @@ struct DefectsTabView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(entry.vehicle.displayName).font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
-                                    ServiceRecordRow(record: entry.record, cost: nil, showsReviewHint: fleet.isManager)
+                                    ServiceRecordRow(record: entry.record, cost: nil, showsReviewHint: fleet.isManager, unit: entry.vehicle.unit)
                                 }
                             }
                             .disabled(!fleet.isManager)

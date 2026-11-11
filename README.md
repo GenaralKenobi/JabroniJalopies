@@ -33,6 +33,8 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
   - It's due on each truck one month (or N days) after it was last done there; trucks that haven't done it yet use the checklist's first due date.
   - **Managers are alerted two weeks before** it's due on a truck and can **plan a day** for it (Upcoming tab or the truck page), and add that day to their phone's calendar.
   - If it isn't done by the due date, everyone sees it marked **Overdue** on the fleet list and the truck page, so drivers know it needs doing.
+  - A checklist can instead be due **every N hours or miles** (for example a 250-hour service). Managers are alerted when the vehicle gets within a tenth of the interval, and it's marked Overdue once the reading passes it.
+- **Hours:** a vehicle's reading can be miles, kilometres or **hours** (set per vehicle under Edit Vehicle → Reading), for machines that run on hours.
   - When an item isn't due, it moves to a "Not due yet" section and can be done early.
   - The truck page shows how many repeating items are due.
 - If an item already has an open defect, the driver chooses **Still a problem** or **Looks fixed** (with a required note) instead of plain pass/fail. A later "pass" never erases an earlier problem.

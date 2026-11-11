@@ -14,8 +14,11 @@ struct ChecklistTemplate: Codable, Identifiable, Hashable {
     var schedule: ItemFrequency? = nil
     /// When a scheduled checklist is first due on trucks that haven't done it yet.
     var firstDue: Date? = nil
+    /// Set for a checklist due every N hours (or miles / km, in each vehicle's own unit) of
+    /// the vehicle's reading, e.g. a 250-hour service. Used instead of `schedule`.
+    var readingInterval: Int? = nil
 
-    var isScheduled: Bool { schedule != nil }
+    var isScheduled: Bool { schedule != nil || readingInterval != nil }
 
     func applies(to vehicleId: String) -> Bool {
         vehicleIds.isEmpty || vehicleIds.contains(vehicleId)
@@ -70,12 +73,16 @@ struct ChecklistState: Codable, Hashable {
     var lastDone: [String: Date]
     /// When each scheduled checklist (by checklist id) was last done on this truck.
     var checklistLastDone: [String: Date]
+    /// The vehicle's reading when each scheduled checklist was last done (for hour / mile based ones).
+    var checklistLastReading: [String: Int]
     /// How many checklists in a row skipped each due repeating item (by item id). Reset when it's done.
     var skips: [String: Int]
 
-    init(lastDone: [String: Date] = [:], checklistLastDone: [String: Date] = [:], skips: [String: Int] = [:]) {
+    init(lastDone: [String: Date] = [:], checklistLastDone: [String: Date] = [:],
+         checklistLastReading: [String: Int] = [:], skips: [String: Int] = [:]) {
         self.lastDone = lastDone
         self.checklistLastDone = checklistLastDone
+        self.checklistLastReading = checklistLastReading
         self.skips = skips
     }
 
@@ -83,6 +90,7 @@ struct ChecklistState: Codable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         lastDone = try container.decodeIfPresent([String: Date].self, forKey: .lastDone) ?? [:]
         checklistLastDone = try container.decodeIfPresent([String: Date].self, forKey: .checklistLastDone) ?? [:]
+        checklistLastReading = try container.decodeIfPresent([String: Int].self, forKey: .checklistLastReading) ?? [:]
         skips = try container.decodeIfPresent([String: Int].self, forKey: .skips) ?? [:]
     }
 }

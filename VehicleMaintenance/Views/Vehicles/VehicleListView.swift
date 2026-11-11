@@ -107,7 +107,7 @@ struct VehicleListView: View {
 
 struct VehicleRow: View {
     @Environment(FleetModel.self) private var fleet
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+    private var unit: DistanceUnit { vehicle.unit }
     let vehicle: Vehicle
 
     var body: some View {

@@ -9,12 +9,12 @@ extension FleetModel {
         guard let vehicle = vehicle(vehicleId) else { return [] }
         return checklists(for: vehicleId)
             .compactMap { ScheduledChecklists.entry(for: $0, vehicle: vehicle, state: checklistStates[vehicleId], now: now) }
-            .sorted { $0.due < $1.due }
+            .sorted { $0.sortDate < $1.sortDate }
     }
 
     /// Every truck's scheduled checklists, soonest due first.
     func allScheduledChecklists(now: Date = .now) -> [ScheduledDue] {
-        sortedVehicles.flatMap { scheduledChecklists(on: $0.id ?? "", now: now) }.sorted { $0.due < $1.due }
+        sortedVehicles.flatMap { scheduledChecklists(on: $0.id ?? "", now: now) }.sorted { $0.sortDate < $1.sortDate }
     }
 
     /// Due repeating items that were skipped on the last few checklists in a row.
@@ -34,7 +34,8 @@ extension FleetModel {
         let field = "checklistPlans.\(entry.checklistId)"
         let value: Any
         if let date {
-            value = try FS.encode(ChecklistPlan(date: Calendar.current.startOfDay(for: date), forDue: entry.due, byName: myName))
+            value = try FS.encode(ChecklistPlan(date: Calendar.current.startOfDay(for: date), forDue: entry.due,
+                                                forReading: entry.dueReading, byName: myName))
         } else {
             value = FieldValue.delete()
         }
@@ -65,13 +66,28 @@ extension FleetModel {
         var alerts: [ScheduleAlerts.Alert] = []
         for entry in allScheduledChecklists() where entry.plannedFor == nil {
             let vehicleName = vehicle(entry.vehicleId)?.displayName ?? "A truck"
-            let due = entry.due.formatted(date: .abbreviated, time: .omitted)
+            let due = ScheduledChecklists.dueDescription(entry)
+            if let dueReading = entry.dueReading {
+                // Reading-based: alert as soon as the vehicle is within a tenth of the interval of it.
+                guard entry.status != .later else { continue }
+                let togo = Formatting.distance(max(0, dueReading - entry.currentReading), unit: entry.unit)
+                alerts.append(.init(
+                    id: entry.id,
+                    title: entry.status == .overdue ? "\(entry.checklist.name) overdue" : "\(entry.checklist.name) due at \(due)",
+                    body: entry.status == .overdue
+                        ? "\(vehicleName) passed \(due) (now \(Formatting.distance(entry.currentReading, unit: entry.unit))). Plan a day for \(entry.checklist.name)."
+                        : "\(vehicleName) is \(togo) from \(entry.checklist.name). Plan a day for it in the Upcoming tab.",
+                    fireAt: nil,
+                    onceKey: "due-\(entry.id)-r\(dueReading)"))
+                continue
+            }
+            guard let dueDate = entry.due else { continue }
             alerts.append(.init(
                 id: entry.id,
                 title: entry.status == .overdue ? "\(entry.checklist.name) overdue" : "\(entry.checklist.name) due \(due)",
                 body: "\(vehicleName) is due for \(entry.checklist.name) on \(due). Plan a day for it in the Upcoming tab.",
-                fireAt: ScheduledChecklists.alertDate(due: entry.due),
-                onceKey: "due-\(entry.id)-\(Int(entry.due.timeIntervalSince1970))"))
+                fireAt: ScheduledChecklists.alertDate(due: dueDate),
+                onceKey: "due-\(entry.id)-\(Int(dueDate.timeIntervalSince1970))"))
         }
         for vehicle in sortedVehicles {
             guard let vehicleId = vehicle.id else { continue }

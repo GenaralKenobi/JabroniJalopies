@@ -102,6 +102,9 @@ final class FleetModel {
 
     func member(_ uid: String) -> Member? { members.first { $0.id == uid } }
 
+    /// The unit a vehicle's reading is in: its own (e.g. hours) or the fleet's.
+    func unit(of vehicle: Vehicle?) -> DistanceUnit { DistanceUnit.resolved(vehicle?.readingUnit) }
+
     func condition(of vehicleId: String?) -> VehicleCondition {
         guard let vehicleId else { return .ok }
         if let defects = openDefects[vehicleId] { return VehicleCondition(openDefects: defects) }

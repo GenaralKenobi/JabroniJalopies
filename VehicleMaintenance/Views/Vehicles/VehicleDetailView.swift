@@ -4,7 +4,7 @@ struct VehicleDetailView: View {
     let vehicleId: String
 
     @Environment(FleetModel.self) private var fleet
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+    private var unit: DistanceUnit { fleet.unit(of: fleet.vehicle(vehicleId)) }
 
     @State private var records: VehicleRecordsModel?
     @State private var showingEdit = false
@@ -123,7 +123,7 @@ struct VehicleDetailView: View {
         } message: {
             Text("Open safety defects: \(openDefects.filter(\.unsafe).map(\.title).joined(separator: ", ")).\n\nDo not drive it until a manager clears these.")
         }
-        .alert("Update Odometer", isPresented: $showingOdometerPrompt) {
+        .alert("Update \(unit.readingName)", isPresented: $showingOdometerPrompt) {
             TextField("Odometer", text: $odometerText).keyboardType(.numberPad)
             Button("Save") {
                 if let value = NumberParsing.int(odometerText) { fleet.updateOdometer(of: vehicle, to: value) }
@@ -236,7 +236,7 @@ struct VehicleDetailView: View {
                 LabeledContent {
                     Text(Formatting.distance(vehicle.odometer, unit: unit))
                 } label: {
-                    Label("Update Odometer", systemImage: "speedometer")
+                    Label("Update \(unit.readingName)", systemImage: unit == .hours ? "clock" : "speedometer")
                 }
             }
         }
@@ -443,7 +443,7 @@ struct VehicleDetailView: View {
                         editingService = record
                     }
                 } label: {
-                    ServiceRecordRow(record: record, cost: nil, showsReviewHint: fleet.isManager)
+                    ServiceRecordRow(record: record, cost: nil, showsReviewHint: fleet.isManager, unit: vehicle.unit)
                 }
             }
             if let records {
@@ -451,7 +451,7 @@ struct VehicleDetailView: View {
                     Button {
                         if fleet.isManager { editingService = record }
                     } label: {
-                        ServiceRecordRow(record: record, cost: fleet.isManager ? records.cost(of: record) : nil)
+                        ServiceRecordRow(record: record, cost: fleet.isManager ? records.cost(of: record) : nil, unit: vehicle.unit)
                     }
                     .disabled(!fleet.isManager)
                 }
@@ -504,7 +504,7 @@ struct VehicleDetailView: View {
         Menu {
             Button { showingLogService = true } label: { Label("Log Service", systemImage: "wrench.and.screwdriver") }
             Button { showingReportProblem = true } label: { Label("Report a Problem", systemImage: "exclamationmark.bubble") }
-            Button(action: promptForOdometer) { Label("Update Odometer", systemImage: "speedometer") }
+            Button(action: promptForOdometer) { Label("Update \(unit.readingName)", systemImage: unit == .hours ? "clock" : "speedometer") }
             if let records, !records.services.isEmpty {
                 ShareLink(item: ServiceHistoryExport(records: records.services, costs: records.costs,
                                                      includeCosts: fleet.isManager, unit: unit),

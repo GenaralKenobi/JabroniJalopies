@@ -12,6 +12,8 @@ struct Vehicle: Codable, Identifiable, Hashable {
     var vin: String
     var licensePlate: String
     var odometer: Int
+    /// "mi", "km" or "hr" for this vehicle; nil uses the fleet's unit.
+    var readingUnit: String?
     var odometerUpdatedAt: Date?
     var odometerUpdatedBy: String?
     /// Drivers who can see this vehicle even when they can't see the whole fleet.
@@ -40,6 +42,8 @@ struct Vehicle: Codable, Identifiable, Hashable {
 }
 
 extension Vehicle {
+    var unit: DistanceUnit { DistanceUnit.resolved(readingUnit) }
+
     /// "2019 Toyota Camry"
     var yearMakeModel: String {
         [year > 0 ? String(year) : "", make, model]
@@ -93,7 +97,9 @@ struct ChecklistPlan: Codable, Hashable {
     var date: Date
     /// The due date this plan was made for. Once the checklist is done the due date
     /// moves on, and the old plan no longer applies.
-    var forDue: Date
+    var forDue: Date? = nil
+    /// For reading-based checklists: the due reading this plan was made for.
+    var forReading: Int? = nil
     var byName: String?
 }
 

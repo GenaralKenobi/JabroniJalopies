@@ -30,7 +30,7 @@ struct OverdueBanner: View {
             Label("Overdue on This Truck", systemImage: "calendar.badge.exclamationmark")
                 .font(.headline)
             ForEach(scheduled) { entry in
-                Text("• \(entry.checklist.name), due \(ScheduledChecklists.shortDate(entry.due))")
+                Text("• \(entry.checklist.name), due \(entry.dueReading == nil ? "" : "at ")\(ScheduledChecklists.dueDescription(entry))")
             }
             ForEach(items) { item in
                 Text("• \(item.title), skipped on \(ScheduledChecklists.skipLimit)+ checklists in a row")
@@ -62,7 +62,8 @@ struct PlanChecklistView: View {
         self.entry = entry
         self.vehicleName = vehicleName
         let start = Calendar.current.startOfDay(for: .now)
-        _date = State(initialValue: entry.plannedFor ?? max(start, min(entry.due, Calendar.current.date(byAdding: .day, value: 7, to: start) ?? start)))
+        let weekAway = Calendar.current.date(byAdding: .day, value: 7, to: start) ?? start
+        _date = State(initialValue: entry.plannedFor ?? max(start, min(entry.due ?? weekAway, weekAway)))
     }
 
     var body: some View {
@@ -70,12 +71,18 @@ struct PlanChecklistView: View {
             Form {
                 Section {
                     LabeledContent("Truck", value: vehicleName)
-                    LabeledContent("Due", value: ScheduledChecklists.shortDate(entry.due))
+                    LabeledContent("Due", value: entry.dueReading == nil
+                                   ? ScheduledChecklists.dueDescription(entry)
+                                   : "At \(ScheduledChecklists.dueDescription(entry)) (now \(Formatting.distance(entry.currentReading, unit: entry.unit)))")
                     DatePicker("Planned for", selection: $date, in: Calendar.current.startOfDay(for: .now)..., displayedComponents: .date)
                 } footer: {
-                    Text(date > entry.due
-                         ? "That's after the due date, so drivers will see it marked Overdue from \(entry.due.formatted(date: .abbreviated, time: .omitted))."
-                         : "Drivers see it marked Overdue only if it isn't done by the due date.")
+                    if let due = entry.due {
+                        Text(date > due
+                             ? "That's after the due date, so drivers will see it marked Overdue from \(ScheduledChecklists.shortDate(due))."
+                             : "Drivers see it marked Overdue only if it isn't done by the due date.")
+                    } else {
+                        Text("It's due by the vehicle's reading, not the date. Drivers see it marked Overdue once the reading passes \(ScheduledChecklists.dueDescription(entry)), even if you planned a later day.")
+                    }
                 }
                 Section {
                     Toggle(isOn: $addToCalendar) {
@@ -104,7 +111,7 @@ struct PlanChecklistView: View {
             CalendarEventEditor(
                 title: "\(entry.checklist.name) — \(vehicleName)",
                 date: date,
-                notes: "Scheduled checklist for \(vehicleName), due \(entry.due.formatted(date: .abbreviated, time: .omitted)). Planned in Jabroni Jalopies."
+                notes: "Scheduled checklist for \(vehicleName), due \(entry.dueReading == nil ? "" : "at ")\(ScheduledChecklists.dueDescription(entry)). Planned in Jabroni Jalopies."
             ) { _ in
                 showingCalendar = false
                 dismiss()
@@ -137,7 +144,7 @@ struct ScheduledChecklistRow: View {
             if let vehicleName {
                 Text(vehicleName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary)
             }
-            Text(entry.checklist.name + (entry.checklist.schedule.map { " · " + ScheduledChecklists.scheduleLabel($0) } ?? ""))
+            Text(entry.checklist.name + (ScheduledChecklists.label(for: entry.checklist, unit: entry.dueReading == nil ? nil : entry.unit).map { " · " + $0 } ?? ""))
                 .foregroundStyle(Color.primary)
             Label(ScheduledChecklists.statusText(entry), systemImage: symbol)
                 .font(.caption)

@@ -143,6 +143,12 @@ async function main() {
       name: 'Belts & Filters', items: [item('Drive belts'), item('Engine air filter'), item('Cabin air filter')],
       vehicleIds: [], updatedAt: daysAgo(60), schedule: { kind: 'days', days: 14 }, firstDue: daysFromNow(25),
     });
+    // Due every 250 hours of the chipper's hour meter (last done at 1,000 hours, so due at 1,250).
+    await set(`${F}/checklists/hours250`, {
+      name: '250-Hour Service', items: [item('Grease all fittings'), item('Check hydraulic oil level'),
+        item('Inspect knives and anvil', { unsafe: true }), item('Engine oil and filter')],
+      vehicleIds: ['chipper-1'], updatedAt: daysAgo(30), readingInterval: 250,
+    });
     await set(`${F}/checklists/weekly`, {
       name: 'Weekly Walk-Around',
       items: [item('Body damage'), item('Coolant level'), item('Battery terminals'), item('Spare tire', { reading: 'PSI' })],
@@ -154,11 +160,13 @@ async function main() {
       { id: 'truck-3', name: 'Truck 3', make: 'Ram', model: '3500', year: 2019, plate: '7TRK903', odo: 118450, specs: TRUCK_SPECS },
       { id: 'van-7', name: 'Van 7', make: 'Mercedes-Benz', model: 'Sprinter', year: 2022, plate: '9MBS117', odo: 41300, specs: VAN_SPECS },
       { id: 'car-2', name: 'Car 2', make: 'Toyota', model: 'Camry', year: 2020, plate: '8CAM220', odo: 52900, specs: {} },
+      { id: 'chipper-1', name: 'Chipper 1', make: 'Morbark', model: 'M12R', year: 2019, plate: '', odo: 1232, specs: {}, unit: 'hr' },
     ];
     for (const v of vehicles) {
       await set(`${F}/vehicles/${v.id}`, {
         name: v.name, make: v.make, model: v.model, year: v.year, vin: `1FTBR1C8${v.year}KA${v.odo}`,
         licensePlate: v.plate, odometer: v.odo, assignedUids: [], specSections: specs(v.specs), createdAt: daysAgo(400),
+        ...(v.unit ? { readingUnit: v.unit } : {}),
       });
     }
 
@@ -182,6 +190,9 @@ async function main() {
         checklistLastDone: { monthly: daysAgo(20), belts: daysAgo(10) },
       },
       summary: { lastChecklistAt: daysAgo(1, 6), lastChecklistBy: 'Ana Lima' },
+    });
+    await merge(`${F}/vehicles/chipper-1`, {
+      checklistState: { lastDone: {}, checklistLastDone: { hours250: daysAgo(40) }, checklistLastReading: { hours250: 1000 } },
     });
     await merge(`${F}/vehicles/van-7`, {
       checklistState: { lastDone: {}, checklistLastDone: { monthly: daysAgo(5), belts: daysAgo(2) } },

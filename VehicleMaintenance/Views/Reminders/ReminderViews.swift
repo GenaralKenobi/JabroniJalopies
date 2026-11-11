@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ReminderRow: View {
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+    private var unit: DistanceUnit { vehicle.unit }
     let reminder: Reminder
     let vehicle: Vehicle
     var showsVehicle = false
@@ -47,7 +47,7 @@ struct ReminderFormView: View {
 
     @Environment(FleetModel.self) private var fleet
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+    private var unit: DistanceUnit { vehicle.unit }
 
     @State private var serviceType: ServiceType
     @State private var title: String
@@ -63,7 +63,7 @@ struct ReminderFormView: View {
         self.vehicle = vehicle
         original = reminder
         let type = reminder?.serviceType ?? .oilChange
-        let suggestion = type.suggestedInterval(in: DistanceUnit.current)
+        let suggestion = type.suggestedInterval(in: vehicle.unit)
         let distance = reminder == nil ? suggestion.distance : reminder?.intervalDistance
         let months = reminder == nil ? suggestion.months : reminder?.intervalMonths
         _serviceType = State(initialValue: type)
@@ -111,7 +111,7 @@ struct ReminderFormView: View {
                 Section("Last Done") {
                     DatePicker("Date", selection: $lastServiceDate, in: ...Date.now, displayedComponents: .date)
                     HStack {
-                        Text("Odometer")
+                        Text(unit.readingName)
                         TextField("0", text: $lastOdometerText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
                         Text(unit.abbreviation).foregroundStyle(Color.secondary)
                     }

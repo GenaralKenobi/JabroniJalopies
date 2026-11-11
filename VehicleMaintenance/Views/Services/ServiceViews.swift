@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ServiceRecordRow: View {
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+    var unit: DistanceUnit = DistanceUnit.current
     let record: ServiceRecord
     let cost: Double?
     var showsReviewHint = false
@@ -49,7 +49,7 @@ struct ServiceRecordFormView: View {
 
     @Environment(FleetModel.self) private var fleet
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+    private var unit: DistanceUnit { vehicle.unit }
 
     @State private var draft: ServiceRecord
     @State private var odometerText: String
@@ -89,7 +89,7 @@ struct ServiceRecordFormView: View {
                 Section {
                     DatePicker("Date", selection: $draft.date, in: ...Date.now, displayedComponents: .date)
                     HStack {
-                        Text("Odometer")
+                        Text(unit.readingName)
                         TextField("0", text: $odometerText)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
@@ -166,7 +166,7 @@ struct ServiceReviewView: View {
 
     @Environment(FleetModel.self) private var fleet
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(DistanceUnit.storageKey) private var unit: DistanceUnit = DistanceUnit.localeDefault
+    private var unit: DistanceUnit { vehicle.unit }
     @State private var costText = ""
     @State private var note = ""
     @State private var errorMessage: String?
@@ -178,7 +178,7 @@ struct ServiceReviewView: View {
                     LabeledContent("Vehicle", value: vehicle.displayName)
                     LabeledContent("Service", value: record.displayTitle)
                     LabeledContent("Date", value: Formatting.shortDate(record.date))
-                    LabeledContent("Odometer", value: Formatting.distance(record.odometer, unit: unit))
+                    LabeledContent(unit.readingName, value: Formatting.distance(record.odometer, unit: unit))
                     if !record.shop.isEmpty { LabeledContent("Shop", value: record.shop) }
                     LabeledContent("Logged by", value: record.createdByName)
                     if !record.notes.isEmpty {
@@ -266,7 +266,7 @@ struct ServiceHistoryView: View {
                                 editing = record
                             }
                         } label: {
-                            ServiceRecordRow(record: record, cost: fleet.isManager ? records.cost(of: record) : nil)
+                            ServiceRecordRow(record: record, cost: fleet.isManager ? records.cost(of: record) : nil, unit: vehicle.unit)
                         }
                     }
                 } header: {

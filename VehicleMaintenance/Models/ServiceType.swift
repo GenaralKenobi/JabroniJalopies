@@ -83,10 +83,12 @@ enum ServiceType: String, CaseIterable, Identifiable, Codable {
     /// Suggested interval expressed in the user's distance unit, rounded to a tidy number.
     func suggestedInterval(in unit: DistanceUnit) -> (distance: Int?, months: Int?) {
         let interval = typicalInterval
+        // No suggested hour intervals: they depend on the machine, so the manager enters them.
+        if unit == .hours { return (nil, interval.months) }
         let distance = interval.miles.map { miles -> Int in
             switch unit {
-            case .miles: return miles
             case .kilometers: return Int((Double(miles) * 1.609_344 / 1_000).rounded()) * 1_000
+            default: return miles
             }
         }
         return (distance, interval.months)

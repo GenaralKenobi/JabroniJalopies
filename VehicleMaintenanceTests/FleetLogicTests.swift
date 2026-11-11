@@ -537,3 +537,80 @@ struct VehicleSummaryTests {
         #expect(unchanged.isEmpty)
     }
 }
+
+struct ReadingScheduleTests {
+    private func hoursChecklist(interval: Int = 250) -> ChecklistTemplate {
+        var checklist = ChecklistTemplate(name: "250-Hour Service", items: [horn], vehicleIds: [], readingInterval: interval)
+        checklist.id = "hours250"
+        return checklist
+    }
+
+    private func chipper(reading: Int, plans: [String: ChecklistPlan]? = nil) -> Vehicle {
+        var vehicle = Vehicle.new()
+        vehicle.id = "chipper-1"
+        vehicle.odometer = reading
+        vehicle.readingUnit = "hr"
+        vehicle.checklistPlans = plans
+        return vehicle
+    }
+
+    @Test func dueAnIntervalAfterTheLastReading() {
+        #expect(ScheduledChecklists.dueReading(interval: 250, lastReading: 1_000, current: 1_100) == 1_250)
+        // Done a bit late: counted from when it was actually done.
+        #expect(ScheduledChecklists.dueReading(interval: 250, lastReading: 1_262, current: 1_300) == 1_512)
+    }
+
+    @Test func neverDoneIsDueAtTheNextMultiple() {
+        #expect(ScheduledChecklists.dueReading(interval: 250, lastReading: nil, current: 1_180) == 1_250)
+        #expect(ScheduledChecklists.dueReading(interval: 250, lastReading: nil, current: 0) == 250)
+        #expect(ScheduledChecklists.dueReading(interval: 250, lastReading: nil, current: 1_250) == 1_250)
+    }
+
+    @Test func managersAreAlertedWithinATenthOfTheInterval() {
+        #expect(ScheduledChecklists.alertMargin(interval: 250) == 25)
+        #expect(ScheduledChecklists.alertMargin(interval: 5) == 1)
+        #expect(ScheduledChecklists.readingStatus(due: 1_250, interval: 250, current: 1_224) == .later)
+        #expect(ScheduledChecklists.readingStatus(due: 1_250, interval: 250, current: 1_225) == .dueSoon)
+        #expect(ScheduledChecklists.readingStatus(due: 1_250, interval: 250, current: 1_249) == .dueSoon)
+        #expect(ScheduledChecklists.readingStatus(due: 1_250, interval: 250, current: 1_250) == .overdue)
+    }
+
+    @Test func entryUsesTheVehiclesOwnUnitAndReading() {
+        let state = ChecklistState(checklistLastReading: ["hours250": 1_000])
+        let entry = ScheduledChecklists.entry(for: hoursChecklist(), vehicle: chipper(reading: 1_232), state: state)
+        #expect(entry?.dueReading == 1_250)
+        #expect(entry?.due == nil)
+        #expect(entry?.status == .dueSoon)
+        #expect(entry?.unit == .hours)
+        #expect(entry.map(ScheduledChecklists.statusText) == "Due at 1,250 hr (18 hr to go)")
+    }
+
+    @Test func overdueOnceTheReadingPassesAndPlansFollowTheDueReading() {
+        let state = ChecklistState(checklistLastReading: ["hours250": 1_000])
+        let plan = ChecklistPlan(date: .now, forReading: 1_250, byName: "Mia")
+        let overdue = ScheduledChecklists.entry(for: hoursChecklist(), vehicle: chipper(reading: 1_262, plans: ["hours250": plan]), state: state)
+        #expect(overdue?.status == .overdue)
+        #expect(overdue?.plannedFor != nil)
+        #expect(overdue.map(ScheduledChecklists.statusText) == "Overdue since 1,250 hr (now 1,262 hr)")
+        // After it's done at 1,262 the next due reading is 1,512, so the old plan no longer applies.
+        let done = ChecklistState(checklistLastReading: ["hours250": 1_262])
+        let next = ScheduledChecklists.entry(for: hoursChecklist(), vehicle: chipper(reading: 1_270, plans: ["hours250": plan]), state: done)
+        #expect(next?.dueReading == 1_512)
+        #expect(next?.plannedFor == nil)
+    }
+
+    @Test func unitsAndLabels() {
+        #expect(DistanceUnit.hours.readingName == "Hour meter")
+        #expect(DistanceUnit.miles.readingName == "Odometer")
+        #expect(!DistanceUnit.fleetOptions.contains(.hours))
+        #expect(DistanceUnit.resolved("hr") == .hours)
+        #expect(ScheduledChecklists.label(for: hoursChecklist(), unit: .hours) == "Every 250 hr")
+        #expect(ChecklistTemplate(name: "Morning", items: [horn], vehicleIds: []).isScheduled == false)
+        #expect(hoursChecklist().isScheduled)
+    }
+
+    @Test func oldStateAndChecklistsStillDecode() throws {
+        let state = try JSONDecoder().decode(ChecklistState.self, from: Data(#"{"lastDone": {}}"#.utf8))
+        #expect(state.checklistLastReading.isEmpty)
+    }
+}
