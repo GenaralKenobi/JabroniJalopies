@@ -79,6 +79,7 @@ struct SettingsView: View {
                         .foregroundStyle(Color.secondary)
                 }
             }
+            .readableWidth()
             .navigationTitle("Settings")
             .syncStatusBanner()
             .task { await refreshNotificationStatus() }

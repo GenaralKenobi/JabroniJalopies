@@ -139,8 +139,11 @@ enum UsageAlerts {
         content.title = "\(fleetName): storage \(report.level == .critical ? "almost full" : "getting full")"
         content.body = report.summary + " Open Settings → Data & Storage to review."
         content.sound = .default
-        UNUserNotificationCenter.current().add(
-            UNNotificationRequest(identifier: "usage-\(fleetId)", content: content, trigger: nil))
+        let request = UNNotificationRequest(identifier: "usage-\(fleetId)", content: content, trigger: nil)
+        Task {
+            guard await ReminderNotifications.requestAuthorization() else { return }
+            try? await UNUserNotificationCenter.current().add(request)
+        }
     }
 }
 

@@ -614,3 +614,24 @@ struct ReadingScheduleTests {
         #expect(state.checklistLastReading.isEmpty)
     }
 }
+
+struct BulkPassTests {
+    private var weekly: ChecklistItem {
+        var item = ChecklistItem(id: "grease", title: "Grease", requiresReading: false, readingLabel: "", unsafeIfFailed: false)
+        item.frequency = .weekly
+        return item
+    }
+
+    @Test func onlyRoutineUnansweredItemsCanBePassedInOneTap() {
+        let items = [horn, lights, tires, weekly]           // routine, safety, needs a number, optional weekly
+        #expect(InspectionPlanner.bulkPassable(items, answers: [:], openDefectsByItem: [:]).map(\.id) == ["horn"])
+    }
+
+    @Test func answeredItemsAndItemsWithOpenProblemsAreLeftAlone() {
+        let mirrors = ChecklistItem(id: "mirrors", title: "Mirrors", requiresReading: false, readingLabel: "", unsafeIfFailed: false)
+        let items = [horn, mirrors]
+        let answers = ["horn": ItemAnswer(verdict: .fail)]
+        #expect(InspectionPlanner.bulkPassable(items, answers: answers, openDefectsByItem: [:]).map(\.id) == ["mirrors"])
+        #expect(InspectionPlanner.bulkPassable(items, answers: [:], openDefectsByItem: ["mirrors": openDefect(item: mirrors)]).map(\.id) == ["horn"])
+    }
+}

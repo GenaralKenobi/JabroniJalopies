@@ -228,6 +228,7 @@ struct UpcomingView: View {
                     }
                 }
             }
+            .readableWidth()
             .navigationTitle("Upcoming")
             .onAppear { fleet.watchAllReminders(true) }
             .onDisappear { fleet.watchAllReminders(false) }

@@ -38,6 +38,7 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
   - When an item isn't due, it moves to a "Not due yet" section and can be done early.
   - The truck page shows how many repeating items are due.
 - If an item already has an open defect, the driver chooses **Still a problem** or **Looks fixed** (with a required note) instead of plain pass/fail. A later "pass" never erases an earlier problem.
+- **Pass routine items in one tap:** drivers can pass all the routine items at once. Safety items, items that need a number, and items with an open problem still need their own answer.
 - **Checked today:** the fleet list shows which trucks have been checked today, and each truck shows when and by whom its last checklist was done.
 - **Daily reminder:** a manager can turn on a daily checklist reminder at a set time. It appears on every member's phone.
 

@@ -36,6 +36,7 @@ struct VehicleListView: View {
                     .searchable(text: $searchText, prompt: "Search vehicles")
                 }
             }
+            .readableWidth()
             .navigationTitle(fleet.fleet?.name ?? "Fleet")
             .navigationDestination(for: String.self) { vehicleId in
                 VehicleDetailView(vehicleId: vehicleId)

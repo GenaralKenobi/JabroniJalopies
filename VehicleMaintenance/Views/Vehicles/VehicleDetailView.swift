@@ -78,6 +78,7 @@ struct VehicleDetailView: View {
             }
             detailsSection(vehicle)
         }
+        .readableWidth()
         .navigationTitle(vehicle.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .syncStatusBanner()

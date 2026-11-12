@@ -101,6 +101,16 @@ extension FleetModel {
                     onceKey: "skip-\(vehicleId)-\(item.id)"))
             }
         }
-        ScheduleAlerts.sync(fleetId: fleetId, alerts: alerts)
+        let fleetId = fleetId
+        if alerts.isEmpty {
+            ScheduleAlerts.sync(fleetId: fleetId, alerts: [])
+            return
+        }
+        // Ask for notification permission the first time there's something to alert about
+        // (the system only asks once); without it these alerts would silently go nowhere.
+        Task {
+            guard await ReminderNotifications.requestAuthorization() else { return }
+            ScheduleAlerts.sync(fleetId: fleetId, alerts: alerts)
+        }
     }
 }

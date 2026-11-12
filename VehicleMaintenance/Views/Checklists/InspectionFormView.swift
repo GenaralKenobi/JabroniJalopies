@@ -26,6 +26,8 @@ struct InspectionFormView: View {
     @State private var doingEarly: Set<String> = []
     /// Guards against a double tap saving the checklist twice.
     @State private var submitted = false
+    /// Counts taps of "pass routine items", to trigger a haptic.
+    @State private var bulkPassCount = 0
 
     struct IdentifiedString: Identifiable { let id: String }
 
@@ -115,6 +117,25 @@ struct InspectionFormView: View {
                     }
                 }
 
+                let bulk = InspectionPlanner.bulkPassable(activeItems, answers: answers, openDefectsByItem: openDefectsByItem)
+                if bulk.count > 1 {
+                    Section {
+                        Button {
+                            for item in bulk { answers[item.id, default: ItemAnswer()].verdict = .pass }
+                            bulkPassCount += 1
+                        } label: {
+                            Label("Pass \(bulk.count) Routine Items", systemImage: "checkmark.circle")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.green)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    } footer: {
+                        Text("Safety items, items that need a number, and items with an open problem stay for you to answer. You can still change any answer.")
+                    }
+                }
+
                 ForEach(activeItems) { item in
                     Section {
                         ItemCard(item: item,
@@ -177,6 +198,7 @@ struct InspectionFormView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
+            .sensoryFeedback(.success, trigger: bulkPassCount)
             .keyboardDoneButton()
             .navigationTitle(checklist.name)
             .navigationBarTitleDisplayMode(.inline)
@@ -387,6 +409,7 @@ private struct ItemCard: View {
                 verdictButton(existingDefect == nil ? "Pass" : "Looks Fixed", symbol: "checkmark", verdict: .pass, color: .green)
                 verdictButton(existingDefect == nil ? "Fail" : "Still a Problem", symbol: "xmark", verdict: .fail, color: .red)
             }
+            .sensoryFeedback(trigger: answer.verdict) { _, new in verdictFeedback(new) }
 
             if item.requiresReading {
                 HStack {
@@ -451,6 +474,14 @@ private struct ItemCard: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background((defect.unsafe ? Color.red : Color.orange).opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func verdictFeedback(_ new: ItemVerdict?) -> SensoryFeedback? {
+        switch new {
+        case .pass: .selection
+        case .fail: .warning
+        case nil: nil
+        }
     }
 
     private func verdictButton(_ title: String, symbol: String, verdict: ItemVerdict, color: Color) -> some View {

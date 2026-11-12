@@ -68,6 +68,7 @@ struct DefectsTabView: View {
                     }
                 }
             }
+            .readableWidth()
             .navigationTitle("Defects")
             .syncStatusBanner()
             .sheet(isPresented: $showingReview) {

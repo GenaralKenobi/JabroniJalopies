@@ -67,6 +67,20 @@ enum InspectionPlanner {
         var name: String
     }
 
+    /// Items a driver can pass in one tap: routine ones they haven't answered yet. Safety
+    /// items, items that need a number, items with an open problem, and optional repeating
+    /// items are left for a deliberate answer.
+    static func bulkPassable(_ items: [ChecklistItem], answers: [String: ItemAnswer],
+                             openDefectsByItem: [String: Defect]) -> [ChecklistItem] {
+        items.filter { item in
+            answers[item.id]?.verdict == nil
+                && !item.unsafeIfFailed
+                && !item.requiresReading
+                && openDefectsByItem[item.id] == nil
+                && !isOptional(item)
+        }
+    }
+
     /// Repeating (weekly, monthly, every N days) items are optional: a driver can skip one,
     /// and a skipped item isn't recorded as done, so it keeps appearing until someone does it.
     static func isOptional(_ item: ChecklistItem) -> Bool { item.frequency != nil }

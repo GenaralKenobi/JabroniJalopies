@@ -144,13 +144,23 @@ struct ScheduledChecklistRow: View {
             if let vehicleName {
                 Text(vehicleName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary)
             }
-            Text(entry.checklist.name + (ScheduledChecklists.label(for: entry.checklist, unit: entry.dueReading == nil ? nil : entry.unit).map { " · " + $0 } ?? ""))
+            Text(titleText)
                 .foregroundStyle(Color.primary)
             Label(ScheduledChecklists.statusText(entry), systemImage: symbol)
                 .font(.caption)
                 .foregroundStyle(color)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// The checklist name, with its schedule ("Every 14 days") unless the name already says it.
+    private var titleText: String {
+        let name = entry.checklist.name
+        guard let label = ScheduledChecklists.label(for: entry.checklist, unit: entry.dueReading == nil ? nil : entry.unit) else {
+            return name
+        }
+        let firstWord = label.split(separator: " ").first.map(String.init) ?? label
+        return name.localizedCaseInsensitiveContains(firstWord) ? name : "\(name) · \(label)"
     }
 
     private var symbol: String {

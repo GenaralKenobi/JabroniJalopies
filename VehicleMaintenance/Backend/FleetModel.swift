@@ -433,6 +433,19 @@ final class FleetModel {
 
     // MARK: Loading details only when needed
 
+    // How long details stay loaded after a screen closes. Moving between a truck's page and
+    // its sub-screens (or between tabs) would otherwise tear the listeners down and rebuild
+    // them each time, which flashes empty sections and re-reads data.
+    private static let releaseDelay: Duration = .seconds(20)
+
+    private func releaseLater(_ action: @escaping @MainActor (FleetModel) -> Void) {
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.releaseDelay)
+            guard let self, !self.stopped else { return }
+            action(self)
+        }
+    }
+
     /// A screen showing this truck's details is open (call `unwatch` when it closes).
     func watch(vehicle vehicleId: String) {
         watchedVehicles[vehicleId, default: 0] += 1
@@ -440,8 +453,10 @@ final class FleetModel {
     }
 
     func unwatch(vehicle vehicleId: String) {
-        watchedVehicles[vehicleId] = max(0, (watchedVehicles[vehicleId] ?? 0) - 1)
-        updatePerVehicleListeners()
+        releaseLater { model in
+            model.watchedVehicles[vehicleId] = max(0, (model.watchedVehicles[vehicleId] ?? 0) - 1)
+            model.updatePerVehicleListeners()
+        }
     }
 
     func watch(equipment equipmentId: String) {
@@ -450,29 +465,53 @@ final class FleetModel {
     }
 
     func unwatch(equipment equipmentId: String) {
-        watchedEquipment[equipmentId] = max(0, (watchedEquipment[equipmentId] ?? 0) - 1)
-        updatePerEquipmentListeners()
+        releaseLater { model in
+            model.watchedEquipment[equipmentId] = max(0, (model.watchedEquipment[equipmentId] ?? 0) - 1)
+            model.updatePerEquipmentListeners()
+        }
     }
 
     /// The Upcoming tab is open: load every visible truck's reminders.
     func watchAllReminders(_ on: Bool) {
-        allRemindersWatchers = max(0, allRemindersWatchers + (on ? 1 : -1))
-        updatePerVehicleListeners()
+        if on {
+            allRemindersWatchers += 1
+            updatePerVehicleListeners()
+        } else {
+            releaseLater { model in
+                model.allRemindersWatchers = max(0, model.allRemindersWatchers - 1)
+                model.updatePerVehicleListeners()
+            }
+        }
     }
 
     /// Fleet chain totals are open: load every truck's chain counts.
     func watchAllChains(_ on: Bool) {
-        allChainsWatchers = max(0, allChainsWatchers + (on ? 1 : -1))
-        updatePerVehicleListeners()
+        if on {
+            allChainsWatchers += 1
+            updatePerVehicleListeners()
+        } else {
+            releaseLater { model in
+                model.allChainsWatchers = max(0, model.allChainsWatchers - 1)
+                model.updatePerVehicleListeners()
+            }
+        }
     }
 
     /// The Members screen is open: load the whole member list (managers always have it).
     func watchMemberList(_ on: Bool) {
-        memberListWatchers = max(0, memberListWatchers + (on ? 1 : -1))
-        updateMemberListListener()
+        if on {
+            memberListWatchers += 1
+            updateMemberListListener()
+        } else {
+            releaseLater { model in
+                model.memberListWatchers = max(0, model.memberListWatchers - 1)
+                model.updateMemberListListener()
+            }
+        }
     }
 
     private func updateMemberListListener() {
+        guard !stopped else { return }
         let wanted = isManager || memberListWatchers > 0
         if wanted, allMembersListener == nil {
             allMembersListener = firestoreListen(FS.members(fleetId)) { [weak self] (items: [Member], _) in
@@ -501,6 +540,7 @@ final class FleetModel {
     }
 
     private func updatePerVehicleListeners() {
+        guard !stopped else { return }
         var byId: [String: Vehicle] = [:]
         for vehicle in vehicles { if let id = vehicle.id { byId[id] = vehicle } }
         for (vehicleId, feeds) in perVehicle {
@@ -571,6 +611,7 @@ final class FleetModel {
     }
 
     private func updatePerEquipmentListeners() {
+        guard !stopped else { return }
         var byId: [String: Equipment] = [:]
         for item in equipment { if let id = item.id { byId[id] = item } }
         for (equipmentId, feeds) in perEquipment {
