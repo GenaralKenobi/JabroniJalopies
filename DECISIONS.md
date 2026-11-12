@@ -6,16 +6,20 @@
 
 If something isn't right, reply with its number.
 
-## 🆕 New: hours, and checklists due by reading
+## 🆕 New decisions
 
-47. 🆕 **Hours are chosen per vehicle** (your choice). Edit Vehicle → **Reading** sets a vehicle to miles, kilometres or hours. It then shows "Hour meter", "Update Hour meter" and "hr" everywhere: the fleet list, service history, reminders and checklists. The fleet-wide setting stays miles or kilometres for everything else. Changing a vehicle's unit doesn't convert readings already entered.
-48. 🆕 **Maintenance reminders already work by reading**, so a reminder like "oil change every 250 hours" works for hour-based vehicles without anything new. The app suggests no hour intervals (they depend on the machine), so the manager types them.
-49. 🆕 **A checklist can be due every N hours (or miles / km)** (your choice, same as the monthly ones). In the checklist editor, choose Schedule → **Every … hours / miles** and type the number. It's due that many hours after the reading when it was last done on that vehicle. A vehicle that has never done it is due at the next multiple of the number (a chipper at 1,180 hours with a 250-hour service is due at 1,250).
-50. 🆕 **Managers are alerted when a vehicle gets within a tenth of the interval** (your choice): 25 hours early for a 250-hour service, 500 miles early for 5,000 miles. The alert is a notification on the manager's phone, sent the next time that phone sees the new reading, so it depends on someone updating the hour meter. Once per due reading, and not sent if a manager has already planned a day.
-51. 🆕 **Once the reading passes the due reading, the vehicle shows Overdue** on the fleet list and its page, and drivers see the checklist tagged the same way, as with monthly ones. Managers can still plan a day (it's only a reminder and a calendar event). The vehicle's reading decides when it's overdue, not the date.
-52. 🆕 **The interval is in each vehicle's own unit.** A 250 checklist means 250 hours on a chipper and 250 miles on a truck, so use **Used For** to give it only vehicles that share a unit. A mixed checklist works, but the number won't mean the same thing on each.
-53. 🆕 **What counts as the reading when a checklist is done** is the higher of the number typed on the checklist and the vehicle's last recorded reading. If nobody updates the hour meter, the next due reading doesn't move, so drivers need to enter the reading on the checklist.
-54. 🆕 **A checklist is either dated (monthly, every N days) or reading-based, not both.** If you want both, such as "every 250 hours or every 6 months, whichever comes first", say so and I'll add it.
+Nothing new right now. When I add decisions, they'll show up here marked 🆕.
+
+## Hours, and checklists due by reading
+
+47. ✅ **Hours are chosen per vehicle** (your choice). Edit Vehicle → **Reading** sets a vehicle to miles, kilometres or hours. It then shows "Hour meter", "Update Hour meter" and "hr" everywhere: the fleet list, service history, reminders and checklists. The fleet-wide setting stays miles or kilometres for everything else. Changing a vehicle's unit doesn't convert readings already entered.
+48. ✅ **Maintenance reminders already work by reading**, so a reminder like "oil change every 250 hours" works for hour-based vehicles without anything new. The app suggests no hour intervals (they depend on the machine), so the manager types them.
+49. ✅ **A checklist can be due every N hours (or miles / km)** (your choice, same as the monthly ones). In the checklist editor, choose Schedule → **Every … hours / miles** and type the number. It's due that many hours after the reading when it was last done on that vehicle. A vehicle that has never done it is due at the next multiple of the number (a chipper at 1,180 hours with a 250-hour service is due at 1,250).
+50. ✅ **Managers are alerted when a vehicle gets within a tenth of the interval** (your choice): 25 hours early for a 250-hour service, 500 miles early for 5,000 miles. The alert is a notification on the manager's phone, sent the next time that phone sees the new reading, so it depends on someone updating the hour meter. Once per due reading, and not sent if a manager has already planned a day.
+51. ✅ **Once the reading passes the due reading, the vehicle shows Overdue** on the fleet list and its page, and drivers see the checklist tagged the same way, as with monthly ones. Managers can still plan a day (it's only a reminder and a calendar event). The vehicle's reading decides when it's overdue, not the date.
+52. ✅ **The interval is in each vehicle's own unit.** A 250 checklist means 250 hours on a chipper and 250 miles on a truck, so use **Used For** to give it only vehicles that share a unit. A mixed checklist works, but the number won't mean the same thing on each.
+53. ✅ **What counts as the reading when a checklist is done** is the higher of the number typed on the checklist and the vehicle's last recorded reading. If nobody updates the hour meter, the next due reading doesn't move, so drivers need to enter the reading on the checklist.
+54. ✅ **A checklist is either dated (monthly, every N days) or reading-based, not both.** If you want both, such as "every 250 hours or every 6 months, whichever comes first", say so and I'll add it.
 
 ## Repeating checklist items and scheduled checklists
 
