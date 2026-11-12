@@ -96,6 +96,22 @@ jobs:
           fi
           exit $status
 
+      # The unsigned archive leaves the embedded frameworks (Firebase's pre-built libraries)
+      # without a signature, and the export only re-signs ones that have one. Give each a
+      # placeholder signature; the export then replaces it with the distribution signature.
+      - name: Prepare embedded frameworks for signing
+        run: |
+          APP="$RUNNER_TEMP/VehicleMaintenance.xcarchive/Products/Applications/VehicleMaintenance.app"
+          if [ -d "$APP/Frameworks" ]; then
+            for fw in "$APP"/Frameworks/*.framework; do
+              [ -d "$fw" ] || continue
+              echo "Placeholder-signing $(basename "$fw")"
+              codesign --force --sign - --timestamp=none "$fw"
+            done
+          else
+            echo "No embedded frameworks found."
+          fi
+
       - name: Export and upload to App Store Connect
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
