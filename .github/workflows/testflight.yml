@@ -72,6 +72,9 @@ jobs:
           chmod 600 "$KEY_PATH"
           echo "KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
+      # The archive is built unsigned. Archive signing would ask Apple for a *development*
+      # profile, which needs a registered test device; the export step below signs it with
+      # Apple's cloud-managed distribution certificate, which needs no devices.
       - name: Archive (Release)
         run: |
           status=0
@@ -81,13 +84,9 @@ jobs:
             -configuration Release \
             -destination "generic/platform=iOS" \
             -archivePath "$RUNNER_TEMP/VehicleMaintenance.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             -skipPackagePluginValidation -skipMacroValidation \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGNING_ALLOWED=NO \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             > "$RUNNER_TEMP/archive.log" 2>&1 || status=$?
           grep -E "error:|warning:.*(sign|provision|certificate)|\*\* ARCHIVE" "$RUNNER_TEMP/archive.log" | sort -u | head -100 || true
