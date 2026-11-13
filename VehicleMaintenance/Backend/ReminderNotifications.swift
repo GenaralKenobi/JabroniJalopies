@@ -14,6 +14,10 @@ enum ReminderNotifications {
 
     @discardableResult
     static func requestAuthorization() async -> Bool {
+        #if DEBUG
+        // Demo builds (CI screenshots) must not show the system permission prompt.
+        if FirebaseSetup.usesEmulator { return false }
+        #endif
         do {
             return try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
