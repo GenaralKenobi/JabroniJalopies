@@ -2,19 +2,21 @@
 
 The app stores fleets, vehicles, checklists and defects in Firebase, Google's backend for mobile apps. You can do all of this setup in a web browser, and it takes about 15 minutes.
 
+> **Status for Jabroni Jalopies:** steps 1–6 below are already done (project, iOS app and config file, sign-in, database, rules, and photos). This guide is kept for reference, for example if you ever set up a second project. What's left for you is in [YOUR_TODO.md](YOUR_TODO.md): restricting the API key and the budget alert.
+
 You'll set up three things:
 
 - **Authentication** — each person's email and password login.
 - **Firestore** — the database. It keeps a copy of the data on each phone so the app works offline.
 - **Cloud Storage** — defect photos. This one is optional and needs the pay-as-you-go plan.
 
-## 1. Create the project
+## 1. Create the project ✅ done
 
 1. Go to <https://console.firebase.google.com> and click **Create a project**.
 2. Name it, for example `fleet-maintenance`.
 3. **Turn off Google Analytics.** The app doesn't use it, and leaving it off keeps your privacy disclosures short.
 
-## 2. Add the iOS app
+## 2. Add the iOS app ✅ done
 
 1. On the project overview, click **Add app**, then **iOS**.
 2. Enter the bundle ID `com.generalkenobi.jabronijalopies`.
@@ -23,19 +25,19 @@ You'll set up three things:
 
 The file identifies your Firebase project. It doesn't grant access on its own (the security rules control access), so it's normal to keep it in the repository. If your repository is public, you can restrict the API key in Google Cloud to iOS apps with your bundle ID.
 
-## 3. Turn on email sign-in
+## 3. Turn on email sign-in ✅ done
 
 1. Go to **Build** → **Authentication** → **Get started**.
 2. Under **Sign-in method**, enable **Email/Password**. Leave "Email link" off.
 
-## 4. Create the database
+## 4. Create the database ✅ done
 
 1. Go to **Build** → **Firestore Database** → **Create database**.
 2. Choose **Standard edition**.
 3. For location, choose **us-central1 (Iowa)**. You can't change the location later, and photo storage is only free in a few US regions, including this one.
 4. Choose **Start in production mode**. This blocks all access until the rules in the next step are deployed.
 
-## 5. Deploy the security rules
+## 5. Deploy the security rules ✅ done
 
 The rules control who can see and change what. They're in `firebase/firestore.rules`, and the tests in `firebase/tests/` check them. Pick one of these ways to deploy them.
 
@@ -62,7 +64,7 @@ GitHub deploys the rules and the 5-year automatic deletion settings, and redeplo
 
    These policies delete records automatically after 5 years.
 
-## 6. Optional: defect photos
+## 6. Optional: defect photos ✅ done
 
 Photos need Cloud Storage. New projects can only use Cloud Storage on the **Blaze** (pay-as-you-go) plan, which requires a credit card.
 
@@ -99,7 +101,9 @@ The app keeps a running estimate under **Settings** → **Data & Storage**:
 
 The budget alert from step 6 is your backstop: it emails you if real charges ever start.
 
-## Testing locally (developers)
+## Testing locally (developers only, optional)
+
+You don't need this section. GitHub runs the same tests on every push.
 
 The `firebase/` folder runs everything against local emulators, so you don't need a real project:
 

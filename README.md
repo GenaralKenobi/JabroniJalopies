@@ -8,7 +8,7 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
 
 [Screenshots](../../tree/ci-screenshots) are captured automatically by CI on every push to `main`.
 
-**Start here:** [YOUR_TODO.md](YOUR_TODO.md) lists what you need to do and the open questions. [DECISIONS.md](DECISIONS.md) lists choices waiting for your review.
+**Start here:** [YOUR_TODO.md](YOUR_TODO.md) lists what's left for you to do and the open questions. [DECISIONS.md](DECISIONS.md) lists the choices made; anything marked 🆕 is waiting for your review.
 
 ## Features
 
@@ -89,6 +89,8 @@ A SwiftUI app for running a vehicle fleet. It covers morning checklists, defect 
 - There's no analytics, no ads and no location tracking. See [PRIVACY.md](PRIVACY.md) for the draft privacy policy.
 
 ## Setup
+
+*(Both setup guides are already complete for this project. They're kept for reference. See [YOUR_TODO.md](YOUR_TODO.md) for what's left.)*
 
 1. **Firebase:** follow [FIREBASE_SETUP.md](FIREBASE_SETUP.md). It takes about 15 minutes in a browser and ends with adding `GoogleService-Info.plist`. Builds without that file show a "Firebase not set up" screen.
 2. **Install on iPhone without a Mac:** follow [TESTFLIGHT.md](TESTFLIGHT.md). GitHub Actions builds, signs and uploads to TestFlight.

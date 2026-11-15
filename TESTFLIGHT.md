@@ -7,20 +7,20 @@ need Xcode, Keychain or a certificate file. You can do all of the setup below in
 Bundle ID used by this project: **`com.generalkenobi.jabronijalopies`**
 (to change it, edit `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml`).
 
-## 1. Join the Apple Developer Program
+## 1. Join the Apple Developer Program ✅ done
 
 You need this to put apps on TestFlight or the App Store. It costs $99 a year.
 
 - Enroll at <https://developer.apple.com/programs/enroll/>, or in the **Apple Developer** app on your iPhone.
 - Approval usually takes from a few minutes to 48 hours.
 
-## 2. Find your Team ID
+## 2. Find your Team ID ✅ done
 
 1. Go to <https://developer.apple.com/account>.
 2. Scroll to **Membership details**.
 3. Copy the 10-character **Team ID**.
 
-## 3. Register the bundle ID
+## 3. Register the bundle ID ✅ done
 
 1. Go to <https://developer.apple.com/account/resources/identifiers/list> and click **+**.
 2. Choose **App IDs**, then **App**, then **Continue**.
@@ -28,7 +28,7 @@ You need this to put apps on TestFlight or the App Store. It costs $99 a year.
 4. For **Bundle ID**, choose **Explicit** and enter `com.generalkenobi.jabronijalopies`.
 5. Leave the capabilities as they are, then click **Continue** and **Register**.
 
-## 4. Create the app in App Store Connect
+## 4. Create the app in App Store Connect ✅ done
 
 1. Go to <https://appstoreconnect.apple.com/apps>, click **+**, then **New App**.
 2. Fill in the form:
@@ -39,7 +39,7 @@ You need this to put apps on TestFlight or the App Store. It costs $99 a year.
    - **SKU:** anything, for example `maintenance-001`
    - **User access:** Full Access
 
-## 5. Create an App Store Connect API key
+## 5. Create an App Store Connect API key ✅ done
 
 1. In App Store Connect, open **Users and Access**, then **Integrations**, then **App Store Connect API**.
 2. Under **Team Keys**, click **Generate API Key**. The first time, you have to click **Request Access** and accept the terms.
@@ -47,7 +47,7 @@ You need this to put apps on TestFlight or the App Store. It costs $99 a year.
 4. Write down the **Issuer ID**, shown above the keys table, and the **Key ID**.
 5. Click **Download** to save `AuthKey_XXXXXXXXXX.p8`. Apple only lets you download it **once**, so keep it somewhere safe.
 
-## 6. Add the GitHub secrets
+## 6. Add the GitHub secrets ✅ done
 
 1. In this repository, go to **Settings**, then **Secrets and variables**, then **Actions**.
 2. Click **New repository secret** and add each of these:
@@ -63,13 +63,15 @@ To get the `.p8` text on an iPhone:
 1. In the **Files** app, rename the file to `AuthKey.txt`.
 2. Open it and copy all of the text.
 
+> **Status for Jabroni Jalopies:** steps 1–9 below are done: the Apple account, bundle ID, app, API key and GitHub secrets are set up, the first build uploaded, and the app is installed on your iPhone. To ship a new build, you only need step 8. The "Getting the app to your drivers" section at the end is still to do. What's left is in [YOUR_TODO.md](YOUR_TODO.md).
+
 On a computer, open the file in any text editor.
 
-## 7. Add the Firebase config
+## 7. Add the Firebase config ✅ done
 
 The app needs your Firebase project's `GoogleService-Info.plist` in `VehicleMaintenance/Resources/`. If you haven't added it yet, follow [FIREBASE_SETUP.md](FIREBASE_SETUP.md). The TestFlight workflow stops with a clear message if the file is missing.
 
-## 8. Build and upload
+## 8. Build and upload (repeat for each new build)
 
 1. In this repository, go to **Actions**, then **TestFlight**, then **Run workflow**.
 2. The build takes about 10–15 minutes.
@@ -77,7 +79,7 @@ The app needs your Firebase project's `GoogleService-Info.plist` in `VehicleMain
 
 To publish a new version later, change `MARKETING_VERSION` in `project.yml` and run the workflow again. Each run gets a higher build number automatically.
 
-## 9. Install on your iPhone
+## 9. Install on your iPhone ✅ done
 
 1. In App Store Connect, open your app, then the **TestFlight** tab.
 2. Under **Internal Testing**, click **+** to create a group, then add yourself.
