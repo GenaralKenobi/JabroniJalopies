@@ -13,6 +13,7 @@ If something isn't right, reply with its number.
 57. 🆕 **On iPad, the main lists are kept to a comfortable reading width** (about 720 points, centred) instead of stretching across the whole screen. It only affects wide screens.
 58. 🆕 **The app asks for notification permission the first time a manager has an alert to receive**, such as a scheduled checklist coming due or storage getting full. Before this, a manager who only used scheduled checklists would never have been asked, and their alerts would have been silently lost. Managers can still say no, and it can be changed in iPhone Settings.
 59. 🆕 **Screens keep a truck's details loaded for about 20 seconds after you leave them.** Going into a truck's chains or specs and coming back no longer blinks or re-downloads. It adds no real cost.
+60. 🆕 **Vehicle photos offer the camera first** (your request). Add Photo / Change Photo now opens a menu with **Take Photo** and **Choose from Library**, the same as defect photos. On a device with no camera (some iPads, the simulator), only the library option shows.
 
 ## Hours, and checklists due by reading
 

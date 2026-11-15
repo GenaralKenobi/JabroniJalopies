@@ -12,6 +12,8 @@ struct VehicleFormView: View {
     @State private var draft: Vehicle
     @State private var odometerText: String
     @State private var photoItem: PhotosPickerItem?
+    @State private var showingCamera = false
+    @State private var showingLibrary = false
     @State private var errorMessage: String?
 
     private static let years: [Int] = {
@@ -34,7 +36,16 @@ struct VehicleFormView: View {
                     HStack(spacing: 16) {
                         VehicleThumbnail(data: draft.photo, size: 72)
                         VStack(alignment: .leading, spacing: 10) {
-                            PhotosPicker(selection: $photoItem, matching: .images) {
+                            Menu {
+                                if CameraPicker.isAvailable {
+                                    Button { showingCamera = true } label: {
+                                        Label("Take Photo", systemImage: "camera")
+                                    }
+                                }
+                                Button { showingLibrary = true } label: {
+                                    Label("Choose from Library", systemImage: "photo.on.rectangle")
+                                }
+                            } label: {
                                 Text(draft.photo == nil ? "Add Photo" : "Change Photo")
                             }
                             if draft.photo != nil {
@@ -100,6 +111,15 @@ struct VehicleFormView: View {
                     Button("Save", action: save).disabled(!isValid)
                 }
             }
+            .fullScreenCover(isPresented: $showingCamera) {
+                CameraPicker { image in
+                    if let data = image.jpegData(compressionQuality: 1) {
+                        draft.photo = ImageProcessing.downscaledJPEG(data, maxDimension: 600, quality: 0.6)
+                    }
+                }
+                .ignoresSafeArea()
+            }
+            .photosPicker(isPresented: $showingLibrary, selection: $photoItem, matching: .images)
             .onChange(of: photoItem) { _, item in
                 guard let item else { return }
                 Task {
