@@ -35,6 +35,8 @@ final class PhotoUploadQueue {
 
     private(set) var jobs: [Job] = []
     private(set) var isUploading = false
+    /// Why the last upload attempt failed, in plain words (nil when the last attempt worked or none has failed).
+    private(set) var lastError: String?
 
     private let directory: URL
     private var manifestURL: URL { directory.appendingPathComponent("jobs.json") }
@@ -112,7 +114,9 @@ final class PhotoUploadQueue {
             do {
                 try await upload(job)
                 finish(job)
+                lastError = nil
             } catch {
+                lastError = Self.explain(error)
                 // Weak or no signal never counts against a photo; only errors that
                 // retrying can't fix (no permission, storage not set up) do.
                 guard Self.isPermanent(error) else {
@@ -123,9 +127,30 @@ final class PhotoUploadQueue {
                 jobs[index].attempts += 1
                 if jobs[index].attempts >= Self.maxAttempts {
                     finish(job)
+                    ErrorCenter.shared.message = "A photo couldn't be uploaded and was removed from this phone. \(Self.explain(error))"
                 }
                 saveManifest()
             }
+        }
+    }
+
+    /// A plain-words reason for a failed upload (with the technical code at the end, for support).
+    static func explain(_ error: Error) -> String {
+        let nsError = error as NSError
+        guard nsError.domain == StorageErrorDomain, let code = StorageErrorCode(rawValue: nsError.code) else {
+            return "\(error.localizedDescription) (\(nsError.domain) \(nsError.code))"
+        }
+        switch code {
+        case .unauthorized:
+            return "Cloud Storage refused the upload (permission denied). The photo permissions may need to be set up again. (storage \(nsError.code))"
+        case .unauthenticated:
+            return "You've been signed out. Sign in again to upload. (storage \(nsError.code))"
+        case .bucketNotFound, .projectNotFound:
+            return "Cloud Storage isn't set up for this project yet. (storage \(nsError.code))"
+        case .quotaExceeded:
+            return "The project's Cloud Storage allowance is used up. (storage \(nsError.code))"
+        default:
+            return "\(error.localizedDescription) (storage \(nsError.code))"
         }
     }
 

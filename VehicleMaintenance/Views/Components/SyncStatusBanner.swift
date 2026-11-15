@@ -7,21 +7,37 @@ struct SyncStatusBanner: View {
 
     var body: some View {
         if !connectivity.isOnline || photoQueue.pendingCount > 0 {
-            HStack(spacing: 8) {
-                Image(systemName: connectivity.isOnline ? "arrow.up.circle" : "wifi.slash")
-                Text(message)
-                    .lineLimit(2)
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: connectivity.isOnline ? "arrow.up.circle" : "wifi.slash")
+                    Text(message)
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                }
+                if connectivity.isOnline, let error = photoQueue.lastError {
+                    Text(error)
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Try Again") { photoQueue.process() }
+                        .font(.caption.weight(.bold))
+                        .buttonStyle(.bordered)
+                        .tint(.white)
+                }
             }
             .font(.footnote.weight(.medium))
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(connectivity.isOnline ? Color.blue : Color.gray, in: Capsule())
+            .background(bannerColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .padding(.horizontal)
             .padding(.bottom, 4)
             .accessibilityElement(children: .combine)
         }
+    }
+
+    private var bannerColor: Color {
+        if !connectivity.isOnline { return .gray }
+        return photoQueue.lastError == nil ? .blue : .orange
     }
 
     private var message: String {
