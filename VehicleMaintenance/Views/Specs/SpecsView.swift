@@ -98,28 +98,30 @@ struct SpecsEditorView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach($sections) { $section in
+                ForEach(sections) { section in
+                    let sectionBinding = elementBinding($sections, section)
                     Section {
-                        ForEach($section.rows) { $row in
+                        ForEach(section.rows) { row in
+                            let rowBinding = elementBinding(sectionBinding.rows, row)
                             VStack(alignment: .leading, spacing: 4) {
-                                TextField("Field name", text: $row.label)
+                                TextField("Field name", text: rowBinding.label)
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(Color.secondary)
-                                TextField("Value", text: $row.value)
+                                TextField("Value", text: rowBinding.value)
                             }
                             .padding(.vertical, 2)
                         }
-                        .onDelete { section.rows.remove(atOffsets: $0) }
-                        .onMove { section.rows.move(fromOffsets: $0, toOffset: $1) }
+                        .onDelete { sectionBinding.wrappedValue.rows.remove(atOffsets: $0) }
+                        .onMove { sectionBinding.wrappedValue.rows.move(fromOffsets: $0, toOffset: $1) }
 
                         Button {
-                            section.rows.append(SpecRow(id: UUID().uuidString, label: "", value: ""))
+                            sectionBinding.wrappedValue.rows.append(SpecRow(id: UUID().uuidString, label: "", value: ""))
                         } label: {
                             Label("Add Field", systemImage: "plus")
                         }
                     } header: {
                         HStack {
-                            TextField("Section name", text: $section.title)
+                            TextField("Section name", text: sectionBinding.title)
                                 .font(.headline)
                                 .textCase(nil)
                             Spacer()

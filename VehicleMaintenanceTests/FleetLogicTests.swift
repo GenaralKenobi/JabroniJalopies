@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import VehicleMaintenance
 
@@ -633,5 +634,32 @@ struct BulkPassTests {
         let answers = ["horn": ItemAnswer(verdict: .fail)]
         #expect(InspectionPlanner.bulkPassable(items, answers: answers, openDefectsByItem: [:]).map(\.id) == ["mirrors"])
         #expect(InspectionPlanner.bulkPassable(items, answers: [:], openDefectsByItem: ["mirrors": openDefect(item: mirrors)]).map(\.id) == ["horn"])
+    }
+}
+
+struct ElementBindingTests {
+    private struct Row: Identifiable, Equatable {
+        var id: String
+        var on: Bool
+    }
+
+    @Test func readsAndWritesByIdNotPosition() {
+        var rows = [Row(id: "a", on: false), Row(id: "b", on: false)]
+        let array = Binding(get: { rows }, set: { rows = $0 })
+        let b = elementBinding(array, rows[1])
+        rows.insert(Row(id: "new", on: false), at: 0)      // "b" is now at a different position
+        b.wrappedValue.on = true
+        #expect(rows.first { $0.id == "b" }?.on == true)
+        #expect(rows.first { $0.id == "a" }?.on == false)
+    }
+
+    @Test func aDeletedElementDoesNotCrash() {
+        var rows = [Row(id: "a", on: true)]
+        let array = Binding(get: { rows }, set: { rows = $0 })
+        let binding = elementBinding(array, rows[0])
+        rows.removeAll()
+        #expect(binding.wrappedValue == Row(id: "a", on: true))   // last known value
+        binding.wrappedValue.on = false                          // ignored
+        #expect(rows.isEmpty)
     }
 }

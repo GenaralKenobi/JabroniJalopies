@@ -67,8 +67,8 @@ struct ChecklistEditorView: View {
                 scheduleSection
 
                 Section {
-                    ForEach($draft.items) { $item in
-                        ChecklistItemEditor(item: $item, showsRepeat: !draft.isScheduled)
+                    ForEach(draft.items) { item in
+                        ChecklistItemEditor(item: elementBinding($draft.items, item), showsRepeat: !draft.isScheduled)
                     }
                     .onDelete { draft.items.remove(atOffsets: $0) }
                     .onMove { draft.items.move(fromOffsets: $0, toOffset: $1) }
