@@ -14,6 +14,7 @@ If something isn't right, reply with its number.
 58. 🆕 **The app asks for notification permission the first time a manager has an alert to receive**, such as a scheduled checklist coming due or storage getting full. Before this, a manager who only used scheduled checklists would never have been asked, and their alerts would have been silently lost. Managers can still say no, and it can be changed in iPhone Settings.
 59. 🆕 **Screens keep a truck's details loaded for about 20 seconds after you leave them.** Going into a truck's chains or specs and coming back no longer blinks or re-downloads. It adds no real cost.
 60. 🆕 **Vehicle photos offer the camera first** (your request). Add Photo / Change Photo now opens a menu with **Take Photo** and **Choose from Library**, the same as defect photos. On a device with no camera (some iPads, the simulator), only the library option shows.
+61. 🆕 **The privacy policy now says that we (Tailgate Labs) can technically access all fleets' data** and only do so to run, support and secure the app, at a fleet's request, or to investigate misuse. This is true of any app that runs its own database, and a privacy policy should say so. **It's also a promise you're making**, so please make sure you're comfortable keeping it. For example, don't browse customers' data in the Firebase console out of curiosity, and keep the number of people with console access small. This is a starting point, not legal advice.
 
 ## Hours, and checklists due by reading
 

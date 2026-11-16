@@ -46,9 +46,10 @@ If you use the app as a member of a fleet, your fleet's managers can see the inf
   - Managers can see all of the fleet's data.
   - Drivers can see the vehicles they have access to, those vehicles' defects and checklists, and fellow members' names and roles. Drivers can't see other members' email addresses or phone numbers, or service costs; only managers can.
 - **Our service providers:** Google Firebase (Google Cloud) hosts the database, authentication and photo storage on our behalf, under Google's data processing terms. Google doesn't use this data to target ads.
+- **Us (Tailgate Labs):** as the people who run the app, we can technically access the database and photo storage, including every fleet's records and photos. We only do so to operate, support and secure the app, for example to fix a problem you report, at a fleet's request, or to investigate misuse. We don't browse fleets' data for any other reason, and we don't sell it or use it for advertising.
 - **Legal requirements:** we, or our providers, may disclose information if required by law.
 
-Members of one fleet can never see another fleet's data. This is enforced by server-side security rules, not just hidden in the app.
+Members of one fleet can never see another fleet's data through the app. This is enforced by server-side security rules, not just hidden in the app.
 
 ## Where information is stored
 
