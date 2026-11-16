@@ -181,6 +181,10 @@ final class SessionModel {
             guard let fleetId = membership.id else { continue }
             try await leave(fleetId: fleetId)
         }
+        await PushRegistration.shared.disable()
+        for device in try await FS.devices(uid).getDocuments().documents {
+            try await device.reference.delete()
+        }
         try await FS.user(uid).delete()
         stop()
     }

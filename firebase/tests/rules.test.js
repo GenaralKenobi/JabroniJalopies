@@ -288,6 +288,18 @@ describe('inspections and defects', () => {
   });
 });
 
+describe('push notification tokens', () => {
+  it('lets only the person manage their own device tokens', async () => {
+    const mine = `users/mia/devices/token-abc`;
+    await assertSucceeds(setDoc(doc(db('mia'), mine), { token: 'token-abc', platform: 'ios' }));
+    await assertSucceeds(getDoc(doc(db('mia'), mine)));
+    await assertSucceeds(deleteDoc(doc(db('mia'), mine)));
+    await assertFails(setDoc(doc(db('dan'), mine), { token: 'token-abc', platform: 'ios' }));
+    await assertFails(getDoc(doc(db('dan'), `users/mia/devices/anything`)));
+    await assertFails(getDocs(collection(db('dan'), 'users/mia/devices')));
+  });
+});
+
 describe('truck summaries', () => {
   const truck = `fleets/${FLEET}/vehicles/${VEHICLE}`;
 

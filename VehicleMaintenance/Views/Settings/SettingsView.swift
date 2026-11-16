@@ -19,6 +19,7 @@ struct SettingsView: View {
     @State private var checkingSignOut = false
     @State private var confirmingSignOut = false
     @State private var signOutWarning: String?
+    @AppStorage(PushRegistration.preferenceKey) private var pushAlerts = true
     @Environment(ConnectivityMonitor.self) private var connectivity
     @Environment(PhotoUploadQueue.self) private var photoQueue
 
@@ -50,8 +51,17 @@ struct SettingsView: View {
 
                 fleetSettingsSection
 
-                Section("Notifications") {
+                Section {
                     notificationRow
+                    if fleet.isManager {
+                        Toggle("Instant Defect Alerts", isOn: $pushAlerts)
+                    }
+                } header: {
+                    Text("Notifications")
+                } footer: {
+                    if fleet.isManager {
+                        Text("Get a notification on this phone the moment a driver reports a problem. It needs notifications to be on for this app in iPhone Settings.")
+                    }
                 }
 
                 Section("Account") {
@@ -83,6 +93,12 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .syncStatusBanner()
             .task { await refreshNotificationStatus() }
+            .onChange(of: pushAlerts) { _, on in
+                Task {
+                    if on { await PushRegistration.shared.enableIfWanted() } else { await PushRegistration.shared.disable() }
+                    await refreshNotificationStatus()
+                }
+            }
             .onAppear(perform: openDemoScreenIfNeeded)
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await refreshNotificationStatus() } }

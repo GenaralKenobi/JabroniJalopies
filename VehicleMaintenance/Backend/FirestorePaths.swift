@@ -7,6 +7,7 @@ enum FS {
 
     static func user(_ uid: String) -> DocumentReference { db.collection("users").document(uid) }
     static func memberships(_ uid: String) -> CollectionReference { user(uid).collection("memberships") }
+    static func devices(_ uid: String) -> CollectionReference { user(uid).collection("devices") }
     static var invites: CollectionReference { db.collection("invites") }
 
     static var fleets: CollectionReference { db.collection("fleets") }

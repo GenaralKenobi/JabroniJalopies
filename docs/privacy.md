@@ -30,6 +30,7 @@ If you use the app as a member of a fleet, your fleet's managers can see the inf
 | **Truck contents** | What each truck carries and where it's kept, with who last changed each item and when | So crews know what's on the truck and where to find it. |
 | **Equipment and chain records** | Chainsaws and ropes on each truck, problems reported on them, rope length changes, and chain counts logged at the end of the day — with who logged them and when | To keep equipment safe and track chain use. |
 | **Service records** | Service type, date, odometer, shop, notes, and costs (costs are visible to managers only) | Maintenance history and sign-off. |
+| **Notification token** | For managers who turn on instant defect alerts: a code that identifies their phone to Apple's notification service. It's deleted when they sign out, turn the alerts off or delete their account. | To send instant alerts when a driver reports a problem. |
 | **Technical data** | Information our providers need to deliver the service, such as IP addresses in server logs | Security and reliability. |
 
 **Inspection records show who did what and when.** If you use the app at work, your inspections and reports are visible to your fleet's managers.
@@ -45,7 +46,7 @@ If you use the app as a member of a fleet, your fleet's managers can see the inf
 - **Members of your fleet**, according to their role:
   - Managers can see all of the fleet's data.
   - Drivers can see the vehicles they have access to, those vehicles' defects and checklists, and fellow members' names and roles. Drivers can't see other members' email addresses or phone numbers, or service costs; only managers can.
-- **Our service providers:** Google Firebase (Google Cloud) hosts the database, authentication and photo storage on our behalf, under Google's data processing terms. Google doesn't use this data to target ads.
+- **Our service providers:** Google Firebase (Google Cloud) hosts the database, authentication, photo storage and notification delivery on our behalf, under Google's data processing terms. Apple delivers notifications to iPhones. Google doesn't use this data to target ads.
 - **Us (Tailgate Labs):** as the people who run the app, we can technically access the database and photo storage, including every fleet's records and photos. We only do so to operate, support and secure the app, for example to fix a problem you report, at a fleet's request, or to investigate misuse. We don't browse fleets' data for any other reason, and we don't sell it or use it for advertising.
 - **Legal requirements:** we, or our providers, may disclose information if required by law.
 

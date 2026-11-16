@@ -81,6 +81,7 @@ final class AuthModel {
     /// Signs out and wipes this phone's copy of fleet data and scheduled reminders.
     /// Check `FirebaseSetup.hasUnsyncedChanges()` first: unsynced changes are lost.
     func signOut() async {
+        await PushRegistration.shared.disable()
         try? Auth.auth().signOut()
         update(nil)
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()

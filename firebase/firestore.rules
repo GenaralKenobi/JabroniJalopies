@@ -5,6 +5,7 @@ rules_version = '2';
 // Data layout
 //   users/{uid}                                  private to the user
 //   users/{uid}/memberships/{fleetId}            the user's list of fleets
+//   users/{uid}/devices/{token}                  push notification tokens (managers' phones)
 //   invites/{inviteId}                           manager -> email invitations
 //   fleets/{fleetId}                             fleet name + usage counters
 //   fleets/{fleetId}/members/{uid}               per-fleet profile (name) + role
@@ -125,6 +126,13 @@ service cloud.firestore {
       allow read, write: if signedIn() && request.auth.uid == uid;
 
       match /memberships/{fleetId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+
+      // Push notification tokens for this person's phones (managers' phones get
+      // instant defect alerts). Only the person can read or change them; the
+      // alert function reads them with admin access.
+      match /devices/{token} {
         allow read, write: if signedIn() && request.auth.uid == uid;
       }
     }

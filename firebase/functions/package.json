@@ -1,0 +1,14 @@
+{
+  "name": "jabroni-jalopies-functions",
+  "private": true,
+  "description": "Sends managers an instant push notification when a defect is reported",
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.3.0"
+  }
+}

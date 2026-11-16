@@ -35,6 +35,12 @@ jobs:
       - name: Run rules tests against the emulators
         run: npm test
 
+      - name: Test the instant-alert function
+        working-directory: firebase/functions
+        run: |
+          npm ci
+          npm test
+
   build-and-test:
     name: Build, unit tests and screenshots
     runs-on: macos-latest

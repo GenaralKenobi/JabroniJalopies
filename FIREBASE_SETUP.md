@@ -85,6 +85,21 @@ Blaze includes the same free allowances as the free plan, plus about 5 GB of pho
 
 If photo uploads fail, download `GoogleService-Info.plist` again after enabling Storage and replace the old one, so it includes the bucket.
 
+## 7. Instant defect alerts for managers
+
+When a driver reports a problem, a small Cloud Function sends a push notification to the fleet's managers. It's free in practice at this size (the free tier is 2 million function runs a month, and notifications cost nothing), and needs the Blaze plan from step 6.
+
+**One-time setup, in a browser:**
+
+1. **Turn on Push Notifications for the app's ID.** In [Apple Developer](https://developer.apple.com/account/resources/identifiers/list) → Identifiers, open `com.generalkenobi.jabronijalopies`, tick **Push Notifications**, and **Save**.
+2. **Create an Apple push key.** In Apple Developer → Keys, click **+**, name it `Push`, tick **Apple Push Notifications service (APNs)**, then **Continue** and **Register**. **Download** the `.p8` file (Apple only lets you do this once) and write down the **Key ID**. Your **Team ID** is the same one you used for TestFlight.
+3. **Give the key to Firebase.** In Firebase → ⚙️ **Project settings** → **Cloud Messaging** → **Apple app configuration**, under **APNs Authentication Key** click **Upload**. Choose the `.p8` file and enter the Key ID and Team ID.
+4. **Let GitHub deploy functions.** In Google Cloud console → **IAM**, find the `github-deploy` service account and add these roles: **Cloud Functions Admin**, **Service Account User**, **Service Usage Admin** and **Artifact Registry Administrator**.
+5. **Deploy.** Go to GitHub → Actions → **Deploy Firebase Rules** → **Run workflow**. The **functions** job deploys the alert function. The first time it can take 5–10 minutes. If it fails with a message about "Eventarc" or a service agent, wait 5 minutes and run it again; Google is still setting up the new service.
+6. **Get a new TestFlight build** (Actions → TestFlight). Managers are asked for notification permission the first time they open it, and can turn the alerts on or off under **Settings → Notifications → Instant Defect Alerts**.
+
+Only managers' phones register for alerts, and the person who reported the problem isn't notified about their own report.
+
 ## What happens when free limits are reached
 
 **On the free (Spark) plan:**

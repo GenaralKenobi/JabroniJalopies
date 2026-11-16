@@ -29,6 +29,17 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 - [ ] Optional: in Firebase → Authentication → Templates, set the sender name to **Jabroni Jalopies**.
 - [ ] Optional: delete the service account JSON key file you downloaded for GitHub, if it's still on your computer. GitHub has its own copy.
 
+### Instant defect alerts (about 15 minutes in a browser)
+
+The app side is built. These steps switch it on; the full details are in section 7 of [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
+
+- [ ] **Apple Developer → Identifiers:** open `com.generalkenobi.jabronijalopies` and tick **Push Notifications**.
+- [ ] **Apple Developer → Keys:** create a key with **Apple Push Notifications service (APNs)**, download the `.p8` file, and note the **Key ID**.
+- [ ] **Firebase → Project settings → Cloud Messaging:** upload that key under **APNs Authentication Key** (with the Key ID and your Team ID).
+- [ ] **Google Cloud → IAM:** give the `github-deploy` account the roles **Cloud Functions Admin**, **Service Account User**, **Service Usage Admin** and **Artifact Registry Administrator**.
+- [ ] **GitHub → Actions → Deploy Firebase Rules → Run workflow.** If the **functions** job fails with an "Eventarc" message, wait 5 minutes and run it again.
+- [ ] **Run TestFlight** for a new build, then try it: on one phone, sign in as a manager; on another, report a defect as a driver.
+
 ### Now: get the latest build on your phone
 
 - [ ] When I tell you the latest build passed, run **Actions → TestFlight → Run workflow**, then update the app in TestFlight. It includes the checklist crash fix, the camera option for vehicle photos, and a banner that explains why a photo isn't uploading.
@@ -50,7 +61,7 @@ I can't see these settings, so if you've done them, tick them off and ignore the
   - **privacy policy URL** `https://genaralkenobi.github.io/JabroniJalopies/privacy`
 - [ ] **Screenshots:** CI captures iPhone and 13" iPad screenshots on every push; see the `ci-screenshots` branch. Pick the ones you like.
 - [ ] **App Privacy questions:**
-  - **Data collected:** name, email address, phone number, photos, other user content, and user ID.
+  - **Data collected:** name, email address, phone number, photos, other user content, user ID, and **device ID** (the notification token).
   - **Use:** all of it is linked to the user, used for App Functionality, and **not** used for tracking.
 - [ ] **Age rating questionnaire:** answer "none" for everything.
 - [ ] **Demo account for Apple's reviewers:** create a manager account with a sample fleet in your real Firebase project and enter it under App Review Information.
@@ -58,7 +69,7 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 
 ## 2. Open questions
 
-1. **Instant defect alerts for managers:** do you want them? Your Apple developer account is approved, so it can be built now. It needs an Apple push key and Firebase Cloud Functions, and costs a few cents a month at most.
+1. **Instant defect alerts for managers:** built, waiting on the setup steps above.
 2. **Pricing:** I suggested charging per vehicle per month with unlimited users, and invoicing the first few customers by hand. Tell me if you'd like me to plan the billing side.
 
 ## 3. Not confirmed on a real phone yet

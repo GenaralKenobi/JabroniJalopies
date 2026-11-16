@@ -13,6 +13,8 @@ on:
       - firebase/firestore.indexes.json
       - firebase/storage.rules
       - firebase/storage-lifecycle.json
+      - firebase/firebase.json
+      - firebase/functions/**
 
 jobs:
   deploy:
@@ -73,6 +75,65 @@ jobs:
         working-directory: firebase
         if: env.SKIP != '1' && env.STORAGE_BUCKET != ''
         run: gcloud storage buckets update "gs://$STORAGE_BUCKET" --lifecycle-file=storage-lifecycle.json
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json"
+
+  # Instant defect alerts (a Cloud Function). A separate job, so if it fails (for
+  # example, missing permissions the first time) the rules above are still deployed.
+  functions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - name: Check configuration
+        run: |
+          if [ -z "$PROJECT_ID" ] || [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::notice::Skipping: set the FIREBASE_PROJECT_ID variable and FIREBASE_SERVICE_ACCOUNT secret to enable deploys (see FIREBASE_SETUP.md)."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/checkout@v6
+        if: env.SKIP != '1'
+
+      - uses: actions/setup-node@v6
+        if: env.SKIP != '1'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            firebase/package-lock.json
+            firebase/functions/package-lock.json
+
+      - name: Install dependencies
+        if: env.SKIP != '1'
+        run: |
+          npm ci --prefix firebase
+          npm ci --prefix firebase/functions
+
+      - name: Test
+        if: env.SKIP != '1'
+        run: npm test --prefix firebase/functions
+
+      - name: Authenticate
+        if: env.SKIP != '1'
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy the alert function
+        working-directory: firebase
+        if: env.SKIP != '1'
+        run: |
+          status=0
+          npx firebase deploy --only functions --project "$PROJECT_ID" --non-interactive --force || status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Deploying the alert function failed. The usual cause is a missing permission on the github-deploy service account, or Google still setting up a new service (wait 5 minutes and re-run). See the instant alerts section of FIREBASE_SETUP.md."
+          fi
+          exit $status
 
       - name: Remove credentials
         if: always()

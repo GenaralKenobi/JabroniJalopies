@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct VehicleMaintenanceApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var auth: AuthModel
     @Environment(\.scenePhase) private var scenePhase
 

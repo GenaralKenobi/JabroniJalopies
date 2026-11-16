@@ -28,6 +28,13 @@ targets:
         product: FirebaseFirestore
       - package: Firebase
         product: FirebaseStorage
+      - package: Firebase
+        product: FirebaseMessaging
+    entitlements:
+      path: VehicleMaintenance/VehicleMaintenance.entitlements
+      properties:
+        # Instant defect alerts. TestFlight and App Store builds use the production push service.
+        aps-environment: production
     info:
       path: VehicleMaintenance/Info.plist
       properties:

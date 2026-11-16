@@ -388,6 +388,11 @@ final class FleetModel {
         updatePerVehicleListeners()
         updatePerEquipmentListeners()
 
+        // Managers' phones get instant defect alerts (the person can turn this off in Settings).
+        if me.role == .manager {
+            Task { await PushRegistration.shared.enableIfWanted() }
+        }
+
         if me.role == .manager, inviteListener == nil {
             let query = FS.invites
                 .whereField("fleetId", isEqualTo: fleetId)
