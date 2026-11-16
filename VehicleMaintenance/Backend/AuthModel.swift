@@ -59,7 +59,11 @@ final class AuthModel {
     }
 
     func resendVerification() async throws {
-        try await Auth.auth().currentUser?.sendEmailVerification()
+        do {
+            try await Auth.auth().currentUser?.sendEmailVerification()
+        } catch {
+            throw Self.friendly(error)
+        }
     }
 
     /// Reloads the user and refreshes the ID token so the server sees `email_verified`.
@@ -110,7 +114,11 @@ final class AuthModel {
         let code = AuthErrorCode(rawValue: (error as NSError).code)
         switch code {
         case .wrongPassword, .invalidCredential, .userNotFound:
-            return AppError("That email and password don't match.")
+            return AppError("That email and password don't match. New here? Tap Create Account. Forgot your password? Tap Forgot password.")
+        case .userDisabled:
+            return AppError("This account has been turned off. Contact tailgatelabshr@icloud.com if you think that's a mistake.")
+        case .operationNotAllowed:
+            return AppError("Email sign-in isn't turned on for this app yet. Contact tailgatelabshr@icloud.com.")
         case .emailAlreadyInUse:
             return AppError("An account with that email already exists. Try signing in.")
         case .invalidEmail:
@@ -120,7 +128,7 @@ final class AuthModel {
         case .networkError:
             return AppError("No connection. Signing in needs internet the first time.")
         case .tooManyRequests:
-            return AppError("Too many attempts. Wait a moment and try again.")
+            return AppError("Too many attempts. Wait a few minutes and try again.")
         default:
             return error
         }

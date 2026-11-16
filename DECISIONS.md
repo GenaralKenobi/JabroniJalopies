@@ -22,6 +22,12 @@ If something isn't right, reply with its number.
 66. 🆕 **Alerts aren't guaranteed.** They depend on Apple's notification service and on the phone having signal and notifications allowed. A manager who denies notification permission in iPhone Settings gets none. They suit "tell me quickly", not "the only way I'll find out"; the Defects tab is still the record.
 67. 🆕 **Cost: effectively $0.** Firebase's free tier covers 2 million function runs a month, and notifications cost nothing. Google may charge a few cents a month for storing the function's code. The setup needs the Blaze plan, which you already have.
 68. 🆕 **The privacy policy now lists the notification token** (a code identifying a manager's phone, deleted on sign-out or account deletion), and the App Privacy answers in `YOUR_TODO.md` include "device ID".
+69. 🆕 **A safety note in the app and on the support page:** "Jabroni Jalopies helps you record inspections and problems. It doesn't replace inspections required by law, or your company's safety procedures." The support page also says notifications and syncing can be delayed. This is shown in Settings → About.
+70. 🆕 **Apple privacy manifest.** The app now declares to Apple the data it collects (name, email, phone, photos, other content, user ID, device ID, all for app functionality, none for tracking), and why it uses saved settings and file sizes. Apple requires this for App Store submissions. It matches the App Privacy answers in `YOUR_TODO.md`.
+71. 🆕 **Settings → About → Open-Source Licenses** lists the open-source libraries the app includes (Firebase, gRPC, BoringSSL, LevelDB, nanopb and others) with their license text, which their licenses require.
+72. 🆕 **Problems setting up instant alerts show in Settings, under the alerts switch,** instead of a pop-up every time the app opens.
+73. 🆕 **Sign-in tweaks:** a show-password button, the keyboard's Next and Go keys move to the password and sign you in, the password rule (6+ characters) is stated when creating an account, a wrong password suggests Create Account or Forgot password, and "Resend Email" now says if it failed (for example, too many tries) instead of always saying "Sent".
+74. 🆕 **Creating a fleet warns drivers:** "If your company already uses Jabroni Jalopies, don't create a new fleet: ask your manager to invite you instead."
 
 ## Hours, and checklists due by reading
 

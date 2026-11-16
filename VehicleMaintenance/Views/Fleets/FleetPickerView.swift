@@ -127,7 +127,7 @@ struct CreateFleetView: View {
                     TextField("Fleet name (e.g. Acme Delivery)", text: $name)
                         .textInputAutocapitalization(.words)
                 } footer: {
-                    Text("You'll be the fleet's manager. You can invite drivers and other managers next.")
+                    Text("You'll be the fleet's manager. You can invite drivers and other managers next.\n\nIf your company already uses Jabroni Jalopies, don't create a new fleet: ask your manager to invite \(session.email) instead.")
                 }
                 Section {
                     ProfileFields(profile: $profile)

@@ -5,7 +5,7 @@ permalink: /privacy
 
 # Jabroni Jalopies Privacy Policy
 
-**Effective date:** November 9, 2026
+**Effective date:** November 16, 2026
 
 This policy explains how **Tailgate Labs** ("we") handles information in the **Jabroni Jalopies** app ("the app"), which fleets use to track vehicle checklists, defects, equipment and maintenance.
 

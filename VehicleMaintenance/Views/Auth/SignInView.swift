@@ -9,6 +9,10 @@ struct SignInView: View {
     @State private var isWorking = false
     @State private var errorMessage: String?
     @State private var resetSent = false
+    @State private var showingPassword = false
+    @FocusState private var focus: Field?
+
+    enum Field { case email, password }
 
     enum Mode: String, CaseIterable {
         case signIn = "Sign In"
@@ -49,11 +53,35 @@ struct SignInView: View {
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    SecureField("Password", text: $password)
+                        .focused($focus, equals: .email)
+                        .submitLabel(.next)
+                        .onSubmit { focus = .password }
+                    HStack {
+                        Group {
+                            if showingPassword {
+                                TextField("Password", text: $password)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            } else {
+                                SecureField("Password", text: $password)
+                            }
+                        }
                         .textContentType(mode == .signIn ? .password : .newPassword)
+                        .focused($focus, equals: .password)
+                        .submitLabel(.go)
+                        .onSubmit { if canSubmit { submit() } }
+                        Button {
+                            showingPassword.toggle()
+                        } label: {
+                            Image(systemName: showingPassword ? "eye.slash" : "eye")
+                                .foregroundStyle(Color.secondary)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(showingPassword ? "Hide password" : "Show password")
+                    }
                 } footer: {
                     if mode == .createAccount {
-                        Text("If your manager invited you, use the email address they invited. You'll get an email to confirm it.")
+                        Text("Use at least 6 characters for your password. If your manager invited you, use the email address they invited. You'll get an email to confirm it.")
                     }
                 }
 
@@ -72,7 +100,7 @@ struct SignInView: View {
                             Spacer()
                         }
                     }
-                    .disabled(isWorking || email.trimmed.isEmpty || password.count < 6)
+                    .disabled(!canSubmit)
 
                     if mode == .signIn {
                         Button(resetSent ? "Password reset email sent" : "Forgot password?") {
@@ -88,7 +116,10 @@ struct SignInView: View {
         }
     }
 
+    private var canSubmit: Bool { !isWorking && !email.trimmed.isEmpty && password.count >= 6 }
+
     private func submit() {
+        focus = nil
         isWorking = true
         errorMessage = nil
         Task {
@@ -141,8 +172,12 @@ struct VerifyEmailView: View {
 
                 Button("Resend Email") {
                     Task {
-                        try? await auth.resendVerification()
-                        message = "Sent. It can take a minute to arrive."
+                        do {
+                            try await auth.resendVerification()
+                            message = "Sent. It can take a minute to arrive. Check your spam folder too."
+                        } catch {
+                            message = error.localizedDescription
+                        }
                     }
                 }
                 Button("Sign Out", role: .destructive) {

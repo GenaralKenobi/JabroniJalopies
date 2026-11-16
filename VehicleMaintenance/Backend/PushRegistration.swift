@@ -16,6 +16,12 @@ final class PushRegistration: NSObject, MessagingDelegate {
 
     /// `UserDefaults` / `@AppStorage` key: whether this phone wants instant defect alerts (on by default).
     static let preferenceKey = "pushDefectAlerts"
+    /// `@AppStorage` key: why alerts couldn't be set up on this phone (shown in Settings, not as a pop-up).
+    static let problemKey = "pushDefectAlertsProblem"
+
+    static func recordProblem(_ message: String?) {
+        UserDefaults.standard.set(message, forKey: problemKey)
+    }
 
     /// The person this phone is registered for (nil when not registered).
     private var activeUid: String?
@@ -80,8 +86,9 @@ final class PushRegistration: NSObject, MessagingDelegate {
                 "appVersion": version,
                 "updatedAt": FieldValue.serverTimestamp(),
             ])
+            Self.recordProblem(nil)
         } catch {
-            ErrorCenter.shared.report(error, "Setting up instant alerts")
+            Self.recordProblem("Couldn't register this phone: \(ErrorCenter.friendly(error))")
         }
     }
 }
@@ -99,8 +106,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        // Shown under the alerts switch in Settings rather than as a pop-up on every launch.
         Task { @MainActor in
-            ErrorCenter.shared.report(error, "Setting up instant alerts")
+            PushRegistration.recordProblem("iOS couldn't set up notifications for this app: \(error.localizedDescription)")
         }
     }
 

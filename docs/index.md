@@ -14,6 +14,7 @@ Jabroni Jalopies is an iPhone and iPad app for fleets:
 - **What's on the truck:** a searchable list of what each truck carries and where, kept up to date by managers and each truck's lead.
 - **Equipment:** crews track chainsaws, rigging ropes and chains.
 - **Offline:** everything works without signal and syncs when the phone is back online.
+- **Instant alerts:** managers get a notification when a driver reports a problem.
 
 ## Support
 
@@ -21,11 +22,17 @@ Questions, problems or feature requests: email **[tailgatelabshr@icloud.com](mai
 
 To join a fleet, ask your fleet manager to invite you, then create an account in the app with **the same email address they invited**. Confirm it from the email the app sends; check your spam folder if you can't find it.
 
+## Safety and the law
+
+Jabroni Jalopies helps crews record inspections and problems, and flags vehicles and equipment that shouldn't be used. It doesn't replace inspections or records required by law (for example, Driver Vehicle Inspection Reports for commercial vehicles), a qualified mechanic's judgement, or your company's safety procedures. If in doubt, don't drive it or use it.
+
+Notifications and syncing depend on signal and on Apple's and Google's services, so they can be delayed. Always check a vehicle's status in the app before using it.
+
 ## Privacy
 
 Read the [privacy policy](privacy). Short version:
 - No ads, analytics or location tracking.
-- Your fleet's data is visible only to your fleet.
+- Other fleets can't see your fleet's data in the app. As the app's operators, we can technically access it, and only do so to run, support and secure the app (see the policy).
 - Email addresses and phone numbers are visible only to fleet managers.
 
 ## Deleting your account

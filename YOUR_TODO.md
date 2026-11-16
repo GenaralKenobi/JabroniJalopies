@@ -51,6 +51,19 @@ The app side is built. These steps switch it on; the full details are in section
 - [ ] Tell drivers to sign up with the **same email** you invite and to confirm it.
 - [ ] To get drivers the app, create an external TestFlight group with a **Public Link** (see [TESTFLIGHT.md](TESTFLIGHT.md)). The first build for external testers goes through a short Apple beta review.
 
+### Legal and business (before you charge anyone or release publicly)
+
+None of this is legal advice; these are the things worth getting a professional to look at.
+
+- [ ] **Terms of Use:** have a lawyer review and finish [TERMS_DRAFT.md](TERMS_DRAFT.md), then publish it. It's important for an app that tells people a vehicle is safe or unsafe: it says the app doesn't replace legally required inspections and limits your liability.
+- [ ] **Privacy policy:** have the same lawyer read [docs/privacy.md](docs/privacy.md).
+- [ ] **Business name:** "Tailgate Labs" appears in the app and the policies, but it isn't a registered business yet. Register it as an assumed name (DBA) or form an LLC before taking money, and put the legal name in the policies.
+- [ ] **Trademark:** there's a live US trademark registration for "JABRONI" (business services, class 35, registered 2021) and a pending "JABRONI BRAWL" video-game application. I found nothing for software like yours, but a trademark attorney's clearance search is worth it before you spend on branding, and they can file "Jabroni Jalopies" for you.
+- [ ] **Where to sell:** in App Store Connect, start with **United States only** (add Canada if needed). Selling in the EU means GDPR, and Apple asks EU sellers for "trader" details that are shown publicly on the App Store.
+- [ ] **Don't call it a DVIR system.** US commercial-vehicle inspection reports (49 CFR 396.11) have specific requirements (signatures, mechanic certification, retention) that the app doesn't claim to meet. The support page and the app say so.
+- [ ] **Taxes and insurance:** ask an accountant about sales tax on software subscriptions in your state, and an insurance agent about general liability and technology errors-and-omissions cover.
+- [ ] **Big customers** will ask for a data processing agreement (how you handle their employees' data). Have the lawyer prepare one when the first one asks.
+
 ### Before the public App Store release
 
 - [ ] **Listing:**
@@ -70,7 +83,8 @@ The app side is built. These steps switch it on; the full details are in section
 ## 2. Open questions
 
 1. **Instant defect alerts for managers:** built, waiting on the setup steps above.
-2. **Pricing:** I suggested charging per vehicle per month with unlimited users, and invoicing the first few customers by hand. Tell me if you'd like me to plan the billing side.
+2. **Who can create a fleet:** right now anyone who downloads the app, creates an account and confirms their email can create a fleet (that's how a new company signs up). Tell me if you'd rather only approved accounts could, for now.
+3. **Pricing:** I suggested charging per vehicle per month with unlimited users, and invoicing the first few customers by hand. Tell me if you'd like me to plan the billing side.
 
 ## 3. Not confirmed on a real phone yet
 

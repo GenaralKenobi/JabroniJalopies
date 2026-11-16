@@ -21,6 +21,10 @@ targets:
       - path: VehicleMaintenance
         excludes:
           - "Info.plist"
+          - "PrivacyInfo.xcprivacy"
+      # Apple privacy manifest: what data the app collects and why it uses certain system APIs.
+      - path: VehicleMaintenance/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - package: Firebase
         product: FirebaseAuth

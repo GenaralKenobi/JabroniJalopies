@@ -132,6 +132,14 @@ jobs:
             echo "::error::Release build failed with exit code $status"
             tail -80 build/release.log
           fi
+          # Required files must end up inside the app.
+          APP_RELEASE=build/DerivedDataRelease/Build/Products/Release-iphoneos/VehicleMaintenance.app
+          for f in PrivacyInfo.xcprivacy Acknowledgements.txt; do
+            if [ "$status" -eq 0 ] && [ ! -f "$APP_RELEASE/$f" ]; then
+              echo "::error::$f is missing from the built app"
+              status=1
+            fi
+          done
           exit $status
 
       - uses: actions/setup-node@v6

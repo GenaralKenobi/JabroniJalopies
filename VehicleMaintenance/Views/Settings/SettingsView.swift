@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var confirmingSignOut = false
     @State private var signOutWarning: String?
     @AppStorage(PushRegistration.preferenceKey) private var pushAlerts = true
+    @AppStorage(PushRegistration.problemKey) private var pushProblem: String?
     @Environment(ConnectivityMonitor.self) private var connectivity
     @Environment(PhotoUploadQueue.self) private var photoQueue
 
@@ -60,7 +61,13 @@ struct SettingsView: View {
                     Text("Notifications")
                 } footer: {
                     if fleet.isManager {
-                        Text("Get a notification on this phone the moment a driver reports a problem. It needs notifications to be on for this app in iPhone Settings.")
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Get a notification on this phone the moment a driver reports a problem. It needs notifications to be on for this app in iPhone Settings.")
+                            if pushAlerts, let pushProblem {
+                                Label(pushProblem, systemImage: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                            }
+                        }
                     }
                 }
 
@@ -82,11 +89,16 @@ struct SettingsView: View {
                     Text(errorMessage).foregroundStyle(.red)
                 }
 
-                Section("About") {
+                Section {
                     LabeledContent("Jabroni Jalopies", value: Bundle.main.appVersion)
+                    NavigationLink("Open-Source Licenses") { AcknowledgementsView() }
                     Text("Made by Tailgate Labs")
                         .font(.footnote)
                         .foregroundStyle(Color.secondary)
+                } header: {
+                    Text("About")
+                } footer: {
+                    Text("Jabroni Jalopies helps you record inspections and problems. It doesn't replace inspections required by law, or your company's safety procedures.")
                 }
             }
             .readableWidth()
