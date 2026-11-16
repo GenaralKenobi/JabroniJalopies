@@ -32,7 +32,7 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 ### Now: get the latest build on your phone
 
 - [ ] When I tell you the latest build passed, run **Actions → TestFlight → Run workflow**, then update the app in TestFlight. It includes the checklist crash fix, the camera option for vehicle photos, and a banner that explains why a photo isn't uploading.
-- [ ] If the orange photo banner shows an error, send it to me.
+- [ ] **Fix photo uploads.** The banner said "permission denied" (`-13021`). Cloud Storage needs permission to read the member list: in Firebase → Storage → Rules, add a blank line and **Publish**, and accept the cross-service box if one appears. Then tap **Try Again** once. The full steps are in step 6 of [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 ### Before rolling out to the crew
 
@@ -60,7 +60,6 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 
 1. **Instant defect alerts for managers:** do you want them? Your Apple developer account is approved, so it can be built now. It needs an Apple push key and Firebase Cloud Functions, and costs a few cents a month at most.
 2. **Pricing:** I suggested charging per vehicle per month with unlimited users, and invoicing the first few customers by hand. Tell me if you'd like me to plan the billing side.
-3. **Photo uploads:** tell me what the orange banner says, once you have the new build.
 
 ## 3. Not confirmed on a real phone yet
 

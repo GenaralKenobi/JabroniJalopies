@@ -79,6 +79,10 @@ Blaze includes the same free allowances as the free plan, plus about 5 GB of pho
    - **If you used Option B:** paste `firebase/storage.rules` into **Storage** → **Rules**. Then, in the Google Cloud console, open the bucket's **Lifecycle** tab and add a rule to delete objects older than 1,827 days.
 6. In the app, a manager turns on **Settings** → **Defect Photos**.
 
+7. **Let Storage read the member list.** The photo permissions check the fleet's member list in the database, and Google requires a separate permission for that. Without it every upload fails with "permission denied" (error `-13021`).
+   - Easiest: in **Storage** → **Rules**, add a blank line and click **Publish**. If a box about cross-service access appears, accept it.
+   - Or in Google Cloud console → **IAM**, tick **Include Google-provided role grants**, find the account ending `@gcp-sa-firebasestorage.iam.gserviceaccount.com`, and give it the **Firebase Rules Firestore Service Agent** role.
+
 If photo uploads fail, download `GoogleService-Info.plist` again after enabling Storage and replace the old one, so it includes the bucket.
 
 ## What happens when free limits are reached
