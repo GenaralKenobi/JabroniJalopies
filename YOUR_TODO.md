@@ -34,7 +34,7 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 The app side is built. These steps switch it on; the full details are in section 7 of [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 - [ ] **Apple Developer → Identifiers:** open `com.generalkenobi.jabronijalopies` and tick **Push Notifications**.
-- [ ] **Apple Developer → Keys:** create a key with **Apple Push Notifications service (APNs)**, download the `.p8` file, and note the **Key ID**.
+- [ ] **Apple Developer → Keys:** create a key with **Apple Push Notifications service (APNs)**. Click **Configure** on that row and choose **Sandbox & Production** and **Team Scoped (All Topics)**, then register it, download the `.p8` file, and note the **Key ID**.
 - [ ] **Firebase → Project settings → Cloud Messaging:** upload that key under **APNs Authentication Key** (with the Key ID and your Team ID).
 - [ ] **Google Cloud → IAM:** give the `github-deploy` account the roles **Cloud Functions Admin**, **Service Account User**, **Service Usage Admin** and **Artifact Registry Administrator**.
 - [ ] **GitHub → Actions → Deploy Firebase Rules → Run workflow.** If the **functions** job fails with an "Eventarc" message, wait 5 minutes and run it again.
