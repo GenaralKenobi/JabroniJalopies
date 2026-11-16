@@ -197,7 +197,7 @@ struct InspectionFormView: View {
                     }
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
+            .scrollDismissesKeyboard(.immediately)
             .sensoryFeedback(.success, trigger: bulkPassCount)
             .keyboardDoneButton()
             .navigationTitle(checklist.name)

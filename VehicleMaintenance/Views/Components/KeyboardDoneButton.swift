@@ -5,7 +5,9 @@ extension View {
     /// Adds a "Done" button above the keyboard. Number pads have no return key, so
     /// without this the keyboard can cover the Save/Submit buttons with no way to close it.
     func keyboardDoneButton() -> some View {
-        toolbar {
+        // Scrolling in either direction also puts the keyboard away.
+        scrollDismissesKeyboard(.immediately)
+        .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Done") {
