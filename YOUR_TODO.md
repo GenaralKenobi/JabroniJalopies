@@ -17,6 +17,7 @@ Decisions for you to check are in [DECISIONS.md](DECISIONS.md). Anything marked 
 - Blaze plan, Cloud Storage and the photo permissions are set up.
 - Apple developer account approved, bundle ID registered, app created in App Store Connect, API key made, and the four GitHub secrets added.
 - TestFlight upload works, and the app is installed on your iPhone.
+- Instant defect alerts are set up (push key uploaded to Firebase for development and production, alert function deployed) and tested between two devices.
 
 ## 1. Things for you to do
 
@@ -29,20 +30,8 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 - [ ] Optional: in Firebase → Authentication → Templates, set the sender name to **Jabroni Jalopies**.
 - [ ] Optional: delete the service account JSON key file you downloaded for GitHub, if it's still on your computer. GitHub has its own copy.
 
-### Instant defect alerts (about 15 minutes in a browser)
+### Now: check photo uploads
 
-The app side is built. These steps switch it on; the full details are in section 7 of [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
-
-- [ ] **Apple Developer → Identifiers:** open `com.generalkenobi.jabronijalopies` and tick **Push Notifications**.
-- [ ] **Apple Developer → Keys:** create a key with **Apple Push Notifications service (APNs)**. Click **Configure** on that row and choose **Sandbox & Production** and **Team Scoped (All Topics)**, then register it, download the `.p8` file, and note the **Key ID**.
-- [ ] **Firebase → Project settings → Cloud Messaging:** upload that key under **APNs Authentication Key** (with the Key ID and your Team ID).
-- [ ] **Google Cloud → IAM:** give the `github-deploy` account the roles **Cloud Functions Admin**, **Service Account User**, **Service Usage Admin** and **Artifact Registry Administrator**.
-- [ ] **GitHub → Actions → Deploy Firebase Rules → Run workflow.** If the **functions** job fails with an "Eventarc" message, wait 5 minutes and run it again.
-- [ ] **Run TestFlight** for a new build, then try it: on one phone, sign in as a manager; on another, report a defect as a driver.
-
-### Now: get the latest build on your phone
-
-- [ ] When I tell you the latest build passed, run **Actions → TestFlight → Run workflow**, then update the app in TestFlight. It includes the checklist crash fix, the camera option for vehicle photos, and a banner that explains why a photo isn't uploading.
 - [ ] **Fix photo uploads.** The banner said "permission denied" (`-13021`). Cloud Storage needs permission to read the member list: in Firebase → Storage → Rules, add a blank line and **Publish**, and accept the cross-service box if one appears. Then tap **Try Again** once. The full steps are in step 6 of [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 ### Before rolling out to the crew
@@ -82,15 +71,13 @@ None of this is legal advice; these are the things worth getting a professional 
 
 ## 2. Open questions
 
-1. **Instant defect alerts for managers:** built, waiting on the setup steps above.
-2. **Who can create a fleet:** right now anyone who downloads the app, creates an account and confirms their email can create a fleet (that's how a new company signs up). Tell me if you'd rather only approved accounts could, for now.
-3. **Pricing:** I suggested charging per vehicle per month with unlimited users, and invoicing the first few customers by hand. Tell me if you'd like me to plan the billing side.
+1. **Who can create a fleet:** right now anyone who downloads the app, creates an account and confirms their email can create a fleet (that's how a new company signs up). Tell me if you'd rather only approved accounts could, for now.
+2. **Pricing:** I suggested charging per vehicle per month with unlimited users, and invoicing the first few customers by hand. Tell me if you'd like me to plan the billing side.
 
 ## 3. Not confirmed on a real phone yet
 
-- **Confirmed:** the app installs from TestFlight, and the fixed build passes all automated tests on GitHub's Macs and simulators.
+- **Confirmed:** the app installs from TestFlight, the fixed build passes all automated tests on GitHub's Macs and simulators, and instant defect alerts reach a manager's device.
 - **Not confirmed yet** (these need a real phone):
-  - a manager and a driver on two phones at once
   - a checklist completed in airplane mode and syncing afterwards
   - photo uploads (currently being investigated)
-  - notifications and calendar events
+  - reminder notifications and calendar events
