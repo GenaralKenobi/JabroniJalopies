@@ -112,17 +112,23 @@ jobs:
             echo "No embedded frameworks found."
           fi
 
-          # The app's own entitlements (push notifications for instant alerts) must survive into
-          # the final signature. Show them, and sign the app itself with them so the export keeps them.
+          # The app's own entitlements (push notifications for instant alerts) must be on the app's
+          # signature: the export carries them into the distribution signature. An unsigned archive
+          # doesn't keep them, so use the file XcodeGen generated from project.yml.
           XCENT="$APP/archived-expanded-entitlements.xcent"
-          if [ -f "$XCENT" ]; then
-            echo "Entitlements in the archive:"
-            cat "$XCENT"
-            codesign --force --sign - --timestamp=none --entitlements "$XCENT" "$APP"
-          else
-            echo "::warning::The archive has no entitlements file, so instant alerts (push notifications) may not work in this build."
-            find "$RUNNER_TEMP/VehicleMaintenance.xcarchive" -name "*.xcent" | head
+          [ -f "$XCENT" ] || XCENT="VehicleMaintenance/VehicleMaintenance.entitlements"
+          if [ ! -f "$XCENT" ]; then
+            echo "::error::No entitlements file found; instant alerts would not work in this build."
+            exit 1
           fi
+          echo "Signing the app with $XCENT:"
+          cat "$XCENT"
+          codesign --force --sign - --timestamp=none --entitlements "$XCENT" "$APP"
+          if ! codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "aps-environment"; then
+            echo "::error::The app's signature is missing aps-environment; instant alerts would not work."
+            exit 1
+          fi
+          echo "aps-environment is on the app's signature."
 
       - name: Export and upload to App Store Connect
         run: |
