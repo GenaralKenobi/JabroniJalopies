@@ -175,60 +175,61 @@ struct UpcomingView: View {
     @Environment(FleetModel.self) private var fleet
     @State private var planning: ScheduledDue?
     @State private var calendarReminder: ReminderCalendarItem?
+    @State private var expanded = ExpandedGroups()
 
     var body: some View {
         NavigationStack {
-            let entries = fleet.allReminders
-            // Managers see scheduled checklists due within two weeks or overdue; drivers see overdue ones.
-            let scheduled = fleet.allScheduledChecklists().filter {
-                fleet.isManager ? $0.status != .later : $0.status == .overdue
-            }
+            let groups = upcomingGroups
             Group {
-                if entries.isEmpty && scheduled.isEmpty {
+                if groups.isEmpty {
                     ContentUnavailableView("Nothing Scheduled", systemImage: "calendar.badge.checkmark",
                                            description: Text(fleet.isManager
                                                              ? "Add maintenance reminders from a vehicle's page, or give a checklist a schedule in Settings → Checklists."
                                                              : "Your manager hasn't scheduled any maintenance yet."))
                 } else {
                     List {
-                        if !scheduled.isEmpty {
+                        ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
                             Section {
-                                ForEach(scheduled) { entry in
-                                    HStack {
-                                        NavigationLink(value: entry.vehicleId) {
-                                            ScheduledChecklistRow(entry: entry,
-                                                                  vehicleName: fleet.vehicle(entry.vehicleId)?.displayName)
-                                        }
-                                        if fleet.isManager {
-                                            Button(entry.plannedFor == nil ? "Plan" : "Change") { planning = entry }
-                                                .buttonStyle(.bordered)
-                                                .controlSize(.small)
+                                TruckGroupHeader(name: group.vehicle.displayName, summary: group.summary,
+                                                 symbol: group.worst.symbolName,
+                                                 color: group.worst == .ok ? .secondary : group.worst.color,
+                                                 isExpanded: expanded.binding(group.id, in: $expanded))
+                                if expanded.open.contains(group.id) {
+                                    ForEach(group.scheduled) { entry in
+                                        HStack {
+                                            NavigationLink(value: entry.vehicleId) {
+                                                ScheduledChecklistRow(entry: entry)
+                                            }
+                                            if fleet.isManager {
+                                                Button(entry.plannedFor == nil ? "Plan" : "Change") { planning = entry }
+                                                    .buttonStyle(.bordered)
+                                                    .controlSize(.small)
+                                            }
                                         }
                                     }
-                                }
-                            } header: {
-                                Text("Scheduled Checklists")
-                            } footer: {
-                                if fleet.isManager {
-                                    Text("Due within \(ScheduledChecklists.alertLeadDays) days or overdue. Plan a day for each; drivers see one only if it becomes overdue.")
-                                }
-                            }
-                        }
-                        ForEach(DueStatus.allCases.reversed(), id: \.self) { status in
-                            let items = entries.filter { $0.reminder.status(currentOdometer: $0.vehicle.odometer) == status }
-                            if !items.isEmpty {
-                                Section(status.sectionTitle) {
-                                    ForEach(items, id: \.reminder.id) { entry in
-                                        NavigationLink(value: entry.vehicle.id ?? "") {
-                                            ReminderRow(reminder: entry.reminder, vehicle: entry.vehicle, showsVehicle: true)
+                                    ForEach(group.reminders) { reminder in
+                                        NavigationLink(value: group.id) {
+                                            ReminderRow(reminder: reminder, vehicle: group.vehicle)
                                         }
-                                        .addToCalendarActions(ReminderCalendarItem(reminder: entry.reminder, vehicle: entry.vehicle),
+                                        .addToCalendarActions(ReminderCalendarItem(reminder: reminder, vehicle: group.vehicle),
                                                               selection: $calendarReminder)
                                     }
+                                }
+                            } footer: {
+                                if index == groups.count - 1 {
+                                    Text(fleet.isManager
+                                         ? "Tap a truck to see what's coming up. Scheduled checklists show when due within \(ScheduledChecklists.alertLeadDays) days or overdue: plan a day for each. Swipe left on a maintenance reminder to add it to your calendar."
+                                         : "Tap a truck to see what's coming up. Swipe left on a maintenance reminder to add it to your calendar.")
                                 }
                             }
                         }
                     }
+                }
+            }
+            .expandGroupsForScreenshots(groups.map(\.id), $expanded)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ExpandAllButton(ids: groups.map(\.id), groups: $expanded)
                 }
             }
             .readableWidth()
@@ -242,5 +243,59 @@ struct UpcomingView: View {
             .reminderCalendarSheet($calendarReminder)
             .syncStatusBanner()
         }
+    }
+}
+
+extension UpcomingView {
+    /// One truck's scheduled checklists and maintenance reminders.
+    struct UpcomingGroup: Identifiable {
+        let vehicle: Vehicle
+        var scheduled: [ScheduledDue] = []
+        var reminders: [Reminder] = []
+        var id: String { vehicle.id ?? "" }
+
+        private var statuses: [DueStatus] {
+            scheduled.map { entry -> DueStatus in
+                switch entry.status {
+                case .overdue: .overdue
+                case .dueSoon: .dueSoon
+                case .later: .ok
+                }
+            } + reminders.map { $0.status(currentOdometer: vehicle.odometer) }
+        }
+
+        var worst: DueStatus { statuses.max() ?? .ok }
+
+        var summary: String {
+            let overdue = statuses.filter { $0 == .overdue }.count
+            let soon = statuses.filter { $0 == .dueSoon }.count
+            let later = statuses.count - overdue - soon
+            var parts: [String] = []
+            if overdue > 0 { parts.append("\(overdue) overdue") }
+            if soon > 0 { parts.append("\(soon) due soon") }
+            if later > 0 { parts.append("\(later) later") }
+            return parts.joined(separator: " · ")
+        }
+    }
+
+    var upcomingGroups: [UpcomingGroup] {
+        // Managers see scheduled checklists due within two weeks or overdue; drivers see overdue ones.
+        let scheduled = fleet.allScheduledChecklists().filter {
+            fleet.isManager ? $0.status != .later : $0.status == .overdue
+        }
+        let groups: [UpcomingGroup] = fleet.sortedVehicles.compactMap { vehicle in
+            let id = vehicle.id ?? ""
+            let reminders = (fleet.reminders[id] ?? []).sorted {
+                $0.status(currentOdometer: vehicle.odometer) > $1.status(currentOdometer: vehicle.odometer)
+            }
+            let checklists = scheduled.filter { $0.vehicleId == id }
+            guard !reminders.isEmpty || !checklists.isEmpty else { return nil }
+            return UpcomingGroup(vehicle: vehicle, scheduled: checklists, reminders: reminders)
+        }
+        // Trucks with the most urgent items first; sortedVehicles keeps them by name otherwise.
+        return groups.enumerated().sorted { lhs, rhs in
+            if lhs.element.worst != rhs.element.worst { return lhs.element.worst > rhs.element.worst }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
     }
 }

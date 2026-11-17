@@ -196,7 +196,9 @@ jobs:
           shoot 03b-contents light -initialTab fleet -demoScreen contents
           shoot 04-checklist light -initialTab fleet -demoScreen checklist
           shoot 05-defects light -initialTab defects
+          shoot 05b-defects-open light -initialTab defects -expandGroups YES
           shoot 06-upcoming light -initialTab upcoming
+          shoot 06b-upcoming-open light -initialTab upcoming -expandGroups YES
           shoot 07-settings light -initialTab settings
           shoot 08-data-storage light -initialTab settings -demoScreen storage
           shoot 09-members light -initialTab settings -demoScreen members
@@ -229,7 +231,7 @@ jobs:
             WAIT=30 shoot ipad-01-fleet light -initialTab fleet
             shoot ipad-02-vehicle light -initialTab fleet -demoScreen vehicle
             shoot ipad-03-checklist light -initialTab fleet -demoScreen checklist
-            shoot ipad-04-defects light -initialTab defects
+            shoot ipad-04-defects light -initialTab defects -expandGroups YES
             xcrun simctl shutdown "$UDID" || true
           else
             echo "No iPad simulator available; skipping iPad screenshots."

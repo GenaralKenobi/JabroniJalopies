@@ -6,28 +6,39 @@ struct DefectsTabView: View {
     @Environment(FleetModel.self) private var fleet
     @State private var reviewing: (vehicle: Vehicle, record: ServiceRecord)?
     @State private var showingReview = false
+    @State private var expanded = ExpandedGroups()
 
     var body: some View {
         NavigationStack {
             List {
-                let defects = fleet.allOpenDefects
-                Section {
-                    if defects.isEmpty {
+                let groups = defectGroups
+                if groups.isEmpty {
+                    Section("Open Defects") {
                         Label("No open defects", systemImage: "checkmark.circle")
                             .foregroundStyle(Color.secondary)
                     }
-                    ForEach(defects) { entry in
-                        NavigationLink {
-                            DefectDetailView(owner: entry.owner, defectId: entry.defect.id ?? "")
-                        } label: {
-                            DefectRow(defect: entry.defect, context: entry.context)
+                }
+                ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                    Section {
+                        TruckGroupHeader(name: group.name, summary: group.summary,
+                                         symbol: group.unsafeCount > 0 ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill",
+                                         color: group.unsafeCount > 0 ? .red : .orange,
+                                         isExpanded: expanded.binding(group.id, in: $expanded))
+                        if expanded.open.contains(group.id) {
+                            ForEach(group.entries) { entry in
+                                NavigationLink {
+                                    DefectDetailView(owner: entry.owner, defectId: entry.defect.id ?? "")
+                                } label: {
+                                    DefectRow(defect: entry.defect, context: entry.equipmentName)
+                                }
+                            }
                         }
-                    }
-                } header: {
-                    Text("Open Defects")
-                } footer: {
-                    if !defects.isEmpty {
-                        Text(fleet.isManager ? "Only managers can close defects." : "A manager closes defects once they're repaired.")
+                    } header: {
+                        if index == 0 { Text("Open Defects") }
+                    } footer: {
+                        if index == groups.count - 1 {
+                            Text("Tap a truck to see its problems. \(fleet.isManager ? "Only managers can close defects." : "A manager closes defects once they're repaired.")")
+                        }
                     }
                 }
 
@@ -70,12 +81,71 @@ struct DefectsTabView: View {
             }
             .readableWidth()
             .navigationTitle("Defects")
+            .expandGroupsForScreenshots(defectGroups.map(\.id), $expanded)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ExpandAllButton(ids: defectGroups.map(\.id), groups: $expanded)
+                }
+            }
             .syncStatusBanner()
             .sheet(isPresented: $showingReview) {
                 if let reviewing {
                     ServiceReviewView(vehicle: reviewing.vehicle, record: reviewing.record)
                 }
             }
+        }
+    }
+}
+
+extension DefectsTabView {
+    /// Open defects grouped by truck. A saw's or rope's defects go with the truck it's on.
+    struct DefectGroup: Identifiable {
+        struct Entry: Identifiable {
+            let owner: DefectOwner
+            let defect: Defect
+            /// The saw or rope's name; nil for the truck's own defects.
+            let equipmentName: String?
+            var id: String { "\(owner)-\(defect.id ?? "")" }
+        }
+
+        let id: String
+        let name: String
+        var entries: [Entry] = []
+
+        var unsafeCount: Int { entries.filter(\.defect.unsafe).count }
+        var summary: String {
+            let count = entries.count == 1 ? "1 problem" : "\(entries.count) problems"
+            let unsafe = unsafeCount
+            return unsafe == 0 ? count : "\(count) · \(unsafe) unsafe"
+        }
+    }
+
+    var defectGroups: [DefectGroup] {
+        var groups: [String: DefectGroup] = [:]
+        var order: [String] = []
+        for entry in fleet.allOpenDefects {
+            let truckId: String
+            var equipmentName: String?
+            switch entry.owner {
+            case .vehicle(let id):
+                truckId = id
+            case .equipment(let id):
+                let item = fleet.equipment(id)
+                truckId = item.flatMap { fleet.vehicle($0.vehicleId)?.id } ?? "none"
+                equipmentName = item?.displayName ?? "Equipment"
+            }
+            if groups[truckId] == nil {
+                let name = truckId == "none" ? "Not on a truck" : fleet.vehicle(truckId)?.displayName ?? "Vehicle"
+                groups[truckId] = DefectGroup(id: truckId, name: name)
+                order.append(truckId)
+            }
+            groups[truckId]?.entries.append(.init(owner: entry.owner, defect: entry.defect, equipmentName: equipmentName))
+        }
+        // Trucks with unsafe problems first, then the most problems, then by name.
+        return order.compactMap { groups[$0] }.sorted { lhs, rhs in
+            if (lhs.unsafeCount > 0) != (rhs.unsafeCount > 0) { return lhs.unsafeCount > 0 }
+            if lhs.entries.count != rhs.entries.count { return lhs.entries.count > rhs.entries.count }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
     }
 }
