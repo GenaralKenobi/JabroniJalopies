@@ -17,6 +17,7 @@ struct VehicleDetailView: View {
     @State private var reviewingService: ServiceRecord?
     @State private var showingAddReminder = false
     @State private var editingReminder: Reminder?
+    @State private var calendarReminder: ReminderCalendarItem?
     @State private var showingOdometerPrompt = false
     @State private var odometerText = ""
     @State private var confirmingDelete = false
@@ -104,6 +105,7 @@ struct VehicleDetailView: View {
         .sheet(item: $reviewingService) { ServiceReviewView(vehicle: vehicle, record: $0) }
         .sheet(isPresented: $showingAddReminder) { ReminderFormView(vehicle: vehicle) }
         .sheet(item: $editingReminder) { ReminderFormView(vehicle: vehicle, reminder: $0) }
+        .reminderCalendarSheet($calendarReminder)
         .fullScreenCover(item: $activeChecklist) { checklist in
             InspectionFormView(vehicle: vehicle, checklist: checklist)
         }
@@ -384,13 +386,17 @@ struct VehicleDetailView: View {
                 }
             } else {
                 ForEach(items) { reminder in
-                    if fleet.isManager {
-                        Button { editingReminder = reminder } label: {
+                    Group {
+                        if fleet.isManager {
+                            Button { editingReminder = reminder } label: {
+                                ReminderRow(reminder: reminder, vehicle: vehicle)
+                            }
+                        } else {
                             ReminderRow(reminder: reminder, vehicle: vehicle)
                         }
-                    } else {
-                        ReminderRow(reminder: reminder, vehicle: vehicle)
                     }
+                    .addToCalendarActions(ReminderCalendarItem(reminder: reminder, vehicle: vehicle),
+                                          selection: $calendarReminder)
                 }
                 if fleet.isManager {
                     Button { showingAddReminder = true } label: {
@@ -400,6 +406,10 @@ struct VehicleDetailView: View {
             }
         } header: {
             Text("Maintenance")
+        } footer: {
+            if !items.isEmpty {
+                Text("Swipe left on a reminder, or touch and hold it, to add it to your calendar.")
+            }
         }
     }
 

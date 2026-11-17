@@ -28,6 +28,7 @@ If something isn't right, reply with its number.
 72. 🆕 **Problems setting up instant alerts show in Settings, under the alerts switch,** instead of a pop-up every time the app opens.
 73. 🆕 **Sign-in tweaks:** a show-password button, the keyboard's Next and Go keys move to the password and sign you in, the password rule (6+ characters) is stated when creating an account, a wrong password suggests Create Account or Forgot password, and "Resend Email" now says if it failed (for example, too many tries) instead of always saying "Sent".
 74. 🆕 **Creating a fleet warns drivers:** "If your company already uses Jabroni Jalopies, don't create a new fleet: ask your manager to invite you instead."
+75. 🆕 **Maintenance reminders can go in your calendar** (your request). Swipe left on a reminder, or touch and hold it, on the truck page or the Upcoming tab, and the phone's New Event screen opens: an all-day event named after the service and truck, with a 7 AM alert. It's on the due date; for reminders due only by miles or hours, it starts a week from today and you pick the day. Anyone can do this, drivers included, since it only touches their own calendar. As with planned checklists, the app can't move the event later if the due date changes.
 
 ## Hours, and checklists due by reading
 

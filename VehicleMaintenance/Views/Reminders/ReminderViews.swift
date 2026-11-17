@@ -174,6 +174,7 @@ struct ReminderFormView: View {
 struct UpcomingView: View {
     @Environment(FleetModel.self) private var fleet
     @State private var planning: ScheduledDue?
+    @State private var calendarReminder: ReminderCalendarItem?
 
     var body: some View {
         NavigationStack {
@@ -221,6 +222,8 @@ struct UpcomingView: View {
                                         NavigationLink(value: entry.vehicle.id ?? "") {
                                             ReminderRow(reminder: entry.reminder, vehicle: entry.vehicle, showsVehicle: true)
                                         }
+                                        .addToCalendarActions(ReminderCalendarItem(reminder: entry.reminder, vehicle: entry.vehicle),
+                                                              selection: $calendarReminder)
                                     }
                                 }
                             }
@@ -236,6 +239,7 @@ struct UpcomingView: View {
             .sheet(item: $planning) { entry in
                 PlanChecklistView(entry: entry, vehicleName: fleet.vehicle(entry.vehicleId)?.displayName ?? "")
             }
+            .reminderCalendarSheet($calendarReminder)
             .syncStatusBanner()
         }
     }
