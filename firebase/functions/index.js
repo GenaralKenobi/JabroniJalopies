@@ -53,7 +53,7 @@ async function send(devices, { title, body, data }) {
       logger.error('Alert not delivered', {
         uid: group[index].uid,
         code: response.error?.code,
-        message: response.error?.message,
+        reason: response.error?.message,
       });
       if (isDeadTokenError(response.error)) stale.push(group[index].ref.delete());
     });
