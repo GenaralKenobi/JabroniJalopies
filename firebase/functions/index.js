@@ -8,6 +8,7 @@ const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const logger = require('firebase-functions/logger');
 const { buildAlert, isDeadTokenError, chunk } = require('./alerts');
 
 initializeApp();
@@ -20,14 +21,24 @@ async function managerDevices(db, fleetId, excludeUid) {
   const uids = managers.docs.map((doc) => doc.id).filter((uid) => uid !== excludeUid);
   const snapshots = await Promise.all(uids.map((uid) => db.collection(`users/${uid}/devices`).get()));
   const devices = [];
-  for (const snapshot of snapshots) {
-    for (const doc of snapshot.docs) devices.push({ token: doc.get('token') || doc.id, ref: doc.ref });
-  }
+  snapshots.forEach((snapshot, index) => {
+    for (const doc of snapshot.docs) devices.push({ uid: uids[index], token: doc.get('token') || doc.id, ref: doc.ref });
+  });
+  // Explains a missing alert: no other managers, or managers whose phones never registered.
+  logger.info('Alert recipients', {
+    fleetId,
+    managers: managers.size,
+    reporterIsManager: managers.docs.some((doc) => doc.id === excludeUid),
+    phonesPerManager: Object.fromEntries(uids.map((uid, index) => [uid, snapshots[index].size])),
+  });
   return devices;
 }
 
 async function send(devices, { title, body, data }) {
-  if (devices.length === 0) return;
+  if (devices.length === 0) {
+    logger.warn('No registered manager phones to alert', { fleetId: data.fleetId });
+    return;
+  }
   for (const group of chunk(devices)) {
     const result = await getMessaging().sendEachForMulticast({
       tokens: group.map((device) => device.token),
@@ -38,8 +49,15 @@ async function send(devices, { title, body, data }) {
     // Forget devices that can no longer receive anything (app deleted, signed out elsewhere…).
     const stale = [];
     result.responses.forEach((response, index) => {
-      if (!response.success && isDeadTokenError(response.error)) stale.push(group[index].ref.delete());
+      if (response.success) return;
+      logger.error('Alert not delivered', {
+        uid: group[index].uid,
+        code: response.error?.code,
+        message: response.error?.message,
+      });
+      if (isDeadTokenError(response.error)) stale.push(group[index].ref.delete());
     });
+    logger.info('Alerts sent', { fleetId: data.fleetId, delivered: result.successCount, failed: result.failureCount });
     await Promise.all(stale);
   }
 }
