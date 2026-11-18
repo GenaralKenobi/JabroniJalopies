@@ -210,8 +210,8 @@ struct VehicleDetailView: View {
                         Label(saved.isEmpty ? "Start Checklist" : "Continue Checklist", systemImage: "checklist.checked")
                             .font(.headline)
                         let due = fleet.dueRepeatingItems(on: vehicleId)
-                        if let (checklist, draft) = saved.first {
-                            Text("\(checklist.name): \(draft.checkedIds.count) checked, saved \(Formatting.dayAndTime(draft.savedAt))")
+                        if let first = saved.first {
+                            Text("\(first.0.name): \(first.1.checkedIds.count) checked, saved \(Formatting.dayAndTime(first.1.savedAt))")
                                 .font(.caption)
                         } else if !due.isEmpty {
                             Text(due.count == 1 ? "Includes 1 weekly item" : "Includes \(due.count) weekly items")
