@@ -68,6 +68,8 @@ final class FleetModel {
     private var lastSyncedFleetName: String?
     /// Batches schedule-alert updates while lots of truck data arrives at once.
     @ObservationIgnored var scheduleAlertTask: Task<Void, Never>?
+    /// Batches updates to the open-defect photos kept on this phone.
+    @ObservationIgnored var savedPhotosTask: Task<Void, Never>?
 
     init(fleetId: String, uid: String, email: String, onLostAccess: @escaping () -> Void) {
         self.fleetId = fleetId
@@ -581,6 +583,7 @@ final class FleetModel {
             return firestoreListen(query, includeMetadataChanges: true) { [weak self] (items: [Defect], snapshot) in
                 guard let self else { return }
                 openDefects[vehicleId] = items.sorted { $0.reportedAt > $1.reportedAt }
+                refreshSavedPhotosSoon()
                 if snapshot.isServerConfirmed { reconcileDefectSummary(vehicleId: vehicleId, defects: items) }
             }
         case .reminders:
@@ -646,6 +649,7 @@ final class FleetModel {
             return firestoreListen(query, includeMetadataChanges: true) { [weak self] (items: [Defect], snapshot) in
                 guard let self else { return }
                 equipmentDefects[equipmentId] = items.sorted { $0.reportedAt > $1.reportedAt }
+                refreshSavedPhotosSoon()
                 if snapshot.isServerConfirmed { reconcileEquipmentDefectSummary(equipmentId: equipmentId, defects: items) }
             }
         case .lengthChanges:
@@ -718,5 +722,24 @@ struct EquipmentAlert: Identifiable {
             parts.append("shorter than the \(Formatting.feet(minimum)) minimum")
         }
         return parts.joined(separator: " — ")
+    }
+}
+
+// MARK: Photos kept for offline viewing
+
+extension FleetModel {
+    /// Open defects' photos are kept on the phone; managers' phones also download
+    /// new ones ahead of time so they can be seen without signal.
+    func refreshSavedPhotosSoon() {
+        savedPhotosTask?.cancel()
+        savedPhotosTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled, let self else { return }
+            let defects = Array(openDefects.values.joined()) + Array(equipmentDefects.values.joined())
+            let paths = Set(defects.flatMap { defect in
+                defect.photos.values.compactMap { $0.status == .uploaded ? $0.path : nil }
+            })
+            PhotoCache.shared.keepOpenDefectPhotos(paths, download: isManager)
+        }
     }
 }

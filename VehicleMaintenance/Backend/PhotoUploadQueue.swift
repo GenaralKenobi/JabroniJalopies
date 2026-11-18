@@ -112,7 +112,10 @@ final class PhotoUploadQueue {
 
         for job in jobs {
             do {
-                try await upload(job)
+                if let path = try await upload(job), let data = localImageData(photoId: job.id) {
+                    // Keep a copy so it can still be seen here without signal.
+                    PhotoCache.shared.store(data, for: path)
+                }
                 finish(job)
                 lastError = nil
             } catch {
@@ -161,9 +164,10 @@ final class PhotoUploadQueue {
         return permanent.map(\.rawValue).contains(nsError.code)
     }
 
-    private func upload(_ job: Job) async throws {
+    /// Uploads one photo and returns its storage path (nil if its file is gone).
+    private func upload(_ job: Job) async throws -> String? {
         let url = fileURL(job.id)
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
         let path = job.owner.photoPath(fleetId: job.fleetId, defectId: job.defectId, photoId: job.id)
 
@@ -189,6 +193,7 @@ final class PhotoUploadQueue {
             "usage.photoBytes": FieldValue.increment(Int64(size)),
             "usage.photoCount": FieldValue.increment(Int64(1)),
         ]) { _ in }
+        return path
     }
 
     /// Discards every waiting photo (used when signing out, so the next person to

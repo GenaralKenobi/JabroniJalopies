@@ -23,6 +23,8 @@ struct SettingsView: View {
     @AppStorage(PushRegistration.problemKey) private var pushProblem: String?
     @Environment(ConnectivityMonitor.self) private var connectivity
     @Environment(PhotoUploadQueue.self) private var photoQueue
+    @State private var photoCache = PhotoCache.shared
+    @State private var confirmingClearPhotos = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -69,6 +71,17 @@ struct SettingsView: View {
                             }
                         }
                     }
+                }
+
+                Section {
+                    LabeledContent("Saved photos",
+                                   value: ByteCountFormatter.string(fromByteCount: Int64(photoCache.totalBytes), countStyle: .file))
+                    Button("Clear Saved Photos") { confirmingClearPhotos = true }
+                        .disabled(photoCache.totalBytes == 0)
+                } header: {
+                    Text("This Phone")
+                } footer: {
+                    Text("Defect photos are kept on this phone so you can see them without signal\(fleet.isManager ? "; photos of open problems download ahead of time" : ""). Up to \(ByteCountFormatter.string(fromByteCount: Int64(PhotoCache.limitBytes), countStyle: .file)); the oldest are removed first. Clearing them is safe: they download again when needed.")
                 }
 
                 Section("Account") {
@@ -144,6 +157,11 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("Your past checklists and reports stay in the fleet's records.")
+            }
+            .confirmationDialog("Clear saved photos from this phone?", isPresented: $confirmingClearPhotos, titleVisibility: .visible) {
+                Button("Clear Saved Photos", role: .destructive) { PhotoCache.shared.clear() }
+            } message: {
+                Text("Nothing is deleted from the fleet. Photos download again when you open them, which needs signal.")
             }
             .confirmationDialog("Sign out anyway?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
                 Button("Sign Out and Lose Them", role: .destructive) {
@@ -248,6 +266,7 @@ struct SettingsView: View {
 
     private func signOut() async {
         photoQueue.removeAll()
+        PhotoCache.shared.clear()
         session.stop()
         await auth.signOut()
     }
@@ -556,6 +575,7 @@ struct DeleteAccountView: View {
                 try await auth.reauthenticate(password: password)
                 try await session.deleteAllUserData()
                 PhotoUploadQueue.shared.removeAll()
+                PhotoCache.shared.clear()
                 try await auth.deleteAuthUser()
             } catch {
                 errorMessage = error.localizedDescription

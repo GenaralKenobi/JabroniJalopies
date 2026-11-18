@@ -1,15 +1,16 @@
-import FirebaseStorage
 import SwiftUI
 
-/// Shows a defect photo: the uploaded copy, the local copy if it's still
-/// waiting on this phone, or a placeholder if it's waiting on someone else's.
+/// Shows a defect photo: the copy saved on this phone (downloading it once if needed),
+/// the local copy if it's still waiting to upload, or a placeholder.
 struct DefectPhotoView: View {
     let photoId: String
     let photo: DefectPhoto
     var size: CGFloat = 110
 
     @Environment(PhotoUploadQueue.self) private var queue
-    @State private var url: URL?
+    @Environment(ConnectivityMonitor.self) private var connectivity
+    @State private var image: UIImage?
+    @State private var loadFailed = false
     @State private var showingFull = false
 
     var body: some View {
@@ -18,9 +19,14 @@ struct DefectPhotoView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .contentShape(Rectangle())
             .onTapGesture { if hasImage { showingFull = true } }
-            .task(id: photo.path) {
-                guard let path = photo.path, url == nil else { return }
-                url = try? await Storage.storage().reference(withPath: path).downloadURL()
+            .task(id: "\(photo.path ?? "")-\(connectivity.isOnline)") {
+                guard let path = photo.path, image == nil else { return }
+                if let data = await PhotoCache.shared.load(path), let loaded = UIImage(data: data) {
+                    image = loaded
+                    loadFailed = false
+                } else {
+                    loadFailed = true
+                }
             }
             .sheet(isPresented: $showingFull) {
                 NavigationStack {
@@ -35,7 +41,7 @@ struct DefectPhotoView: View {
             }
     }
 
-    private var hasImage: Bool { url != nil || localImage != nil }
+    private var hasImage: Bool { image != nil || localImage != nil }
 
     private var localImage: UIImage? {
         queue.localImageData(photoId: photoId).flatMap(UIImage.init(data:))
@@ -43,14 +49,10 @@ struct DefectPhotoView: View {
 
     @ViewBuilder
     private var content: some View {
-        if let url {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image): image.resizable().scaledToFill()
-                case .failure: placeholder("Can't load photo", symbol: "exclamationmark.triangle")
-                default: ZStack { Rectangle().fill(.quaternary); ProgressView() }
-                }
-            }
+        if let image {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
         } else if let localImage {
             Image(uiImage: localImage)
                 .resizable()
@@ -66,6 +68,9 @@ struct DefectPhotoView: View {
             let stale = Date.now.timeIntervalSince(photo.addedAt) > 24 * 3600
             placeholder(stale ? "Photo never arrived — ask \(photo.addedByName)" : "Photo pending from \(photo.addedByName)'s phone",
                         symbol: stale ? "exclamationmark.triangle" : "camera.badge.clock")
+        } else if loadFailed {
+            placeholder(connectivity.isOnline ? "Can't load photo" : "Not saved on this phone yet. Needs signal.",
+                        symbol: connectivity.isOnline ? "exclamationmark.triangle" : "wifi.slash")
         } else {
             ZStack { Rectangle().fill(.quaternary); ProgressView() }
         }
