@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { errors, useObservable } from '../data/store';
+import { errors, loadingProblems, useObservable } from '../data/store';
 import { session } from '../data/session';
 import type { FleetStore } from '../data/fleet';
 
@@ -81,6 +81,34 @@ export function Empty({ icon, title, children }: { icon?: string; title: string;
 }
 
 export const Spinner = () => <div className="spinner" role="status" aria-label="Loading" />;
+
+/** A spinner that explains itself if loading takes more than a few seconds. */
+export function LoadingScreen({ waitingFor }: { waitingFor: string[] }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setSlow(true), 8000); return () => clearTimeout(t); }, []);
+  const online = useOnline();
+  return (
+    <div style={{ paddingTop: 'calc(40px + env(safe-area-inset-top))' }}>
+      <Spinner />
+      {slow && (
+        <div className="empty" style={{ paddingTop: 0 }}>
+          <h2>Still loading…</h2>
+          <p>{!online ? "This phone is offline. Sign-in and the first load need a connection." : `Waiting for ${waitingFor.join(', ') || 'Firebase'}.`}</p>
+          {loadingProblems.length > 0 && (
+            <div className="banner red" style={{ textAlign: 'left', display: 'block', fontSize: 13 }}>
+              <b>What went wrong:</b>
+              {loadingProblems.map((p, i) => <div key={i} style={{ marginTop: 4, overflowWrap: 'anywhere' }}>{p}</div>)}
+            </div>
+          )}
+          <div style={{ display: 'grid', gap: 10, maxWidth: 320, margin: '16px auto 0' }}>
+            <button className="btn" onClick={() => window.location.reload()}>Reload</button>
+            <button className="btn plain" style={{ color: 'var(--red)', width: '100%' }} onClick={() => session.signOut()}>Sign Out</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Banner({ color, children, action }: { color: 'red' | 'orange' | 'blue' | 'green'; children: ReactNode; action?: ReactNode }) {
   return <div className={`banner ${color}`}><div className="grow">{children}</div>{action}</div>;

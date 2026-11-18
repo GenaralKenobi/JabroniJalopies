@@ -10,7 +10,7 @@ import {
 import { docData, toFirestore } from './convert';
 import { fb, usingEmulator } from './firebase';
 import { P } from './paths';
-import { Observable, errors, inBackground } from './store';
+import { Observable, errors, inBackground, noteLoadingProblem } from './store';
 import { FleetStore } from './fleet';
 import type { Invite, Member, Membership, Role } from '../logic/model';
 import { deleteFleetData } from './deleter';
@@ -59,7 +59,7 @@ class Session extends Observable {
       this.membershipsLoaded = true;
       this.restoreSelection();
       this.changed();
-    }, (error) => errors.report(error, 'Loading your fleets')));
+    }, (error) => { noteLoadingProblem('Loading your fleets', error); errors.report(error, 'Loading your fleets'); }));
     const inviteQuery = query(P.invites(), where('email', '==', this.email), where('status', '==', 'pending'));
     this.unsubscribes.push(onSnapshot(inviteQuery, (snapshot) => {
       this.invites = snapshot.docs.map((d) => docData<Invite>(d));

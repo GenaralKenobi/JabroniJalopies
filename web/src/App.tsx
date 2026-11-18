@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { session } from './data/session';
 import { useObservable } from './data/store';
-import { ErrorToast, Spinner } from './ui/kit';
+import { ErrorToast, LoadingScreen } from './ui/kit';
 import { SignInPage, VerifyEmailPage } from './pages/Auth';
 import { FleetPickerPage } from './pages/Fleets';
 import { FleetListPage } from './pages/FleetList';
@@ -21,7 +21,7 @@ import { ChainsPage, ChainTotalsPage } from './pages/Chains';
 
 export function App() {
   useObservable(session);
-  if (session.loading) return <Spinner />;
+  if (session.loading) return <LoadingScreen waitingFor={['sign-in']} />;
   return (
     <BrowserRouter>
       <ErrorToast />
@@ -33,7 +33,7 @@ export function App() {
 function Gate() {
   if (!session.user) return <div className="app no-tabs"><SignInPage /></div>;
   if (session.needsEmailVerification) return <div className="app no-tabs"><VerifyEmailPage /></div>;
-  if (!session.membershipsLoaded) return <Spinner />;
+  if (!session.membershipsLoaded) return <LoadingScreen waitingFor={['your fleets']} />;
   if (!session.fleet) {
     return (
       <div className="app no-tabs">
@@ -47,7 +47,7 @@ function Gate() {
 function Main() {
   const fleet = useObservable(session.fleet!);
   const defectsBadge = fleet.allOpenDefects.length + (fleet.isManager ? fleet.allPendingServices.length + fleet.allPendingLengthChanges.length : 0);
-  if (!fleet.ready) return <Spinner />;
+  if (!fleet.ready) return <LoadingScreen waitingFor={fleet.waitingFor} />;
   return (
     <div className="app">
       <Routes>

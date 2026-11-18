@@ -56,3 +56,11 @@ export function friendlyError(error: unknown): string {
 export function inBackground(promise: Promise<unknown>, action: string) {
   promise.catch((error) => errors.report(error, action));
 }
+
+/** The last loading problem, shown on the loading screen if it takes too long. */
+export const loadingProblems: string[] = [];
+export function noteLoadingProblem(action: string, error: unknown) {
+  const code = (error as { code?: string })?.code;
+  loadingProblems.push(`${action}: ${code ? `${code} — ` : ''}${(error as Error)?.message ?? String(error)}`.slice(0, 300));
+  if (loadingProblems.length > 5) loadingProblems.shift();
+}

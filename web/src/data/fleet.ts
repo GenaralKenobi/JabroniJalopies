@@ -4,7 +4,7 @@ import {
 import { fb } from './firebase';
 import { docData } from './convert';
 import { P } from './paths';
-import { Observable, errors } from './store';
+import { Observable, errors, noteLoadingProblem } from './store';
 import {
   appliesTo, checklistStateOf, isOpen, vehicleName, vehicleUnit,
   type ChecklistItem, type ChecklistTemplate, type Defect, type DefectOwner, type DistanceUnit, type Equipment,
@@ -61,6 +61,12 @@ export class FleetStore extends Observable {
   }
 
   /** The fleet, your profile, its trucks and checklists have arrived (forms need them before they open). */
+  /** What's still loading, for the loading screen. */
+  get waitingFor(): string[] {
+    return [!this.fleet && 'the fleet', !this.me && 'your profile', !this.vehiclesLoaded && 'vehicles', !this.checklistsLoaded && 'checklists']
+      .filter((x): x is string => !!x);
+  }
+
   get ready() { return !!this.fleet && !!this.me && this.vehiclesLoaded && this.checklistsLoaded; }
 
   // ---------- Who's looking ----------
@@ -258,6 +264,7 @@ export class FleetStore extends Observable {
 
   private handleError(error: unknown, action: string) {
     if (this.stopped) return;
+    noteLoadingProblem(action, error);
     if ((error as { code?: string })?.code === 'permission-denied') { this.verifyAccess(); return; }
     errors.report(error, action);
   }
