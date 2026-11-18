@@ -28,13 +28,17 @@ struct VehicleMaintenanceApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active: PhotoUploadQueue.shared.process()
-            case .background: PhotoUploadQueue.shared.scheduleBackgroundRefresh()
+            case .active:
+                PhotoUploadQueue.shared.process()
+                BackgroundSync.appDidBecomeActive()
+            case .background:
+                PhotoUploadQueue.shared.scheduleBackgroundRefresh()
+                BackgroundSync.appDidEnterBackground()
             default: break
             }
         }
-        .backgroundTask(.appRefresh(PhotoUploadQueue.backgroundTaskId)) {
-            await PhotoUploadQueue.shared.processInBackground()
+        .backgroundTask(.appRefresh(BackgroundSync.refreshId)) {
+            await BackgroundSync.handleWake()
         }
     }
 }

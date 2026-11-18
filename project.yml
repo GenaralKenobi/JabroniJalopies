@@ -43,8 +43,10 @@ targets:
       path: VehicleMaintenance/Info.plist
       properties:
         NSAccentColorName: AccentColor
-        UIBackgroundModes: [fetch]
-        BGTaskSchedulerPermittedIdentifiers: [com.generalkenobi.jabronijalopies.photo-upload]
+        UIBackgroundModes: [fetch, processing]
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.generalkenobi.jabronijalopies.photo-upload
+          - com.generalkenobi.jabronijalopies.sync
         NSCameraUsageDescription: Take photos of vehicle problems so your fleet manager can see them.
         NSPhotoLibraryUsageDescription: Attach existing photos to vehicle problems and vehicle profiles.
         NSCalendarsWriteOnlyAccessUsageDescription: Add the days you plan for scheduled truck checklists to your calendar.
