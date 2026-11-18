@@ -160,146 +160,19 @@ struct InspectionFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    LabeledContent("Vehicle", value: vehicle.displayName)
-                    HStack {
-                        Text(unit.readingName)
-                        TextField("Reading", text: $odometerText)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                        Text(unit.abbreviation).foregroundStyle(Color.secondary)
+                headerSection
+                    // Saved progress: load once, then save after every change.
+                    .onAppear(perform: loadDraft)
+                    .onChange(of: answers) { old, new in
+                        moveAnsweredItems(old: old, new: new)
+                        saveDraft()
                     }
-                } footer: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        if let entry = scheduledEntry, let label = ScheduledChecklists.label(for: checklist, unit: vehicle.unit) {
-                            Label("\(label) checklist · \(ScheduledChecklists.statusText(entry))",
-                                  systemImage: entry.status == .overdue ? "exclamationmark.triangle.fill" : "calendar")
-                                .foregroundStyle(entry.status == .overdue ? Color.orange : Color.secondary)
-                        }
-                        if !connectivity.isOnline {
-                            Label("You're offline. Your checklist will be saved on this phone and sent when you have signal.",
-                                  systemImage: "wifi.slash")
-                        }
-                    }
-                }
-
-                let bulk = checklist.allowsQuickPass == true
-                    ? InspectionPlanner.bulkPassable(activeItems, answers: answers, openDefectsByItem: openDefectsByItem)
-                    : []
-                if bulk.count > 1 {
-                    Section {
-                        Button {
-                            for item in bulk { answers[item.id, default: ItemAnswer()].verdict = .pass }
-                            bulkPassCount += 1
-                        } label: {
-                            Label("Pass \(bulk.count) Routine Items", systemImage: "checkmark.circle")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.green)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    } footer: {
-                        Text("Safety items, items that need a number, and items with an open problem stay for you to answer. You can still change any answer.")
-                    }
-                }
-
-                if let resumedFrom {
-                    Section {
-                        Label("Continuing from \(Formatting.dayAndTime(resumedFrom)). \(checkedIds.count) checked, \(itemsToCheck.count) to go.",
-                              systemImage: "clock.arrow.circlepath")
-                            .font(.subheadline)
-                            .foregroundStyle(Color.secondary)
-                    }
-                }
-
-                if itemsToCheck.isEmpty && !checkedItems.isEmpty {
-                    Section {
-                        Label("Every item is checked. Look over the checked items if you like, then submit.",
-                              systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    }
-                }
-
-                ForEach(itemsToCheck) { item in
-                    Section {
-                        itemCard(item)
-                        if isComplete(item) {
-                            Button {
-                                withAnimation(.snappy) { _ = checkedIds.insert(item.id) }
-                            } label: {
-                                Label("Done: Move to Checked Items", systemImage: "checkmark.circle")
-                                    .frame(maxWidth: .infinity)
-                            }
-                        }
-                    }
-                }
-
-                if !checkedItems.isEmpty {
-                    Section {
-                        Button {
-                            withAnimation(.snappy) { showingChecked.toggle() }
-                        } label: {
-                            HStack {
-                                Label("Checked Items (\(checkedItems.count))", systemImage: "checkmark.circle.fill")
-                                    .font(.headline)
-                                    .foregroundStyle(Color.primary)
-                                Spacer()
-                                let failed = checkedItems.filter { answers[$0.id]?.verdict == .fail }.count
-                                if failed > 0 {
-                                    Text("\(failed) failed").font(.caption.weight(.semibold)).foregroundStyle(.red)
-                                }
-                                Image(systemName: "chevron.right")
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(Color.secondary)
-                                    .rotationEffect(.degrees(showingChecked ? 90 : 0))
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    } footer: {
-                        if !showingChecked {
-                            Text("Tap to see or change what's been checked.")
-                        }
-                    }
-                    if showingChecked {
-                        ForEach(checkedItems) { item in
-                            Section {
-                                itemCard(item)
-                                Button("Move Back to To Check") {
-                                    withAnimation(.snappy) { _ = checkedIds.remove(item.id) }
-                                }
-                                .font(.subheadline)
-                                .frame(maxWidth: .infinity)
-                            }
-                        }
-                    }
-                }
-
-                if !notDueItems.isEmpty {
-                    Section {
-                        ForEach(notDueItems) { item in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.title)
-                                    if let frequency = item.frequency,
-                                       let next = PeriodicSchedule.nextDue(frequency, lastDone: lastDone[item.id]) {
-                                        Text("\(frequency.label) · next due \(next.formatted(date: .abbreviated, time: .omitted))")
-                                            .font(.caption).foregroundStyle(Color.secondary)
-                                    }
-                                }
-                                Spacer()
-                                Button("Do Now") { doingEarly.insert(item.id) }
-                                    .buttonStyle(.bordered)
-                            }
-                        }
-                    } header: {
-                        Text("Not Due Yet")
-                    } footer: {
-                        Text("These repeat weekly, monthly or on a schedule, and were done recently on this truck.")
-                    }
-                }
-
+                    .onChange(of: checkedIds) { _, _ in saveDraft() }
+                    .onChange(of: doingEarly) { _, _ in saveDraft() }
+                    .onChange(of: odometerText) { _, _ in saveDraft() }
+                quickPassSection
+                itemSections
+                notDueSection
                 if let validationMessage {
                     Section {
                         Label(validationMessage, systemImage: "exclamationmark.circle")
@@ -349,14 +222,7 @@ struct InspectionFormView: View {
             } message: {
                 Text("Saved checklists stay on this phone until you submit them. Nothing is sent to your manager until then.")
             }
-            .onAppear(perform: loadDraft)
-            .onChange(of: answers) { old, new in
-                moveAnsweredItems(old: old, new: new)
-                saveDraft()
-            }
-            .onChange(of: checkedIds) { _, _ in saveDraft() }
-            .onChange(of: doingEarly) { _, _ in saveDraft() }
-            .onChange(of: odometerText) { _, _ in saveDraft() }
+
             .confirmationDialog("Add a photo of the problem?", isPresented: Binding(
                 get: { photoPromptItemId != nil },
                 set: { if !$0 { photoPromptItemId = nil } }
@@ -406,6 +272,162 @@ struct InspectionFormView: View {
             }
         }
         .interactiveDismissDisabled(!answers.isEmpty)
+    }
+
+
+    private var headerSection: some View {
+        Section {
+            LabeledContent("Vehicle", value: vehicle.displayName)
+            HStack {
+                Text(unit.readingName)
+                TextField("Reading", text: $odometerText)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                Text(unit.abbreviation).foregroundStyle(Color.secondary)
+            }
+        } footer: {
+            VStack(alignment: .leading, spacing: 6) {
+                if let entry = scheduledEntry, let label = ScheduledChecklists.label(for: checklist, unit: vehicle.unit) {
+                    Label("\(label) checklist · \(ScheduledChecklists.statusText(entry))",
+                          systemImage: entry.status == .overdue ? "exclamationmark.triangle.fill" : "calendar")
+                        .foregroundStyle(entry.status == .overdue ? Color.orange : Color.secondary)
+                }
+                if !connectivity.isOnline {
+                    Label("You're offline. Your checklist will be saved on this phone and sent when you have signal.",
+                          systemImage: "wifi.slash")
+                }
+            }
+        }
+
+    }
+
+    @ViewBuilder
+    private var quickPassSection: some View {
+        let bulk = checklist.allowsQuickPass == true
+            ? InspectionPlanner.bulkPassable(activeItems, answers: answers, openDefectsByItem: openDefectsByItem)
+            : []
+        if bulk.count > 1 {
+            Section {
+                Button {
+                    for item in bulk { answers[item.id, default: ItemAnswer()].verdict = .pass }
+                    bulkPassCount += 1
+                } label: {
+                    Label("Pass \(bulk.count) Routine Items", systemImage: "checkmark.circle")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.green)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            } footer: {
+                Text("Safety items, items that need a number, and items with an open problem stay for you to answer. You can still change any answer.")
+            }
+        }
+
+    }
+
+    @ViewBuilder
+    private var itemSections: some View {
+        if let resumedFrom {
+            Section {
+                Label("Continuing from \(Formatting.dayAndTime(resumedFrom)). \(checkedIds.count) checked, \(itemsToCheck.count) to go.",
+                      systemImage: "clock.arrow.circlepath")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+
+        if itemsToCheck.isEmpty && !checkedItems.isEmpty {
+            Section {
+                Label("Every item is checked. Look over the checked items if you like, then submit.",
+                      systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            }
+        }
+
+        ForEach(itemsToCheck) { item in
+            Section {
+                itemCard(item)
+                if isComplete(item) {
+                    Button {
+                        withAnimation(.snappy) { _ = checkedIds.insert(item.id) }
+                    } label: {
+                        Label("Done: Move to Checked Items", systemImage: "checkmark.circle")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+
+        if !checkedItems.isEmpty {
+            Section {
+                Button {
+                    withAnimation(.snappy) { showingChecked.toggle() }
+                } label: {
+                    HStack {
+                        Label("Checked Items (\(checkedItems.count))", systemImage: "checkmark.circle.fill")
+                            .font(.headline)
+                            .foregroundStyle(Color.primary)
+                        Spacer()
+                        let failed = checkedItems.filter { answers[$0.id]?.verdict == .fail }.count
+                        if failed > 0 {
+                            Text("\(failed) failed").font(.caption.weight(.semibold)).foregroundStyle(.red)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color.secondary)
+                            .rotationEffect(.degrees(showingChecked ? 90 : 0))
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } footer: {
+                if !showingChecked {
+                    Text("Tap to see or change what's been checked.")
+                }
+            }
+            if showingChecked {
+                ForEach(checkedItems) { item in
+                    Section {
+                        itemCard(item)
+                        Button("Move Back to To Check") {
+                            withAnimation(.snappy) { _ = checkedIds.remove(item.id) }
+                        }
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+
+    }
+
+    @ViewBuilder
+    private var notDueSection: some View {
+        if !notDueItems.isEmpty {
+            Section {
+                ForEach(notDueItems) { item in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.title)
+                            if let frequency = item.frequency,
+                               let next = PeriodicSchedule.nextDue(frequency, lastDone: lastDone[item.id]) {
+                                Text("\(frequency.label) · next due \(next.formatted(date: .abbreviated, time: .omitted))")
+                                    .font(.caption).foregroundStyle(Color.secondary)
+                            }
+                        }
+                        Spacer()
+                        Button("Do Now") { doingEarly.insert(item.id) }
+                            .buttonStyle(.bordered)
+                    }
+                }
+            } header: {
+                Text("Not Due Yet")
+            } footer: {
+                Text("These repeat weekly, monthly or on a schedule, and were done recently on this truck.")
+            }
+        }
+
     }
 
     @State private var lastFailedItemId: String?
