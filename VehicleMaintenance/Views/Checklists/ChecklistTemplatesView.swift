@@ -88,6 +88,17 @@ struct ChecklistEditorView: View {
                 }
 
                 Section {
+                    Toggle("Allow Quick Pass", isOn: Binding(
+                        get: { draft.allowsQuickPass == true },
+                        set: { draft.allowsQuickPass = $0 ? true : nil }
+                    ))
+                } footer: {
+                    Text(draft.allowsQuickPass == true
+                         ? "Drivers see a \"Pass Routine Items\" button that passes every routine item they haven't answered in one tap. Safety items, items that need a number and items with an open problem still need their own answer."
+                         : "Off: drivers answer every item one by one. Turn on to give them a button that passes all routine items in one tap.")
+                }
+
+                Section {
                     Toggle("All Vehicles", isOn: Binding(
                         get: { draft.vehicleIds.isEmpty },
                         set: { all in draft.vehicleIds = all ? [] : fleet.sortedVehicles.compactMap(\.id) }

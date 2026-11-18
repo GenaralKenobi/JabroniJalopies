@@ -17,6 +17,9 @@ struct ChecklistTemplate: Codable, Identifiable, Hashable {
     /// Set for a checklist due every N hours (or miles / km, in each vehicle's own unit) of
     /// the vehicle's reading, e.g. a 250-hour service. Used instead of `schedule`.
     var readingInterval: Int? = nil
+    /// Managers can turn on a "Pass N Routine Items" button for this checklist. Off by
+    /// default, so drivers look at and answer every item themselves.
+    var allowsQuickPass: Bool? = nil
 
     var isScheduled: Bool { schedule != nil || readingInterval != nil }
 

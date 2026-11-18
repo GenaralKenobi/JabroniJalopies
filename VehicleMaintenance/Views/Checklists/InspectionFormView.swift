@@ -117,7 +117,9 @@ struct InspectionFormView: View {
                     }
                 }
 
-                let bulk = InspectionPlanner.bulkPassable(activeItems, answers: answers, openDefectsByItem: openDefectsByItem)
+                let bulk = checklist.allowsQuickPass == true
+                    ? InspectionPlanner.bulkPassable(activeItems, answers: answers, openDefectsByItem: openDefectsByItem)
+                    : []
                 if bulk.count > 1 {
                     Section {
                         Button {

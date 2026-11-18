@@ -8,7 +8,7 @@ If something isn't right, reply with its number.
 
 ## 🆕 New decisions
 
-55. 🆕 **A "Pass N Routine Items" button on checklists** (my suggestion, easy to remove). It passes every routine item the driver hasn't answered in one tap, so a clean truck takes seconds. It deliberately leaves **safety items, items that need a number, items with an open problem, and optional weekly items** for a deliberate answer, and any answer can still be changed. It only appears when there's more than one such item. Tell me if you'd rather drivers answer every item individually.
+55. ✅ **"Pass N Routine Items" is off unless a manager turns it on** (changed at your request). Drivers answer every item one by one. In Settings → Checklists, each checklist has an **Allow Quick Pass** switch; when it's on, drivers get the one-tap button for that checklist. It still never passes safety items, items that need a number, items with an open problem, or optional weekly items. Existing checklists start with it off.
 56. 🆕 **Light haptic taps** when a driver taps Pass or Fail (a firmer one for Fail) and when they pass the routine items in one go.
 57. 🆕 **On iPad, the main lists are kept to a comfortable reading width** (about 720 points, centred) instead of stretching across the whole screen. It only affects wide screens.
 58. 🆕 **The app asks for notification permission the first time a manager has an alert to receive**, such as a scheduled checklist coming due or storage getting full. Before this, a manager who only used scheduled checklists would never have been asked, and their alerts would have been silently lost. Managers can still say no, and it can be changed in iPhone Settings.
