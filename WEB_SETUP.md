@@ -4,14 +4,15 @@ The `web/` folder is Jabroni Jalopies as a website, laid out for iPhone Safari. 
 
 It's free: Firebase Hosting's free allowance (10 GB stored, about 10 GB of downloads a month) is far more than this needs.
 
-## One-time setup (about 10 minutes, in a browser)
+## One-time setup (about 3 minutes, in a browser)
 
-1. **Turn on Hosting.** In the [Firebase console](https://console.firebase.google.com/project/jabroni-jalopies/hosting), open **Hosting** (under Build, or "Hosting & Serverless") and click **Get started**. Click **Next** through the steps; you don't need to run any of the commands it shows. Stop when it says **Continue to console**.
-2. **Register the website with Firebase.** Firebase → ⚙️ **Project settings** → **General** → **Your apps** → **Add app** → the web icon (`</>`). Nickname: `Jabroni Jalopies Web`. Tick **Also set up Firebase Hosting** if it's offered and pick the default site. Click **Register app**, then **Continue to console**. You don't need to copy the code it shows: the website reads these settings from Firebase Hosting automatically.
-3. **Let GitHub publish the website.** In [Google Cloud console → IAM](https://console.cloud.google.com/iam-admin/iam?project=jabroni-jalopies), find the `github-deploy` service account, click the pencil, **Add another role**: **Firebase Hosting Admin**. Save.
-4. **Publish.** GitHub → **Actions** → **Deploy Firebase Rules** → **Run workflow**. The **website** job builds and publishes it. When it finishes, its summary shows the address: **https://jabroni-jalopies.web.app**.
+Hosting is already working: GitHub published the website to **https://jabroni-jalopies.web.app**. One step is left:
 
-After that, the website updates itself whenever its code changes.
+1. **Register the website with Firebase**, so it can connect to your project. Firebase → ⚙️ **Project settings** → **General** → **Your apps** → **Add app** → the web icon (`</>`). Nickname: `Jabroni Jalopies Web`. If it offers **Also set up Firebase Hosting**, tick it and pick the default site. Click **Register app**, then **Continue to console**. You don't need to copy the code it shows: the website reads these settings from Firebase Hosting automatically.
+
+Until then, the website shows "Website not connected yet". After it, reload the page and sign in.
+
+The website republishes itself whenever its code changes (the **website** job in **Deploy Firebase Rules**). If that job ever fails with a permission error, give the `github-deploy` service account the **Firebase Hosting Admin** role in Google Cloud → IAM.
 
 ## Using it
 
