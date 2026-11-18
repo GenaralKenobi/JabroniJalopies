@@ -66,6 +66,7 @@ None of this is legal advice; these are the things worth getting a professional 
   - **Data collected:** name, email address, phone number, photos, other user content, user ID, and **device ID** (the notification token).
   - **Use:** all of it is linked to the user, used for App Functionality, and **not** used for tracking.
 - [ ] **Age rating questionnaire:** answer "none" for everything.
+- [ ] **Tell customers about employee-monitoring notices.** The app records who did each checklist and when. Some states (for example New York, Connecticut and Delaware) require employers to tell employees in writing about electronic monitoring. That's the employer's job, and the draft Terms say so, but mention it when you sign up a company.
 - [ ] **Demo account for Apple's reviewers:** create a manager account with a sample fleet in your real Firebase project and enter it under App Review Information.
 - [ ] **Seller name (for your information).** If you enrolled as an **individual**, the App Store shows your legal name as the seller. "Tailgate Labs" appears in the app and on its website, but not as the seller. To show "Tailgate Labs" as the seller, you'd need a registered business and an Organization developer account, which requires a D-U-N-S number.
 

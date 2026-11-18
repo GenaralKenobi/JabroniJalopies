@@ -5,7 +5,7 @@ permalink: /privacy
 
 # Jabroni Jalopies Privacy Policy
 
-**Effective date:** November 16, 2026
+**Effective date:** November 18, 2026
 
 This policy explains how **Tailgate Labs** ("we") handles information in the **Jabroni Jalopies** app ("the app"), which fleets use to track vehicle checklists, defects, equipment and maintenance.
 
@@ -31,7 +31,7 @@ If you use the app as a member of a fleet, your fleet's managers can see the inf
 | **Equipment and chain records** | Chainsaws and ropes on each truck, problems reported on them, rope length changes, and chain counts logged at the end of the day — with who logged them and when | To keep equipment safe and track chain use. |
 | **Service records** | Service type, date, odometer, shop, notes, and costs (costs are visible to managers only) | Maintenance history and sign-off. |
 | **Notification token** | For managers who turn on instant defect alerts: a code that identifies their phone to Apple's notification service. It's deleted when they sign out, turn the alerts off or delete their account. | To send instant alerts when a driver reports a problem. |
-| **Technical data** | Information our providers need to deliver the service, such as IP addresses in server logs | Security and reliability. |
+| **Technical data** | Information our providers need to deliver the service, such as IP addresses in server logs, and records of each instant alert sent (the fleet and account IDs involved and whether delivery worked), which our hosting provider keeps for about 30 days | Security, reliability and fixing delivery problems. |
 
 **Inspection records show who did what and when.** If you use the app at work, your inspections and reports are visible to your fleet's managers.
 
@@ -39,18 +39,19 @@ If you use the app as a member of a fleet, your fleet's managers can see the inf
 
 - **No location tracking.** The app doesn't use GPS. When you attach a photo, the app re-processes it, which removes embedded location data.
 - **No advertising, analytics or tracking.** We don't use advertising identifiers, analytics tools or third-party tracking. We don't sell or share personal information for advertising.
-- **No contacts and no other photos.** The app only accesses photos you choose to attach.
+- **No contacts and no other photos.** The app only accesses photos you choose to attach, and the camera only when you choose to take a photo.
+- **No access to your calendar.** When you add a reminder or a planned day to your calendar, the phone's own New Event screen opens and you choose whether to save it. The app can't read your calendar, and the event is then kept by your calendar service (for example iCloud or Google), not by us.
 
 ## Who can see your information
 
 - **Members of your fleet**, according to their role:
   - Managers can see all of the fleet's data.
   - Drivers can see the vehicles they have access to, those vehicles' defects and checklists, and fellow members' names and roles. Drivers can't see other members' email addresses or phone numbers, or service costs; only managers can.
-- **Our service providers:** Google Firebase (Google Cloud) hosts the database, authentication, photo storage and notification delivery on our behalf, under Google's data processing terms. Apple delivers notifications to iPhones. Google doesn't use this data to target ads.
+- **Our service providers:** Google Firebase (Google Cloud) hosts the database, authentication, photo storage and notification delivery on our behalf, under Google's data processing terms. Apple delivers notifications to iPhones. Under Google's terms, Google doesn't use this data to target ads.
 - **Us (Tailgate Labs):** as the people who run the app, we can technically access the database and photo storage, including every fleet's records and photos. We only do so to operate, support and secure the app, for example to fix a problem you report, at a fleet's request, or to investigate misuse. We don't browse fleets' data for any other reason, and we don't sell it or use it for advertising.
 - **Legal requirements:** we, or our providers, may disclose information if required by law.
 
-Members of one fleet can never see another fleet's data through the app. This is enforced by server-side security rules, not just hidden in the app.
+Members of one fleet can't see another fleet's data through the app. This is enforced by server-side security rules, not just hidden in the app.
 
 ## Where information is stored
 
@@ -60,6 +61,7 @@ Members of one fleet can never see another fleet's data through the app. This is
 ## How long we keep it
 
 - Inspection records, closed defect reports and their photos, service records, chain logs and rope length changes are **deleted automatically five years** after they're created. Defects are deleted five years after they're closed.
+- Other records, such as vehicles, truck contents, checklists, maintenance reminders and member profiles, are kept until the fleet deletes them or the fleet is deleted.
 - Managers can delete records earlier.
 - **When you leave a fleet or delete your account:**
   - Your login, your profile, and your membership in each fleet are deleted.
@@ -86,7 +88,7 @@ The app is intended for people operating vehicle fleets. It isn't directed to ch
 
 ## Changes
 
-If we change this policy, we'll update the effective date above. For significant changes, we'll also let you know in the app.
+If we change this policy, we'll update the effective date above. For significant changes, we'll also email fleet managers before the change takes effect.
 
 ## Contact
 

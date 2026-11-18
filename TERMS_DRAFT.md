@@ -41,7 +41,7 @@ Don't misuse the Service, including by: accessing other fleets' data; uploading 
 - We may change or discontinue features. We'll give reasonable notice of significant changes.
 - You can stop using the Service and delete your account at any time (Settings → Delete Account).
 - We may suspend accounts that break these terms or put the Service or other users at risk.
-- If we shut the Service down, we'll give at least [30] days' notice so fleets can export their records.
+- If we shut the Service down, we'll give at least [30] days' notice, and on request we'll send a fleet's managers a copy of the fleet's records. (The app itself only exports service history, as a spreadsheet.)
 
 ## 8. Disclaimers
 
