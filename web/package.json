@@ -1,0 +1,28 @@
+{
+  "name": "jabroni-jalopies-web",
+  "private": true,
+  "description": "Jabroni Jalopies on the web: a backup for the iPhone app, laid out for phones.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/licenses.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "e2e": "node e2e/flows.cjs"
+  },
+  "dependencies": {
+    "firebase": "13.4.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-router-dom": "7.9.4"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "5.1.0",
+    "playwright": "1.63.0",
+    "typescript": "5.9.3",
+    "vite": "7.1.12",
+    "vitest": "4.0.6"
+  }
+}

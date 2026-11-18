@@ -29,6 +29,11 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 - [ ] Optional: in Firebase → Authentication → Templates, set the sender name to **Jabroni Jalopies**.
 - [ ] Optional: delete the service account JSON key file you downloaded for GitHub, if it's still on your computer. GitHub has its own copy.
 
+### The website (about 10 minutes)
+
+- [ ] Follow the four setup steps in [WEB_SETUP.md](WEB_SETUP.md): turn on Hosting, register the website, give `github-deploy` the **Firebase Hosting Admin** role, then run **Deploy Firebase Rules**.
+- [ ] Open https://jabroni-jalopies.web.app on your iPhone, sign in, and add it to your Home Screen.
+
 ### Now: check photo uploads
 
 - [ ] **Fix photo uploads.** The banner said "permission denied" (`-13021`). Cloud Storage needs permission to read the member list: in Firebase → Storage → Rules, add a blank line and **Publish**, and accept the cross-service box if one appears. Then tap **Try Again** once. The full steps are in step 6 of [FIREBASE_SETUP.md](FIREBASE_SETUP.md).

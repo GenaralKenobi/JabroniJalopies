@@ -1,0 +1,77 @@
+name: Website Build & Test
+
+on:
+  push:
+    paths: ['web/**', 'firebase/**', '.github/workflows/web.yml']
+  pull_request:
+    paths: ['web/**', 'firebase/**', '.github/workflows/web.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Build, unit tests and end-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            firebase/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install
+        run: |
+          (cd web && npm ci)
+          (cd firebase && npm ci)
+          (cd web && npx playwright install --with-deps chromium)
+
+      - name: Type-check, unit tests and production build
+        working-directory: web
+        run: |
+          npm test
+          npm run build
+          test -s dist/licenses.txt
+
+      - name: Start Firebase emulators and seed demo data
+        working-directory: firebase
+        run: |
+          nohup npx firebase emulators:start --only auth,firestore,storage --project demo-maintenance > ../emulators.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -s http://127.0.0.1:8080 > /dev/null && curl -s http://127.0.0.1:9099 > /dev/null && curl -s http://127.0.0.1:9199 > /dev/null; then
+              echo "Emulators ready"; break
+            fi
+            sleep 2
+          done
+          node scripts/seed-demo.mjs
+
+      - name: End-to-end tests (manager and driver, real security rules)
+        working-directory: web
+        run: |
+          VITE_EMULATOR=1 npx vite build --outDir dist-emulator > /dev/null
+          nohup npx vite preview --outDir dist-emulator --host 127.0.0.1 --port 5173 --strictPort > ../preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -s http://127.0.0.1:5173 > /dev/null && break; sleep 1; done
+          node e2e/flows.cjs | tee ../e2e.log
+          grep -q "ALL FLOWS OK" ../e2e.log
+
+      - name: Upload screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: website-test-results
+          if-no-files-found: ignore
+          path: |
+            web/e2e/shots/
+            emulators.log
+            preview.log
+            e2e.log

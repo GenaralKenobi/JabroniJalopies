@@ -8,7 +8,10 @@ If something isn't right, reply with its number.
 
 ## 🆕 New decisions
 
-Nothing new right now.
+81. 🆕 **A website version** (your request), at https://jabroni-jalopies.web.app once set up (see `WEB_SETUP.md`). Laid out for iPhone Safari, and it can be added to the Home Screen. It uses the same accounts, data and security rules as the app, and **includes everything managers can do in the app**. It's tested on every change: a manager and a newly invited driver do real tasks against the real security rules. Free on Firebase Hosting.
+82. 🆕 **What the website doesn't do:** no notifications (alerts and reminders stay in the app); offline only covers brief signal drops, and the page has to stay open until changes send; "Add to My Calendar" downloads a calendar event instead of opening the calendar directly; a checklist saved for later stays in that browser.
+83. 🆕 **The website looks like the app** (grouped lists, the same four tabs, the same wording), with simpler icons (emoji instead of Apple's symbols) and a few browser pop-ups for confirmations like deleting.
+84. 🆕 **Managers' browsers fix summary counts** the same way managers' phones do in the app, so the fleet list stays right however people use it.
 
 ## Reviewed recently
 

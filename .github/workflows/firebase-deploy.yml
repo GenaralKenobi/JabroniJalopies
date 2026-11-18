@@ -15,6 +15,7 @@ on:
       - firebase/storage-lifecycle.json
       - firebase/firebase.json
       - firebase/functions/**
+      - web/**
 
 jobs:
   deploy:
@@ -132,6 +133,67 @@ jobs:
           npx firebase deploy --only functions --project "$PROJECT_ID" --non-interactive --force || status=$?
           if [ "$status" -ne 0 ]; then
             echo "::error::Deploying the alert function failed. The usual cause is a missing permission on the github-deploy service account, or Google still setting up a new service (wait 5 minutes and re-run). See the instant alerts section of FIREBASE_SETUP.md."
+          fi
+          exit $status
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json"
+
+  # The website (a backup for the iPhone app), on Firebase Hosting. A separate job so a
+  # problem here never blocks the rules or the alert function.
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - name: Check configuration
+        run: |
+          if [ -z "$PROJECT_ID" ] || [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::notice::Skipping: set the FIREBASE_PROJECT_ID variable and FIREBASE_SERVICE_ACCOUNT secret to enable deploys (see FIREBASE_SETUP.md)."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/checkout@v6
+        if: env.SKIP != '1'
+
+      - uses: actions/setup-node@v6
+        if: env.SKIP != '1'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            firebase/package-lock.json
+            web/package-lock.json
+
+      - name: Build the website
+        if: env.SKIP != '1'
+        run: |
+          npm ci --prefix firebase
+          npm ci --prefix web
+          npm run build --prefix web
+          rm -rf firebase/web-dist
+          cp -r web/dist firebase/web-dist
+
+      - name: Authenticate
+        if: env.SKIP != '1'
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy the website
+        working-directory: firebase
+        if: env.SKIP != '1'
+        run: |
+          status=0
+          npx firebase deploy --only hosting --project "$PROJECT_ID" --non-interactive || status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Deploying the website failed. The usual cause is the github-deploy service account missing the Firebase Hosting Admin role, or Hosting not being started in the Firebase console yet. See WEB_SETUP.md."
+          else
+            echo "### Website deployed" >> "$GITHUB_STEP_SUMMARY"
+            echo "https://${PROJECT_ID}.web.app" >> "$GITHUB_STEP_SUMMARY"
           fi
           exit $status
 
