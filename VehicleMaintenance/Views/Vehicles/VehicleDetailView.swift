@@ -206,10 +206,14 @@ struct VehicleDetailView: View {
                     }
                 } label: {
                     VStack(spacing: 2) {
-                        Label("Start Checklist", systemImage: "checklist.checked")
+                        let saved = checklists.compactMap { checklist in draft(checklist).map { (checklist, $0) } }
+                        Label(saved.isEmpty ? "Start Checklist" : "Continue Checklist", systemImage: "checklist.checked")
                             .font(.headline)
                         let due = fleet.dueRepeatingItems(on: vehicleId)
-                        if !due.isEmpty {
+                        if let (checklist, draft) = saved.first {
+                            Text("\(checklist.name): \(draft.checkedIds.count) checked, saved \(Formatting.dayAndTime(draft.savedAt))")
+                                .font(.caption)
+                        } else if !due.isEmpty {
                             Text(due.count == 1 ? "Includes 1 weekly item" : "Includes \(due.count) weekly items")
                                 .font(.caption)
                         }
@@ -303,7 +307,16 @@ struct VehicleDetailView: View {
         }
     }
 
+    /// Progress saved on this phone for a checklist on this truck, if any.
+    private func draft(_ checklist: ChecklistTemplate) -> ChecklistDraft? {
+        ChecklistDraftStore.shared.summary(
+            ChecklistDraftStore.key(fleetId: fleet.fleetId, vehicleId: vehicleId, checklistId: checklist.id ?? ""))
+    }
+
     private func pickerLabel(_ checklist: ChecklistTemplate) -> String {
+        if let draft = draft(checklist) {
+            return "\(checklist.name) (in progress, \(draft.checkedIds.count) checked)"
+        }
         guard checklist.isScheduled,
               let entry = fleet.scheduledChecklists(on: vehicleId).first(where: { $0.checklistId == checklist.id }) else {
             return checklist.name

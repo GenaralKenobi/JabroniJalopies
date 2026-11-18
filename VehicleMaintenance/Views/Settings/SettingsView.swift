@@ -267,6 +267,7 @@ struct SettingsView: View {
     private func signOut() async {
         photoQueue.removeAll()
         PhotoCache.shared.clear()
+        ChecklistDraftStore.shared.deleteAll()
         session.stop()
         await auth.signOut()
     }
@@ -576,6 +577,7 @@ struct DeleteAccountView: View {
                 try await session.deleteAllUserData()
                 PhotoUploadQueue.shared.removeAll()
                 PhotoCache.shared.clear()
+                ChecklistDraftStore.shared.deleteAll()
                 try await auth.deleteAuthUser()
             } catch {
                 errorMessage = error.localizedDescription

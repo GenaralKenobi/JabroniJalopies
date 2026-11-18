@@ -3,6 +3,9 @@ import SwiftUI
 
 /// A driver completing a checklist. Works fully offline: everything is saved
 /// to the phone on submit and uploads when there's signal.
+///
+/// Answered items move into a collapsible "Checked Items" section, and progress is saved
+/// on the phone as you go, so a checklist can be finished later.
 struct InspectionFormView: View {
     let vehicle: Vehicle
     let checklist: ChecklistTemplate
@@ -28,6 +31,12 @@ struct InspectionFormView: View {
     @State private var submitted = false
     /// Counts taps of "pass routine items", to trigger a haptic.
     @State private var bulkPassCount = 0
+    /// Items moved into "Checked Items".
+    @State private var checkedIds: Set<String> = []
+    @State private var showingChecked = false
+    /// When the saved progress this checklist continues from was saved (nil for a fresh one).
+    @State private var resumedFrom: Date?
+    @State private var didLoadDraft = false
 
     struct IdentifiedString: Identifiable { let id: String }
 
@@ -40,6 +49,63 @@ struct InspectionFormView: View {
         self.vehicle = vehicle
         self.checklist = checklist
         _odometerText = State(initialValue: String(vehicle.odometer))
+    }
+
+    private var draftKey: String {
+        ChecklistDraftStore.key(fleetId: fleet.fleetId, vehicleId: vehicle.id ?? "", checklistId: checklist.id ?? "")
+    }
+
+    /// Answered with everything it needs (a number, or a note for a fixed problem).
+    private func isComplete(_ item: ChecklistItem) -> Bool {
+        guard let answer = answers[item.id], let verdict = answer.verdict else { return false }
+        if item.requiresReading && NumberParsing.decimal(answer.reading) == nil { return false }
+        if openDefectsByItem[item.id] != nil && verdict == .pass && answer.note.trimmed.isEmpty { return false }
+        return true
+    }
+
+    private var itemsToCheck: [ChecklistItem] { activeItems.filter { !checkedIds.contains($0.id) } }
+    private var checkedItems: [ChecklistItem] { activeItems.filter { checkedIds.contains($0.id) } }
+
+    /// Moves answered items into "Checked Items": a plain pass right away; anything that
+    /// needs typing (a problem's description, a number, a note) once the person moves on
+    /// to another item, or taps Done.
+    private func moveAnsweredItems(old: [String: ItemAnswer], new: [String: ItemAnswer]) {
+        let changed = Set(new.keys.filter { old[$0]?.verdict != new[$0]?.verdict && new[$0]?.verdict != nil })
+        guard !changed.isEmpty else { return }
+        var moved = checkedIds
+        for item in activeItems where !moved.contains(item.id) && isComplete(item) {
+            let simplePass = new[item.id]?.verdict == .pass && !item.requiresReading && openDefectsByItem[item.id] == nil
+            if !changed.contains(item.id) || simplePass { moved.insert(item.id) }
+        }
+        if moved != checkedIds {
+            withAnimation(.snappy) { checkedIds = moved }
+        }
+    }
+
+    // MARK: Saved progress
+
+    private func loadDraft() {
+        guard !didLoadDraft else { return }
+        didLoadDraft = true
+        guard let saved = ChecklistDraftStore.shared.load(draftKey) else { return }
+        answers = saved.draft.answers
+        photos = saved.photos
+        odometerText = saved.draft.odometerText
+        doingEarly = saved.draft.doingEarly
+        checkedIds = saved.draft.checkedIds
+        resumedFrom = saved.draft.savedAt
+    }
+
+    private func saveDraft() {
+        guard didLoadDraft, !submitted else { return }
+        if answers.isEmpty {
+            ChecklistDraftStore.shared.delete(draftKey)
+            return
+        }
+        let photoIds = answers.values.flatMap(\.photoIds)
+        let draft = ChecklistDraft(answers: answers, odometerText: odometerText, doingEarly: doingEarly,
+                                   checkedIds: checkedIds, photoIds: photoIds, savedAt: .now)
+        ChecklistDraftStore.shared.save(draft, photos: photos.filter { photoIds.contains($0.key) }, key: draftKey)
     }
 
     /// The most recent open defect for each checklist item on this vehicle.
@@ -138,16 +204,75 @@ struct InspectionFormView: View {
                     }
                 }
 
-                ForEach(activeItems) { item in
+                if let resumedFrom {
                     Section {
-                        ItemCard(item: item,
-                                 lastDone: lastDone[item.id],
-                                 skips: skips[item.id] ?? 0,
-                                 existingDefect: openDefectsByItem[item.id],
-                                 answer: binding(for: item.id),
-                                 photos: $photos,
-                                 photosEnabled: fleet.photosEnabled,
-                                 onFail: { promptForPhoto(item) })
+                        Label("Continuing from \(Formatting.dayAndTime(resumedFrom)). \(checkedIds.count) checked, \(itemsToCheck.count) to go.",
+                              systemImage: "clock.arrow.circlepath")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.secondary)
+                    }
+                }
+
+                if itemsToCheck.isEmpty && !checkedItems.isEmpty {
+                    Section {
+                        Label("Every item is checked. Look over the checked items if you like, then submit.",
+                              systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                }
+
+                ForEach(itemsToCheck) { item in
+                    Section {
+                        itemCard(item)
+                        if isComplete(item) {
+                            Button {
+                                withAnimation(.snappy) { _ = checkedIds.insert(item.id) }
+                            } label: {
+                                Label("Done: Move to Checked Items", systemImage: "checkmark.circle")
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
+                }
+
+                if !checkedItems.isEmpty {
+                    Section {
+                        Button {
+                            withAnimation(.snappy) { showingChecked.toggle() }
+                        } label: {
+                            HStack {
+                                Label("Checked Items (\(checkedItems.count))", systemImage: "checkmark.circle.fill")
+                                    .font(.headline)
+                                    .foregroundStyle(Color.primary)
+                                Spacer()
+                                let failed = checkedItems.filter { answers[$0.id]?.verdict == .fail }.count
+                                if failed > 0 {
+                                    Text("\(failed) failed").font(.caption.weight(.semibold)).foregroundStyle(.red)
+                                }
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(Color.secondary)
+                                    .rotationEffect(.degrees(showingChecked ? 90 : 0))
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    } footer: {
+                        if !showingChecked {
+                            Text("Tap to see or change what's been checked.")
+                        }
+                    }
+                    if showingChecked {
+                        ForEach(checkedItems) { item in
+                            Section {
+                                itemCard(item)
+                                Button("Move Back to To Check") {
+                                    withAnimation(.snappy) { _ = checkedIds.remove(item.id) }
+                                }
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
                     }
                 }
 
@@ -206,14 +331,32 @@ struct InspectionFormView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button("Close") {
                         if answers.isEmpty { dismiss() } else { confirmingCancel = true }
                     }
                 }
             }
-            .confirmationDialog("Discard this checklist?", isPresented: $confirmingCancel, titleVisibility: .visible) {
-                Button("Discard", role: .destructive) { dismiss() }
+            .confirmationDialog("Finish this checklist later?", isPresented: $confirmingCancel, titleVisibility: .visible) {
+                Button("Save for Later") {
+                    saveDraft()
+                    dismiss()
+                }
+                Button("Discard Checklist", role: .destructive) {
+                    ChecklistDraftStore.shared.delete(draftKey)
+                    submitted = true
+                    dismiss()
+                }
+            } message: {
+                Text("Saved checklists stay on this phone until you submit them. Nothing is sent to your manager until then.")
             }
+            .onAppear(perform: loadDraft)
+            .onChange(of: answers) { old, new in
+                moveAnsweredItems(old: old, new: new)
+                saveDraft()
+            }
+            .onChange(of: checkedIds) { _, _ in saveDraft() }
+            .onChange(of: doingEarly) { _, _ in saveDraft() }
+            .onChange(of: odometerText) { _, _ in saveDraft() }
             .confirmationDialog("Add a photo of the problem?", isPresented: Binding(
                 get: { photoPromptItemId != nil },
                 set: { if !$0 { photoPromptItemId = nil } }
@@ -267,6 +410,17 @@ struct InspectionFormView: View {
 
     @State private var lastFailedItemId: String?
 
+    private func itemCard(_ item: ChecklistItem) -> some View {
+        ItemCard(item: item,
+                 lastDone: lastDone[item.id],
+                 skips: skips[item.id] ?? 0,
+                 existingDefect: openDefectsByItem[item.id],
+                 answer: binding(for: item.id),
+                 photos: $photos,
+                 photosEnabled: fleet.photosEnabled,
+                 onFail: { promptForPhoto(item) })
+    }
+
     private func binding(for itemId: String) -> Binding<ItemAnswer> {
         Binding(
             get: { answers[itemId] ?? ItemAnswer() },
@@ -313,6 +467,7 @@ struct InspectionFormView: View {
                              skippedItemIds: skipped.map(\.id),
                              scheduledChecklistId: checklist.isScheduled ? checklist.id : nil)
             submitted = true
+            ChecklistDraftStore.shared.delete(draftKey)
         } catch {
             validationMessage = error.localizedDescription
             return

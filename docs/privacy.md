@@ -56,7 +56,7 @@ Members of one fleet can't see another fleet's data through the app. This is enf
 ## Where information is stored
 
 - **Our servers:** data is stored in Google Cloud data centers in the **United States** (us-central1). Some authentication data may be processed in other locations by Google.
-- **Your phone:** a copy of your fleet's data is kept on your device so the app works without a connection. It's protected by iOS data protection, and it's erased when you sign out. Photos waiting to upload are kept on the device until they upload. Copies of defect photos you've viewed or uploaded (and, for managers, photos of open problems) are also kept on the device, up to 100 MB, so they can be seen without signal; they're erased when you sign out, and you can clear them under Settings → This Phone.
+- **Your phone:** a copy of your fleet's data is kept on your device so the app works without a connection. It's protected by iOS data protection, and it's erased when you sign out. Photos waiting to upload are kept on the device until they upload. A checklist you start but haven't submitted is saved on the device until you submit or discard it; it isn't sent to anyone until then. Copies of defect photos you've viewed or uploaded (and, for managers, photos of open problems) are also kept on the device, up to 100 MB, so they can be seen without signal; they're erased when you sign out, and you can clear them under Settings → This Phone.
 
 ## How long we keep it
 

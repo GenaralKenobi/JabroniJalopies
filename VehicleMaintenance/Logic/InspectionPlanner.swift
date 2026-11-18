@@ -1,12 +1,12 @@
 import Foundation
 
-enum ItemVerdict: Equatable {
+enum ItemVerdict: String, Codable, Equatable {
     case pass
     case fail
 }
 
 /// What a driver entered for one checklist item.
-struct ItemAnswer: Equatable {
+struct ItemAnswer: Codable, Equatable {
     var verdict: ItemVerdict?
     /// Raw text of the number reading, if the item asks for one.
     var reading: String = ""
