@@ -1,5 +1,6 @@
 import BackgroundTasks
 import FirebaseAuth
+import FirebaseFirestore
 import Foundation
 import UIKit
 import UserNotifications
@@ -11,7 +12,8 @@ import UserNotifications
 /// 1. When the app leaves the screen, it asks iOS for extra time to finish sending.
 /// 2. If changes are still waiting (usually no signal), it asks iOS to wake it in the
 ///    background, including a task that runs only when the phone has a connection.
-/// 3. If they still haven't gone after a while, a notification asks the person to open the app.
+/// 3. If a problem they reported (or its photo) still hasn't gone after 2 hours, a notification
+///    asks the person to open the app. Other changes (checklists, readings) don't trigger it.
 /// iOS decides when background wake-ups happen, so 3 is the safety net.
 @MainActor
 enum BackgroundSync {
@@ -20,7 +22,7 @@ enum BackgroundSync {
     /// Runs when the phone has a network connection.
     static let processingId = "com.generalkenobi.jabronijalopies.sync"
     private static let reminderId = "unsynced-changes-reminder"
-    private static let reminderDelay: TimeInterval = 45 * 60
+    private static let reminderDelay: TimeInterval = 2 * 60 * 60
 
     private final class TaskBox: @unchecked Sendable {
         var id: UIBackgroundTaskIdentifier = .invalid
@@ -38,8 +40,8 @@ enum BackgroundSync {
             PhotoUploadQueue.shared.process()
             // iOS gives about 30 seconds; leave a margin.
             let unsynced = await FirebaseSetup.hasUnsyncedChanges(timeout: 20)
-            if unsynced || PhotoUploadQueue.shared.pendingCount > 0 {
-                scheduleWakeUps()
+            if unsynced || PhotoUploadQueue.shared.pendingCount > 0 { scheduleWakeUps() }
+            if await hasUnsentDefects() {
                 await remindLater()
             } else {
                 cancelReminder()
@@ -61,11 +63,18 @@ enum BackgroundSync {
         guard FirebaseSetup.isConfigured, Auth.auth().currentUser != nil else { return }
         let unsynced = await FirebaseSetup.hasUnsyncedChanges(timeout: 20)
         await PhotoUploadQueue.shared.processInBackground()
-        if unsynced || PhotoUploadQueue.shared.pendingCount > 0 {
-            scheduleWakeUps()
-        } else {
-            cancelReminder()
-        }
+        if unsynced || PhotoUploadQueue.shared.pendingCount > 0 { scheduleWakeUps() }
+        if await !hasUnsentDefects() { cancelReminder() }
+    }
+
+    /// Whether a problem this person reported (or changed), or a photo for one, is still only on this phone.
+    private static func hasUnsentDefects() async -> Bool {
+        if PhotoUploadQueue.shared.pendingCount > 0 { return true }
+        guard let uid = Auth.auth().currentUser?.uid else { return false }
+        // Truck and equipment defects both live in collections named "defects".
+        let query = Firestore.firestore().collectionGroup("defects").whereField("reportedBy", isEqualTo: uid)
+        guard let snapshot = try? await query.getDocuments(source: .cache) else { return false }
+        return snapshot.documents.contains { $0.metadata.hasPendingWrites }
     }
 
     /// Registers the connection-only task. Must run before the app finishes launching.
@@ -98,8 +107,8 @@ enum BackgroundSync {
         let center = UNUserNotificationCenter.current()
         guard await center.notificationSettings().authorizationStatus == .authorized else { return }
         let content = UNMutableNotificationContent()
-        content.title = "Not sent yet"
-        content.body = "A checklist, problem or photo on this phone hasn't reached the fleet. Open Jabroni Jalopies when you have signal."
+        content.title = "Problem not sent yet"
+        content.body = "A problem you reported hasn't reached your manager. Open Jabroni Jalopies when you have signal so it can send."
         content.sound = .default
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: reminderDelay, repeats: false)
         try? await center.add(UNNotificationRequest(identifier: reminderId, content: content, trigger: trigger))
