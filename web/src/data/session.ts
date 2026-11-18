@@ -43,7 +43,12 @@ class Session extends Observable {
   get email() { return (this.user?.email ?? '').toLowerCase(); }
   get needsEmailVerification() { return !!this.user && !this.user.emailVerified && !usingEmulator; }
 
-  private restart() {
+  private restartAttempt = 0;
+  private restartTimer?: ReturnType<typeof setTimeout>;
+
+  private restart(attempt = 0) {
+    clearTimeout(this.restartTimer);
+    this.restartAttempt = attempt;
     this.unsubscribes.forEach((u) => u());
     this.unsubscribes = [];
     this.fleet?.stop();
@@ -53,13 +58,31 @@ class Session extends Observable {
     this.invites = [];
     const user = this.user;
     if (!user || this.needsEmailVerification) return;
-    this.unsubscribes.push(onSnapshot(P.memberships(user.uid), (snapshot) => {
+    // Right after signing in, the database can get its first request before it has the new
+    // sign-in and refuse it. Make sure the sign-in token is ready first, and retry if refused.
+    user.getIdToken().catch(() => undefined).then(() => {
+      if (this.user?.uid !== user.uid || this.restartAttempt !== attempt) return;
+      this.listenToMemberships(user.uid, attempt);
+    });
+  }
+
+  private listenToMemberships(uid: string, attempt: number) {
+    this.unsubscribes.push(onSnapshot(P.memberships(uid), (snapshot) => {
       this.memberships = snapshot.docs.map((d) => docData<Membership>(d))
         .sort((a, b) => a.fleetName.localeCompare(b.fleetName, undefined, { sensitivity: 'base' }));
       this.membershipsLoaded = true;
       this.restoreSelection();
       this.changed();
-    }, (error) => { noteLoadingProblem('Loading your fleets', error); errors.report(error, 'Loading your fleets'); }));
+    }, (error) => {
+      if ((error as { code?: string })?.code === 'permission-denied' && attempt < 4) {
+        // Refresh the sign-in and try again shortly.
+        this.user?.getIdToken(true).catch(() => undefined);
+        this.restartTimer = setTimeout(() => this.restart(attempt + 1), 800 * (attempt + 1));
+        return;
+      }
+      noteLoadingProblem('Loading your fleets', error);
+      errors.report(error, 'Loading your fleets');
+    }));
     const inviteQuery = query(P.invites(), where('email', '==', this.email), where('status', '==', 'pending'));
     this.unsubscribes.push(onSnapshot(inviteQuery, (snapshot) => {
       this.invites = snapshot.docs.map((d) => docData<Invite>(d));

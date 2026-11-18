@@ -53,6 +53,7 @@ export class FleetStore extends Observable {
   private stopped = false;
   private verifying = false;
   private reconnects = 0;
+  private deniedChecks = 0;
 
   constructor(readonly fleetId: string, readonly uid: string, readonly email: string,
     private onLostAccess: () => void) {
@@ -289,7 +290,14 @@ export class FleetStore extends Observable {
       this.reconnects++;
       this.restartListeners();
     } catch (error) {
-      if ((error as { code?: string })?.code === 'permission-denied') this.lost();
+      // Refused even reading our own membership: usually the sign-in wasn't ready yet. Refresh it
+      // and check again a little later; only after a few tries does it count as removed.
+      if ((error as { code?: string })?.code === 'permission-denied') {
+        this.deniedChecks++;
+        if (this.deniedChecks >= 4) { this.lost(); return; }
+        fb().auth.currentUser?.getIdToken(true).catch(() => undefined);
+        setTimeout(() => { if (!this.stopped) this.verifyAccess(); }, 1000 * this.deniedChecks);
+      }
       // Network problems: keep working from the browser's copy.
     } finally {
       this.verifying = false;
