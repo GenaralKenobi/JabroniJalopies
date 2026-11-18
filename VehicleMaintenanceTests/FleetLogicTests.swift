@@ -436,6 +436,13 @@ struct ScheduledChecklistTests {
                                             calendar: calendar) == day(2026, 11, 24))
     }
 
+    @Test func everyFewMonthsIsDueThatManyMonthsAfterItWasLastDone() {
+        #expect(ScheduledChecklists.dueDate(schedule: .everyMonths(3), firstDue: nil, lastDone: day(2026, 11, 10, hour: 15),
+                                            calendar: calendar) == day(2027, 2, 10))
+        #expect(ItemFrequency.everyMonths(3).label == "Every 3 months")
+        #expect(ItemFrequency.everyMonths(1) == .monthly)
+    }
+
     @Test func neverDoneUsesTheFirstDueDate() {
         #expect(ScheduledChecklists.dueDate(schedule: .monthly, firstDue: day(2026, 12, 1, hour: 13), lastDone: nil,
                                             calendar: calendar) == day(2026, 12, 1))

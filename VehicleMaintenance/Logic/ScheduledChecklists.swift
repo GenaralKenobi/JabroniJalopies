@@ -48,14 +48,14 @@ enum ScheduledChecklists {
     /// A repeating item skipped on this many checklists in a row is overdue.
     static let skipLimit = 3
 
-    /// Monthly: one month after it was last done on the truck. Every N days: N days after.
+    /// Every N months: N months after it was last done on the truck. Every N days: N days after.
     /// Never done on this truck: the checklist's first due date.
     static func dueDate(schedule: ItemFrequency, firstDue: Date?, lastDone: Date?,
                         calendar: Calendar = .current) -> Date? {
         guard let lastDone else { return firstDue.map { calendar.startOfDay(for: $0) } }
         let start = calendar.startOfDay(for: lastDone)
         switch schedule.kind {
-        case .monthly: return calendar.date(byAdding: .month, value: 1, to: start)
+        case .monthly: return calendar.date(byAdding: .month, value: schedule.monthCount, to: start)
         case .weekly: return calendar.date(byAdding: .day, value: 7, to: start)
         case .days: return calendar.date(byAdding: .day, value: max(1, schedule.days ?? 1), to: start)
         }

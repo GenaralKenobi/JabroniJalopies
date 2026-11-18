@@ -53,15 +53,22 @@ struct ItemFrequency: Codable, Hashable {
     var kind: Kind
     /// For `.days`: the interval in days.
     var days: Int?
+    /// For `.monthly` scheduled checklists: the interval in months (nil means every month).
+    var months: Int? = nil
+
+    var monthCount: Int { max(1, months ?? 1) }
 
     static let weekly = ItemFrequency(kind: .weekly)
     static let monthly = ItemFrequency(kind: .monthly)
     static func every(_ days: Int) -> ItemFrequency { ItemFrequency(kind: .days, days: max(1, days)) }
+    static func everyMonths(_ months: Int) -> ItemFrequency {
+        ItemFrequency(kind: .monthly, months: months <= 1 ? nil : months)
+    }
 
     var label: String {
         switch kind {
         case .weekly: "Weekly"
-        case .monthly: "Monthly"
+        case .monthly: monthCount == 1 ? "Monthly" : "Every \(monthCount) months"
         case .days: (days ?? 1) == 1 ? "Daily" : "Every \(days ?? 1) days"
         }
     }

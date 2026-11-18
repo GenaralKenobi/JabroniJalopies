@@ -158,13 +158,18 @@ struct ChecklistEditorView: View {
                         return
                     }
                     draft.readingInterval = nil
-                    draft.schedule = choice.frequency(days: draft.schedule?.days ?? 30)
+                    draft.schedule = choice.frequency(days: draft.schedule?.days ?? 30, months: draft.schedule?.months ?? 1)
                     if draft.schedule != nil, draft.firstDue == nil {
                         draft.firstDue = Calendar.current.date(byAdding: .day, value: ScheduledChecklists.alertLeadDays, to: .now)
                     }
                 }
             )) {
                 ForEach(ScheduleChoice.allCases, id: \.self) { Text($0.label).tag($0) }
+            }
+            if draft.schedule?.kind == .monthly {
+                Stepper(draft.schedule?.monthCount == 1 ? "Every month" : "Every \(draft.schedule?.monthCount ?? 1) months",
+                        value: Binding(get: { draft.schedule?.monthCount ?? 1 }, set: { draft.schedule = .everyMonths($0) }),
+                        in: 1...24)
             }
             if draft.schedule?.kind == .days {
                 Stepper("Every \(draft.schedule?.days ?? 30) days",
@@ -190,7 +195,7 @@ struct ChecklistEditorView: View {
             if let interval = draft.readingInterval {
                 Text("Each vehicle needs this checklist every \(interval.formatted()) of its own reading (hours, miles or kilometres, whichever that vehicle uses), counted from the reading when it was last done there. A vehicle that has never done it is due at the next multiple of \(interval.formatted()). Managers are alerted when a vehicle gets within a tenth (\(ScheduledChecklists.alertMargin(interval: max(interval, 1)).formatted())) of it and can plan a day; once the reading passes it, drivers see it marked Overdue. Choose vehicles that use the same unit under Used For.")
             } else if let schedule = draft.schedule {
-                Text("Each truck needs this checklist \(schedule.kind == .monthly ? "every month" : "every \(schedule.days ?? 1) days"), counted from when it was last done on that truck. Trucks that haven't done it yet are due on the first due date. Managers are alerted \(ScheduledChecklists.alertLeadDays) days before it's due and can plan a day for it. If it isn't done by the due date, drivers see it marked Overdue.")
+                Text("Each truck needs this checklist \(schedule.kind == .monthly ? (schedule.monthCount == 1 ? "every month" : "every \(schedule.monthCount) months") : "every \(schedule.days ?? 1) days"), counted from when it was last done on that truck. Trucks that haven't done it yet are due on the first due date. Managers are alerted \(ScheduledChecklists.alertLeadDays) days before it's due and can plan a day for it. If it isn't done by the due date, drivers see it marked Overdue.")
             } else {
                 Text("Drivers can do this checklist any time, such as every morning.")
             }
@@ -316,16 +321,16 @@ private enum ScheduleChoice: CaseIterable {
     var label: String {
         switch self {
         case .anyTime: "Any time (e.g. every morning)"
-        case .monthly: "Monthly"
+        case .monthly: "Every … months"
         case .days: "Every … days"
         case .reading: "Every … hours / miles"
         }
     }
 
-    func frequency(days: Int) -> ItemFrequency? {
+    func frequency(days: Int, months: Int) -> ItemFrequency? {
         switch self {
         case .anyTime, .reading: nil
-        case .monthly: .monthly
+        case .monthly: .everyMonths(months)
         case .days: .every(days)
         }
     }
