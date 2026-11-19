@@ -18,6 +18,7 @@ Decisions for you to check are in [DECISIONS.md](DECISIONS.md). Anything marked 
 - Apple developer account approved, bundle ID registered, app created in App Store Connect, API key made, and the four GitHub secrets added.
 - TestFlight upload works, and the app is installed on your iPhone.
 - The website is live at https://jabroni-jalopies.web.app and sign-in works.
+- Defect photo uploads work.
 - Instant defect alerts are set up (push key uploaded to Firebase for development and production, alert function deployed) and tested between two devices.
 
 ## 1. Things for you to do
@@ -29,10 +30,6 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 - [ ] **Restrict the API key**, because the repository is public. In Google Cloud console → APIs & Services → Credentials, open the "iOS key", choose **iOS apps**, and add the bundle ID `com.generalkenobi.jabronijalopies`. The security rules are what actually protect the data; this step stops other apps from using your key.
 - [ ] Optional: in Firebase → Authentication → Templates, set the sender name to **Jabroni Jalopies**.
 - [ ] Optional: delete the service account JSON key file you downloaded for GitHub, if it's still on your computer. GitHub has its own copy.
-
-### Now: check photo uploads
-
-- [ ] **Fix photo uploads.** The banner said "permission denied" (`-13021`). Cloud Storage needs permission to read the member list: in Firebase → Storage → Rules, add a blank line and **Publish**, and accept the cross-service box if one appears. Then tap **Try Again** once. The full steps are in step 6 of [FIREBASE_SETUP.md](FIREBASE_SETUP.md).
 
 ### Before rolling out to the crew
 
@@ -80,5 +77,4 @@ None of this is legal advice; these are the things worth getting a professional 
 - **Confirmed:** the app installs from TestFlight, the fixed build passes all automated tests on GitHub's Macs and simulators, and instant defect alerts reach a manager's device.
 - **Not confirmed yet** (these need a real phone):
   - a checklist completed in airplane mode and syncing afterwards
-  - photo uploads (currently being investigated)
   - reminder notifications and calendar events
