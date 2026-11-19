@@ -108,4 +108,18 @@ struct ChecklistReadingTests {
         #expect(InspectionPlanner.checkReading("41000", current: 41_000) == .ok(41_000))
         #expect(InspectionPlanner.checkReading("4,100", current: 41_000) == .lower(current: 41_000))
     }
+
+    @Test func theReadingIsNeededOnceAWeekPerTruck() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        func day(_ d: Int, _ h: Int = 12) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: 11, day: d, hour: h))!
+        }
+        // Monday Nov 16 2026. Read on Tuesday -> not needed again until next Monday.
+        #expect(InspectionPlanner.readingRequired(lastReadingAt: nil, readingBasedChecklist: false, now: day(18), calendar: calendar))
+        #expect(!InspectionPlanner.readingRequired(lastReadingAt: day(17), readingBasedChecklist: false, now: day(22), calendar: calendar))
+        #expect(InspectionPlanner.readingRequired(lastReadingAt: day(17), readingBasedChecklist: false, now: day(23, 6), calendar: calendar))
+        // Checklists due by hours or miles always need it.
+        #expect(InspectionPlanner.readingRequired(lastReadingAt: day(18), readingBasedChecklist: true, now: day(18), calendar: calendar))
+    }
 }

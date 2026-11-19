@@ -40,6 +40,12 @@ struct InspectionFormView: View {
     /// A reading lower than the last one that the driver confirmed by tapping Submit again.
     @State private var confirmedLowReading: Int?
 
+    /// This week's reading hasn't been recorded for this truck yet (or the checklist is due by reading).
+    private var readingRequired: Bool {
+        InspectionPlanner.readingRequired(lastReadingAt: vehicle.odometerUpdatedAt,
+                                          readingBasedChecklist: checklist.readingInterval != nil)
+    }
+
     struct IdentifiedString: Identifiable { let id: String }
 
     struct Outcome {
@@ -185,7 +191,7 @@ struct InspectionFormView: View {
 
                 Section {
                     Button(action: submit) {
-                        Text("Submit Checklist (\(answeredRequiredCount + (NumberParsing.int(odometerText) == nil ? 0 : 1))/\(requiredItems.count + 1))")
+                        Text("Submit Checklist (\(answeredRequiredCount + (readingRequired && NumberParsing.int(odometerText) != nil ? 1 : 0))/\(requiredItems.count + (readingRequired ? 1 : 0)))")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
@@ -283,14 +289,14 @@ struct InspectionFormView: View {
             LabeledContent("Vehicle", value: vehicle.displayName)
             HStack {
                 Text(unit.readingName)
-                TextField("Required", text: $odometerText)
+                TextField(readingRequired ? "Required" : "Optional", text: $odometerText)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                 Text(unit.abbreviation).foregroundStyle(Color.secondary)
             }
         } footer: {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Enter today's reading. Last: \(Formatting.distance(vehicle.odometer, unit: unit))\(vehicle.odometerUpdatedAt.map { ", \(Formatting.dayAndTime($0))" } ?? "").")
+                Text("\(readingRequired ? "This week's reading is needed." : "Optional: this week's reading is already in.") Last: \(Formatting.distance(vehicle.odometer, unit: unit))\(vehicle.odometerUpdatedAt.map { ", \(Formatting.dayAndTime($0))" } ?? "").")
                 if let entry = scheduledEntry, let label = ScheduledChecklists.label(for: checklist, unit: vehicle.unit) {
                     Label("\(label) checklist · \(ScheduledChecklists.statusText(entry))",
                           systemImage: entry.status == .overdue ? "exclamationmark.triangle.fill" : "calendar")
@@ -474,9 +480,11 @@ struct InspectionFormView: View {
         let existing = openDefectsByItem
         let checklist = checklistToSubmit
         let skipped = skippedItems
-        // Every checklist records the odometer (or hour meter).
+        // The odometer (or hour meter): required once a week per truck, optional otherwise.
         var correctsReading = false
         switch InspectionPlanner.checkReading(odometerText, current: vehicle.odometer) {
+        case .missing where !readingRequired:
+            break
         case .missing:
             validationMessage = "Enter today's \(unit.readingName.lowercased()) reading at the top (last: \(Formatting.distance(vehicle.odometer, unit: unit)))."
             return

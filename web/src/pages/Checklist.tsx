@@ -7,7 +7,7 @@ import { submitChecklist } from '../data/actions';
 import {
   bulkPassable, emptyAnswer, isOptionalItem, isSkippedTooOften, itemsToSubmit, parseDecimal, parseIntLenient,
   periodicIsDue, periodicNextDue, planInspection, scheduleStatusText, skippedItems, validateChecklist, mediumDate,
-  dayAndTime, relativeTime, type ItemAnswer, checklistScheduleLabel, checkReading, formatDistance,
+  dayAndTime, relativeTime, type ItemAnswer, checklistScheduleLabel, checkReading, formatDistance, readingRequired,
 } from '../logic/logic';
 import {
   checklistStateOf, frequencyLabel, isScheduled, readingName, vehicleName, type ChecklistItem, type Defect,
@@ -126,6 +126,7 @@ export function ChecklistPage() {
 
   const unit = fleet.unitOf(vehicle);
   const state = checklistStateOf(vehicle);
+  const readingNeeded = readingRequired(vehicle.odometerUpdatedAt, checklist.readingInterval != null);
   const openByItem = fleet.openDefectsByItem(vehicleId);
   const scheduledEntry = isScheduled(checklist) ? fleet.scheduledChecklists(vehicleId).find((e) => e.checklist.id === checklist.id) : undefined;
   const active = checklist.items.filter((i) => periodicIsDue(i.frequency, state.lastDone[i.id]) || openByItem[i.id] || doingEarly.has(i.id));
@@ -192,7 +193,7 @@ export function ChecklistPage() {
   function submit() {
     if (submitted.current) return;
     const reading = checkReading(odometerText, vehicle!.odometer);
-    if (reading.kind === 'missing') {
+    if (reading.kind === 'missing' && readingNeeded) {
       setError(`Enter today's ${readingName(unit).toLowerCase()} reading at the top (last: ${formatDistance(vehicle!.odometer, unit)}).`);
       return;
     }
@@ -245,12 +246,12 @@ export function ChecklistPage() {
       )}
       <OfflineBanner />
       <Section footer={<>
-        Enter today's reading. Last: {formatDistance(vehicle.odometer, unit)}{vehicle.odometerUpdatedAt ? `, ${dayAndTime(vehicle.odometerUpdatedAt)}` : ''}.
+        {readingNeeded ? "This week's reading is needed." : "Optional: this week's reading is already in."} Last: {formatDistance(vehicle.odometer, unit)}{vehicle.odometerUpdatedAt ? `, ${dayAndTime(vehicle.odometerUpdatedAt)}` : ''}.
         {scheduledEntry && label ? <><br />{label} checklist · {scheduleStatusText(scheduledEntry)}</> : null}
       </>}>
         <div className="row"><span className="grow">Vehicle</span><span className="value">{vehicleName(vehicle)}</span></div>
         <Field label={readingName(unit)}>
-          <input inputMode="numeric" className="right" placeholder="Required" value={odometerText} onChange={(e) => setOdometerText(e.target.value)} aria-label="Reading" />
+          <input inputMode="numeric" className="right" placeholder={readingNeeded ? 'Required' : 'Optional'} value={odometerText} onChange={(e) => setOdometerText(e.target.value)} aria-label="Reading" />
           <span className="unit">{unit}</span>
         </Field>
       </Section>
@@ -317,7 +318,7 @@ export function ChecklistPage() {
 
       {error && <Banner color="red">{error}</Banner>}
       <Section plain footer={skipped.length ? `${skipped.length} repeating item${skipped.length === 1 ? '' : 's'} not done. ${skipped.length === 1 ? 'It stays' : 'They stay'} due and will show on the next checklist for this truck until someone does ${skipped.length === 1 ? 'it' : 'them'}.` : undefined}>
-        <button className="btn" onClick={submit}>Submit Checklist ({answeredRequired + (parseIntLenient(odometerText) == null ? 0 : 1)}/{required.length + 1})</button>
+        <button className="btn" onClick={submit}>Submit Checklist ({answeredRequired + (readingNeeded && parseIntLenient(odometerText) != null ? 1 : 0)}/{required.length + (readingNeeded ? 1 : 0)})</button>
       </Section>
     </Page>
   );

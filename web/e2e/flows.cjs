@@ -68,9 +68,11 @@ async function emulatorUser(email, password) {
       await page.waitForTimeout(100);
     }
     await page.screenshot({ path: `${OUT}/flow-checklist-filled.png`, fullPage: true });
-    // Every checklist needs today's reading: first try without it (must be refused), then fill it in.
-    await page.getByRole('button', { name: /Submit Checklist/ }).click();
-    if (!(await page.getByText(/Enter today's odometer reading/).count())) failures.push('[reading] Submitting without a reading was not refused.');
+    // The reading is needed once a week per truck: if it's required here, submitting without it must be refused.
+    if ((await page.locator('input[aria-label="Reading"]').getAttribute('placeholder')) === 'Required') {
+      await page.getByRole('button', { name: /Submit Checklist/ }).click();
+      if (!(await page.getByText(/Enter today's odometer reading/).count())) failures.push('[reading] Submitting without a required reading was not refused.');
+    }
     await page.locator('input[aria-label="Reading"]').fill('53,010');
     await page.getByRole('button', { name: /Submit Checklist/ }).click();
     await check('checklist-submitted');

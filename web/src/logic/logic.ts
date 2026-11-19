@@ -326,6 +326,11 @@ export const emptyAnswer = (): ItemAnswer => ({ reading: '', details: '', note: 
 /** Every checklist records the odometer / hour meter. A lower reading than last time is usually a typo. */
 export type ReadingCheck = { kind: 'missing' } | { kind: 'lower'; current: number; value: number } | { kind: 'ok'; value: number };
 
+/** Required on the first checklist each week (Monday to Sunday) for a truck, and always on checklists due by reading. */
+export function readingRequired(lastReadingAt: Date | undefined, readingBasedChecklist: boolean, now = new Date()): boolean {
+  return readingBasedChecklist || periodicIsDue({ kind: 'weekly' }, lastReadingAt, now);
+}
+
 export function checkReading(text: string, current: number): ReadingCheck {
   const value = parseIntLenient(text);
   if (value == null) return { kind: 'missing' };

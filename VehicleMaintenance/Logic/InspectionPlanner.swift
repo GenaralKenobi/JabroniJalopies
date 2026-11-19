@@ -70,6 +70,13 @@ enum InspectionPlanner {
         case ok(Int)
     }
 
+    /// The reading is required on the first checklist each week (Monday to Sunday) for a truck,
+    /// like a weekly item, and always on checklists due by hours or miles.
+    static func readingRequired(lastReadingAt: Date?, readingBasedChecklist: Bool, now: Date = .now,
+                                calendar: Calendar = .current) -> Bool {
+        readingBasedChecklist || PeriodicSchedule.isDue(ItemFrequency.weekly, lastDone: lastReadingAt, now: now, calendar: calendar)
+    }
+
     static func checkReading(_ text: String, current: Int) -> ReadingCheck {
         guard let value = NumberParsing.int(text) else { return .missing }
         return value < current ? .lower(current: current) : .ok(value)

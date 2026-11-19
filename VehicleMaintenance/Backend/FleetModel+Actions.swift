@@ -424,8 +424,9 @@ extension FleetModel {
         truck.updateData(fields, forDocument: FS.vehicle(fleetId, vehicleId))
         commitInBackground(truck, "Saving checklist schedule")
 
-        // 4. Odometer: a higher reading, or a lower one the driver confirmed (fixing an earlier typo).
-        if let odometer, odometer > vehicle.odometer || (correctsReading && odometer != vehicle.odometer) {
+        // 4. Odometer: a higher or unchanged reading (an unchanged one still counts as this week's
+        //    reading), or a lower one the driver confirmed (fixing an earlier typo).
+        if let odometer, odometer >= vehicle.odometer || correctsReading {
             updateOdometer(of: vehicle, to: odometer)
         }
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   addMonths, bulkPassable, chainCount, chainSize, dueReading, dueStatus, groupContents, missingContents,
   parseChainSizes, parseDecimal, parseIntLenient, periodicIsDue, periodicNextDue, planInspection,
-  readingStatus, scheduleDueDate, checkReading, scheduleStatus, validateChecklist, type ItemAnswer, emptyAnswer,
+  readingStatus, scheduleDueDate, checkReading, readingRequired, scheduleStatus, validateChecklist, type ItemAnswer, emptyAnswer,
 } from '../src/logic/logic';
 import type { ChainInventory, ChecklistItem, ChecklistTemplate, Defect, TruckItem } from '../src/logic/model';
 
@@ -164,5 +164,11 @@ describe('checklist reading', () => {
     expect(checkReading('', 41000).kind).toBe('missing');
     expect(checkReading('41,250', 41000)).toEqual({ kind: 'ok', value: 41250 });
     expect(checkReading('4,100', 41000)).toEqual({ kind: 'lower', current: 41000, value: 4100 });
+  });
+  test('needed once a week per truck (Monday to Sunday), always for reading-based checklists', () => {
+    expect(readingRequired(undefined, false, day(2026, 11, 18))).toBe(true);
+    expect(readingRequired(day(2026, 11, 17, 7), false, day(2026, 11, 22, 18))).toBe(false);
+    expect(readingRequired(day(2026, 11, 17, 7), false, day(2026, 11, 23, 6))).toBe(true);
+    expect(readingRequired(day(2026, 11, 18, 7), true, day(2026, 11, 18, 9))).toBe(true);
   });
 });
