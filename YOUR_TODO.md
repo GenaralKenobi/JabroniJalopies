@@ -19,6 +19,7 @@ Decisions for you to check are in [DECISIONS.md](DECISIONS.md). Anything marked 
 - TestFlight upload works, and the app is installed on your iPhone.
 - The website is live at https://jabroni-jalopies.web.app and sign-in works.
 - Defect photo uploads work.
+- Sign-in emails are signed "Jabroni Jalopies" (public-facing name and sender name).
 - Instant defect alerts are set up (push key uploaded to Firebase for development and production, alert function deployed) and tested between two devices.
 
 ## 1. Things for you to do
@@ -28,7 +29,6 @@ Decisions for you to check are in [DECISIONS.md](DECISIONS.md). Anything marked 
 I can't see these settings, so if you've done them, tick them off and ignore them.
 
 - [ ] **Restrict the API key**, because the repository is public. In Google Cloud console → APIs & Services → Credentials, open the "iOS key", choose **iOS apps**, and add the bundle ID `com.generalkenobi.jabronijalopies`. The security rules are what actually protect the data; this step stops other apps from using your key.
-- [ ] Optional: in Firebase → Authentication → Templates, set the sender name to **Jabroni Jalopies**.
 - [ ] Optional: delete the service account JSON key file you downloaded for GitHub, if it's still on your computer. GitHub has its own copy.
 
 ### Before rolling out to the crew
