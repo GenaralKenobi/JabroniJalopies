@@ -52,6 +52,11 @@ None of this is legal advice; these are the things worth getting a professional 
 
 ### Before the public App Store release
 
+- [ ] **Demo account for Apple's reviewers** (5 minutes):
+  1. On the website, **Create Account** with an email used only for this (Apple will see it), and a password you'll give Apple. You don't need to confirm the email.
+  2. Sign out of the website.
+  3. GitHub → **Actions** → **App Review demo fleet** → **Run workflow**, enter that email. It confirms the email and makes the account the manager of "Sample Fleet (App Review)" with trucks, checklists, a problem, reminders and history.
+  4. In App Store Connect → **App Review Information**, tick **Sign-in required** and enter the email and password, with a note: "Internal fleet app. This account manages a sample fleet."
 - [ ] **Listing:**
   - name **Jabroni Jalopies**
   - subtitle (suggestion: "Truck checklists & defects")
@@ -64,7 +69,6 @@ None of this is legal advice; these are the things worth getting a professional 
   - **Use:** all of it is linked to the user, used for App Functionality, and **not** used for tracking.
 - [ ] **Age rating questionnaire:** answer "none" for everything.
 - [ ] **Tell customers about employee-monitoring notices.** The app records who did each checklist and when. Some states (for example New York, Connecticut and Delaware) require employers to tell employees in writing about electronic monitoring. That's the employer's job, and the draft Terms say so, but mention it when you sign up a company.
-- [ ] **Demo account for Apple's reviewers:** create a manager account with a sample fleet in your real Firebase project and enter it under App Review Information.
 - [ ] **Seller name (for your information).** If you enrolled as an **individual**, the App Store shows your legal name as the seller. "Tailgate Labs" appears in the app and on its website, but not as the seller. To show "Tailgate Labs" as the seller, you'd need a registered business and an Organization developer account, which requires a D-U-N-S number.
 
 ## 2. Open questions

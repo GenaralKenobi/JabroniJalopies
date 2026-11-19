@@ -1,0 +1,41 @@
+name: App Review demo fleet
+
+# Gives Apple's reviewer a sample fleet in the real Firebase project. Create the reviewer's
+# account first (website or app → Create Account, with an email used only for this), then run
+# this with that email. Running it again resets the sample fleet. The password never passes
+# through GitHub. Note: this repository is public, so the email you enter here is visible in the run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "The reviewer account's email (create the account first)"
+        required: true
+
+jobs:
+  sample-fleet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      REVIEW_EMAIL: ${{ inputs.email }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+      - name: Install
+        run: npm ci --prefix firebase/functions
+      - name: Create the sample fleet
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/service-account.json"
+          cp firebase/scripts/review-fleet.mjs firebase/functions/review-fleet.mjs
+          cd firebase/functions
+          node review-fleet.mjs
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json"
