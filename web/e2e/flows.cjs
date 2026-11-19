@@ -68,6 +68,10 @@ async function emulatorUser(email, password) {
       await page.waitForTimeout(100);
     }
     await page.screenshot({ path: `${OUT}/flow-checklist-filled.png`, fullPage: true });
+    // Every checklist needs today's reading: first try without it (must be refused), then fill it in.
+    await page.getByRole('button', { name: /Submit Checklist/ }).click();
+    if (!(await page.getByText(/Enter today's odometer reading/).count())) failures.push('[reading] Submitting without a reading was not refused.');
+    await page.locator('input[aria-label="Reading"]').fill('53,010');
     await page.getByRole('button', { name: /Submit Checklist/ }).click();
     await check('checklist-submitted');
     await page.getByRole('button', { name: 'OK' }).click();
@@ -211,6 +215,7 @@ async function emulatorUser(email, password) {
       await page.waitForTimeout(100);
     }
     for (const why of await page.getByPlaceholder(/Why does it look fixed/).all()) await why.fill('Replaced');
+    await page.locator('input[aria-label="Reading"]').fill('999,999');
     await page.getByRole('button', { name: /Submit Checklist/ }).click();
     await check('driver-checklist');
     await page.getByRole('button', { name: 'OK' }).click();

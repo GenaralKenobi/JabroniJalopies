@@ -99,3 +99,13 @@ struct ServiceTypeTests {
         #expect(ServiceType.battery.suggestedInterval(in: .kilometers).distance == nil)
     }
 }
+
+struct ChecklistReadingTests {
+    @Test func everyChecklistNeedsAReading() {
+        #expect(InspectionPlanner.checkReading("", current: 41_000) == .missing)
+        #expect(InspectionPlanner.checkReading("mi", current: 41_000) == .missing)
+        #expect(InspectionPlanner.checkReading("41,250", current: 41_000) == .ok(41_250))
+        #expect(InspectionPlanner.checkReading("41000", current: 41_000) == .ok(41_000))
+        #expect(InspectionPlanner.checkReading("4,100", current: 41_000) == .lower(current: 41_000))
+    }
+}

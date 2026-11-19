@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   addMonths, bulkPassable, chainCount, chainSize, dueReading, dueStatus, groupContents, missingContents,
   parseChainSizes, parseDecimal, parseIntLenient, periodicIsDue, periodicNextDue, planInspection,
-  readingStatus, scheduleDueDate, scheduleStatus, validateChecklist, type ItemAnswer, emptyAnswer,
+  readingStatus, scheduleDueDate, checkReading, scheduleStatus, validateChecklist, type ItemAnswer, emptyAnswer,
 } from '../src/logic/logic';
 import type { ChainInventory, ChecklistItem, ChecklistTemplate, Defect, TruckItem } from '../src/logic/model';
 
@@ -156,5 +156,13 @@ describe('chains', () => {
       changes: { a: { at: day(2026, 11, 10, 9), d: { in18: -3 } }, b: { at: day(2026, 11, 11), d: { in18: -12 } } },
     };
     expect(chainCount(inv, chainSize(18))).toBe(-2);
+  });
+});
+
+describe('checklist reading', () => {
+  test('every checklist needs a reading; lower ones are flagged', () => {
+    expect(checkReading('', 41000).kind).toBe('missing');
+    expect(checkReading('41,250', 41000)).toEqual({ kind: 'ok', value: 41250 });
+    expect(checkReading('4,100', 41000)).toEqual({ kind: 'lower', current: 41000, value: 4100 });
   });
 });

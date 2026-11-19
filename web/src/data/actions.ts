@@ -308,7 +308,8 @@ const pendingPhoto = (s: FleetStore): DefectPhoto =>
 
 /** Saves a completed checklist, matching FleetModel.submit in the app. */
 export function submitChecklist(s: FleetStore, plan: InspectionPlan, vehicle: Vehicle, odometer: number | undefined,
-  photos: Record<string, Blob>, repeatingItemIds: string[], skippedItemIds: string[], scheduledChecklistId?: string) {
+  photos: Record<string, Blob>, repeatingItemIds: string[], skippedItemIds: string[], scheduledChecklistId?: string,
+  correctsReading = false) {
   // 1. The checklist and new defects together (always allowed, so this can't be rejected).
   const records = batch();
   records.set(doc(P.inspections(s.fleetId, vehicle.id), plan.inspectionId),
@@ -353,8 +354,10 @@ export function submitChecklist(s: FleetStore, plan: InspectionPlan, vehicle: Ve
   const [first, firstValue, ...rest] = fieldsAndValues;
   inBackground(updateDoc(P.vehicle(s.fleetId, vehicle.id), first as FieldPath, firstValue, ...rest), 'Saving checklist schedule');
 
-  // 4. Odometer.
-  if (odometer != null && odometer > vehicle.odometer) updateOdometer(s, vehicle, odometer);
+  // 4. Odometer: a higher reading, or a lower one the driver confirmed (fixing an earlier typo).
+  if (odometer != null && (odometer > vehicle.odometer || (correctsReading && odometer !== vehicle.odometer))) {
+    updateOdometer(s, vehicle, odometer);
+  }
   bumpRecordCount(s, 1 + plan.newDefects.length);
 
   const defectForPhoto: Record<string, string> = {};

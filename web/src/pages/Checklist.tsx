@@ -7,7 +7,7 @@ import { submitChecklist } from '../data/actions';
 import {
   bulkPassable, emptyAnswer, isOptionalItem, isSkippedTooOften, itemsToSubmit, parseDecimal, parseIntLenient,
   periodicIsDue, periodicNextDue, planInspection, scheduleStatusText, skippedItems, validateChecklist, mediumDate,
-  dayAndTime, relativeTime, type ItemAnswer, checklistScheduleLabel,
+  dayAndTime, relativeTime, type ItemAnswer, checklistScheduleLabel, checkReading, formatDistance,
 } from '../logic/logic';
 import {
   checklistStateOf, frequencyLabel, isScheduled, readingName, vehicleName, type ChecklistItem, type Defect,
@@ -83,7 +83,9 @@ export function ChecklistPage() {
   const saved = useMemo(() => loadDraftSummary(fleet.fleetId, vehicleId, checklistId), [fleet.fleetId, vehicleId, checklistId]);
 
   const [answers, setAnswers] = useState<Record<string, ItemAnswer>>(saved?.answers ?? {});
-  const [odometerText, setOdometerText] = useState(saved?.odometerText ?? String(vehicle?.odometer ?? ''));
+  // Empty on purpose: every checklist records today's reading.
+  const [odometerText, setOdometerText] = useState(saved?.odometerText ?? '');
+  const [confirmedLow, setConfirmedLow] = useState<number>();
   const [doingEarly, setDoingEarly] = useState<Set<string>>(new Set(saved?.doingEarly ?? []));
   const [checked, setChecked] = useState<Set<string>>(new Set(saved?.checkedIds ?? []));
   const [showChecked, setShowChecked] = useState(false);
@@ -189,6 +191,16 @@ export function ChecklistPage() {
 
   function submit() {
     if (submitted.current) return;
+    const reading = checkReading(odometerText, vehicle!.odometer);
+    if (reading.kind === 'missing') {
+      setError(`Enter today's ${readingName(unit).toLowerCase()} reading at the top (last: ${formatDistance(vehicle!.odometer, unit)}).`);
+      return;
+    }
+    if (reading.kind === 'lower' && confirmedLow !== reading.value) {
+      setConfirmedLow(reading.value);
+      setError(`${formatDistance(reading.value, unit)} is lower than the last reading (${formatDistance(reading.current, unit)}). Check it, or tap Submit again to save it anyway.`);
+      return;
+    }
     const items = itemsToSubmit(active, answers);
     const problem = validateChecklist(items, answers, openByItem);
     if (problem) { setError(problem); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); return; }
@@ -197,7 +209,7 @@ export function ChecklistPage() {
     const used = new Set([...plan.newDefects.flatMap((d) => Object.keys(d.defect.photos)), ...plan.defectUpdates.flatMap((u) => u.photoIds)]);
     const usedPhotos = Object.fromEntries(Object.entries(photos).filter(([id]) => used.has(id)));
     submitChecklist(fleet, plan, vehicle!, odometer, usedPhotos, items.filter((i) => i.frequency).map((i) => i.id),
-      skipped.map((i) => i.id), isScheduled(checklist!) ? checklist!.id : undefined);
+      skipped.map((i) => i.id), isScheduled(checklist!) ? checklist!.id : undefined, reading.kind === 'lower');
     submitted.current = true;
     saveDraftSummary(key, undefined);
     deleteDraftPhotos(Object.keys(photos));
@@ -232,10 +244,13 @@ export function ChecklistPage() {
         </Section>
       )}
       <OfflineBanner />
-      <Section footer={scheduledEntry && label ? `${label} checklist · ${scheduleStatusText(scheduledEntry)}` : undefined}>
+      <Section footer={<>
+        Enter today's reading. Last: {formatDistance(vehicle.odometer, unit)}{vehicle.odometerUpdatedAt ? `, ${dayAndTime(vehicle.odometerUpdatedAt)}` : ''}.
+        {scheduledEntry && label ? <><br />{label} checklist · {scheduleStatusText(scheduledEntry)}</> : null}
+      </>}>
         <div className="row"><span className="grow">Vehicle</span><span className="value">{vehicleName(vehicle)}</span></div>
         <Field label={readingName(unit)}>
-          <input inputMode="numeric" className="right" value={odometerText} onChange={(e) => setOdometerText(e.target.value)} aria-label="Reading" />
+          <input inputMode="numeric" className="right" placeholder="Required" value={odometerText} onChange={(e) => setOdometerText(e.target.value)} aria-label="Reading" />
           <span className="unit">{unit}</span>
         </Field>
       </Section>
@@ -302,7 +317,7 @@ export function ChecklistPage() {
 
       {error && <Banner color="red">{error}</Banner>}
       <Section plain footer={skipped.length ? `${skipped.length} repeating item${skipped.length === 1 ? '' : 's'} not done. ${skipped.length === 1 ? 'It stays' : 'They stay'} due and will show on the next checklist for this truck until someone does ${skipped.length === 1 ? 'it' : 'them'}.` : undefined}>
-        <button className="btn" onClick={submit}>Submit Checklist ({answeredRequired}/{required.length})</button>
+        <button className="btn" onClick={submit}>Submit Checklist ({answeredRequired + (parseIntLenient(odometerText) == null ? 0 : 1)}/{required.length + 1})</button>
       </Section>
     </Page>
   );

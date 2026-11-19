@@ -323,6 +323,15 @@ export interface ItemAnswer {
 
 export const emptyAnswer = (): ItemAnswer => ({ reading: '', details: '', note: '', photoIds: [] });
 
+/** Every checklist records the odometer / hour meter. A lower reading than last time is usually a typo. */
+export type ReadingCheck = { kind: 'missing' } | { kind: 'lower'; current: number; value: number } | { kind: 'ok'; value: number };
+
+export function checkReading(text: string, current: number): ReadingCheck {
+  const value = parseIntLenient(text);
+  if (value == null) return { kind: 'missing' };
+  return value < current ? { kind: 'lower', current, value } : { kind: 'ok', value };
+}
+
 /** Repeating items are optional: skipping one leaves it due. */
 export const isOptionalItem = (item: ChecklistItem) => item.frequency != null;
 

@@ -62,6 +62,19 @@ enum InspectionValidationError: Equatable, LocalizedError {
 }
 
 enum InspectionPlanner {
+    /// The odometer / hour-meter reading every checklist asks for.
+    enum ReadingCheck: Equatable {
+        case missing
+        /// Lower than the vehicle's last reading: usually a typo, so the driver confirms it.
+        case lower(current: Int)
+        case ok(Int)
+    }
+
+    static func checkReading(_ text: String, current: Int) -> ReadingCheck {
+        guard let value = NumberParsing.int(text) else { return .missing }
+        return value < current ? .lower(current: current) : .ok(value)
+    }
+
     struct Person {
         var uid: String
         var name: String

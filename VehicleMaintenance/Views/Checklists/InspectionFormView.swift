@@ -37,6 +37,8 @@ struct InspectionFormView: View {
     /// When the saved progress this checklist continues from was saved (nil for a fresh one).
     @State private var resumedFrom: Date?
     @State private var didLoadDraft = false
+    /// A reading lower than the last one that the driver confirmed by tapping Submit again.
+    @State private var confirmedLowReading: Int?
 
     struct IdentifiedString: Identifiable { let id: String }
 
@@ -48,7 +50,8 @@ struct InspectionFormView: View {
     init(vehicle: Vehicle, checklist: ChecklistTemplate) {
         self.vehicle = vehicle
         self.checklist = checklist
-        _odometerText = State(initialValue: String(vehicle.odometer))
+        // Empty on purpose: every checklist records today's reading.
+        _odometerText = State(initialValue: "")
     }
 
     private var draftKey: String {
@@ -182,7 +185,7 @@ struct InspectionFormView: View {
 
                 Section {
                     Button(action: submit) {
-                        Text("Submit Checklist (\(answeredRequiredCount)/\(requiredItems.count))")
+                        Text("Submit Checklist (\(answeredRequiredCount + (NumberParsing.int(odometerText) == nil ? 0 : 1))/\(requiredItems.count + 1))")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
@@ -280,13 +283,14 @@ struct InspectionFormView: View {
             LabeledContent("Vehicle", value: vehicle.displayName)
             HStack {
                 Text(unit.readingName)
-                TextField("Reading", text: $odometerText)
+                TextField("Required", text: $odometerText)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                 Text(unit.abbreviation).foregroundStyle(Color.secondary)
             }
         } footer: {
             VStack(alignment: .leading, spacing: 6) {
+                Text("Enter today's reading. Last: \(Formatting.distance(vehicle.odometer, unit: unit))\(vehicle.odometerUpdatedAt.map { ", \(Formatting.dayAndTime($0))" } ?? "").")
                 if let entry = scheduledEntry, let label = ScheduledChecklists.label(for: checklist, unit: vehicle.unit) {
                     Label("\(label) checklist · \(ScheduledChecklists.statusText(entry))",
                           systemImage: entry.status == .overdue ? "exclamationmark.triangle.fill" : "calendar")
@@ -470,6 +474,23 @@ struct InspectionFormView: View {
         let existing = openDefectsByItem
         let checklist = checklistToSubmit
         let skipped = skippedItems
+        // Every checklist records the odometer (or hour meter).
+        var correctsReading = false
+        switch InspectionPlanner.checkReading(odometerText, current: vehicle.odometer) {
+        case .missing:
+            validationMessage = "Enter today's \(unit.readingName.lowercased()) reading at the top (last: \(Formatting.distance(vehicle.odometer, unit: unit)))."
+            return
+        case .lower(let current):
+            let value = NumberParsing.int(odometerText)
+            if confirmedLowReading != value {
+                confirmedLowReading = value
+                validationMessage = "\(Formatting.distance(value ?? 0, unit: unit)) is lower than the last reading (\(Formatting.distance(current, unit: unit))). Check it, or tap Submit again to save it anyway."
+                return
+            }
+            correctsReading = true
+        case .ok:
+            break
+        }
         if let error = InspectionPlanner.validate(template: checklist, answers: answers, openDefectsByItem: existing) {
             validationMessage = error.localizedDescription
             return
@@ -487,7 +508,8 @@ struct InspectionFormView: View {
             try fleet.submit(plan, vehicle: vehicle, odometer: NumberParsing.int(odometerText), photos: usedPhotos,
                              repeatingItemIds: checklist.items.filter { $0.frequency != nil }.map(\.id),
                              skippedItemIds: skipped.map(\.id),
-                             scheduledChecklistId: checklist.isScheduled ? checklist.id : nil)
+                             scheduledChecklistId: checklist.isScheduled ? checklist.id : nil,
+                             correctsReading: correctsReading)
             submitted = true
             ChecklistDraftStore.shared.delete(draftKey)
         } catch {

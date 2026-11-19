@@ -355,7 +355,7 @@ extension FleetModel {
     /// separately and attach whenever they finish uploading.
     func submit(_ plan: InspectionPlan, vehicle: Vehicle, odometer: Int?, photos: [String: Data],
                 repeatingItemIds: [String] = [], skippedItemIds: [String] = [],
-                scheduledChecklistId: String? = nil) throws {
+                scheduledChecklistId: String? = nil, correctsReading: Bool = false) throws {
         guard let vehicleId = vehicle.id else { return }
 
         // 1. The checklist and any new defects, together. These are new documents the
@@ -424,8 +424,8 @@ extension FleetModel {
         truck.updateData(fields, forDocument: FS.vehicle(fleetId, vehicleId))
         commitInBackground(truck, "Saving checklist schedule")
 
-        // 4. Odometer.
-        if let odometer, odometer > vehicle.odometer {
+        // 4. Odometer: a higher reading, or a lower one the driver confirmed (fixing an earlier typo).
+        if let odometer, odometer > vehicle.odometer || (correctsReading && odometer != vehicle.odometer) {
             updateOdometer(of: vehicle, to: odometer)
         }
 
