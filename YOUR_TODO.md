@@ -17,6 +17,7 @@ Decisions for you to check are in [DECISIONS.md](DECISIONS.md). Anything marked 
 - Blaze plan, Cloud Storage and the photo permissions are set up, with a budget alert for surprise charges.
 - Apple developer account approved, bundle ID registered, app created in App Store Connect, API key made, and the four GitHub secrets added.
 - TestFlight upload works, and the app is installed on your iPhone.
+- The website is live at https://jabroni-jalopies.web.app and sign-in works.
 - Instant defect alerts are set up (push key uploaded to Firebase for development and production, alert function deployed) and tested between two devices.
 
 ## 1. Things for you to do
@@ -28,11 +29,6 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 - [ ] **Restrict the API key**, because the repository is public. In Google Cloud console → APIs & Services → Credentials, open the "iOS key", choose **iOS apps**, and add the bundle ID `com.generalkenobi.jabronijalopies`. The security rules are what actually protect the data; this step stops other apps from using your key.
 - [ ] Optional: in Firebase → Authentication → Templates, set the sender name to **Jabroni Jalopies**.
 - [ ] Optional: delete the service account JSON key file you downloaded for GitHub, if it's still on your computer. GitHub has its own copy.
-
-### The website (about 3 minutes)
-
-- [ ] Register the website in Firebase (Project settings → Your apps → Add app → web `</>`); details in [WEB_SETUP.md](WEB_SETUP.md).
-- [ ] Open https://jabroni-jalopies.web.app on your iPhone, sign in, and add it to your Home Screen.
 
 ### Now: check photo uploads
 
