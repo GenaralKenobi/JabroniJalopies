@@ -50,6 +50,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Use the newest Xcode
+        run: |
+          # Apple requires apps uploaded from April 2027 to be built with Xcode 27 (iOS 27 SDK) or
+          # later. Pick the newest finished (not beta or release-candidate) Xcode on the machine.
+          ls -d /Applications/Xcode*.app
+          NEWEST=$(ls -d /Applications/Xcode_[0-9]*.app 2>/dev/null | grep -viE "beta|rc|release_candidate" | sort -V | tail -1)
+          if [ -n "$NEWEST" ]; then sudo xcode-select -s "$NEWEST/Contents/Developer"; fi
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
       - name: Show toolchain
         run: |
           xcodebuild -version
