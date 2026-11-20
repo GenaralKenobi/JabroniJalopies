@@ -50,6 +50,13 @@ None of this is legal advice; these are the things worth getting a professional 
 - [ ] **Taxes and insurance:** ask an accountant about sales tax on software subscriptions in your state, and an insurance agent about general liability and technology errors-and-omissions cover.
 - [ ] **Big customers** will ask for a data processing agreement (how you handle their employees' data). Have the lawyer prepare one when the first one asks.
 
+### App Store review (submitted Nov 20, 2026)
+
+- [x] Version 1.0 submitted for review, with the sample-fleet reviewer account, and the **unlisted distribution** request sent.
+- [ ] Wait for Apple's emails: the review result (usually 1–3 days) and the unlisted request (can take longer). If either is rejected, send me the exact message.
+- [ ] Keep the reviewer account and "Sample Fleet (App Review)" as they are until approval. Apple reuses them for every update, so keep them afterwards too.
+- [ ] Once approved and unlisted, share the App Store link with your crew (instead of TestFlight).
+
 ### Before the public App Store release
 
 - [ ] **Demo account for Apple's reviewers** (5 minutes):
