@@ -52,3 +52,11 @@ test('tokens are sent in groups of at most 500', () => {
   assert.deepEqual(groups.map((g) => g.length), [500, 500, 201]);
   assert.deepEqual(chunk([]), []);
 });
+
+test('a "fix immediately" problem says so in the title', () => {
+  const alert = buildAlert({
+    fleetName: 'Acme', vehicleName: 'Van 12', reportedByName: 'Dan',
+    defect: { title: 'Coolant leak', details: '', unsafe: false, priority: 'immediately' },
+  });
+  assert.equal(alert.title, 'Fix immediately: Van 12');
+});

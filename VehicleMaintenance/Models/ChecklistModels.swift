@@ -235,10 +235,72 @@ struct Defect: Codable, Identifiable, Hashable {
     /// Set when closed; Firestore's TTL policy deletes the record after this date.
     var expireAt: Date?
     var updatedAt: Date?
+    /// How urgent it is (`DefectPriority` raw value). Stored as text so older app versions,
+    /// and any future tags, never stop a defect from loading. Missing on older defects.
+    var priority: String? = nil
+    /// Set by a manager while the problem is being worked on (cleared when it's closed).
+    var inProgress: DefectProgress? = nil
+}
+
+/// The tag a problem gets when it's reported. Managers can change it later.
+enum DefectPriority: String, Codable, CaseIterable, Identifiable {
+    case unsafe, immediately, soon, whenever
+
+    var id: String { rawValue }
+
+    func label(equipment: Bool = false) -> String {
+        switch self {
+        case .unsafe: equipment ? "Do not use" : "Unsafe to drive"
+        case .immediately: "Fix immediately"
+        case .soon: "Fix soon"
+        case .whenever: "Fix whenever"
+        }
+    }
+
+    /// Most urgent first.
+    var rank: Int {
+        switch self {
+        case .unsafe: 0
+        case .immediately: 1
+        case .soon: 2
+        case .whenever: 3
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .unsafe: "exclamationmark.octagon.fill"
+        case .immediately: "exclamationmark.triangle.fill"
+        case .soon: "wrench.adjustable.fill"
+        case .whenever: "clock"
+        }
+    }
+}
+
+/// A manager noting that a problem is being worked on, e.g. "Parts ordered, Thursday".
+struct DefectProgress: Codable, Hashable {
+    var since: Date
+    var by: String
+    var byName: String
+    var note: String?
 }
 
 extension Defect {
     var isOpen: Bool { status != .closed }
+
+    /// The tag to show. The unsafe flag always wins (it drives the "do not drive" warnings);
+    /// older defects without a tag show none.
+    var tag: DefectPriority? {
+        if unsafe { return .unsafe }
+        guard let priority, let tag = DefectPriority(rawValue: priority), tag != .unsafe else { return nil }
+        return tag
+    }
+
+    /// For sorting: unsafe, fix immediately, fix soon, untagged, fix whenever.
+    var urgencyRank: Int {
+        guard let tag else { return 2 }
+        return tag == .whenever ? 4 : tag.rank
+    }
 
     var sortedPhotos: [(id: String, photo: DefectPhoto)] {
         photos.map { (id: $0.key, photo: $0.value) }.sorted { $0.photo.addedAt < $1.photo.addedAt }

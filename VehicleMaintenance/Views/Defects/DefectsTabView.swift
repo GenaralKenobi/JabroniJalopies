@@ -176,6 +176,9 @@ struct DefectRow: View {
                 }
                 .font(.caption)
                 .foregroundStyle(Color.secondary)
+                if defect.isOpen, let progress = defect.inProgress {
+                    InProgressLabel(progress: progress)
+                }
                 if unsynced {
                     Label("Waiting to sync", systemImage: "arrow.triangle.2.circlepath")
                         .font(.caption2.weight(.semibold))

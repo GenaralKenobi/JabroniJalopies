@@ -17,6 +17,7 @@ import {
 import {
   isOpen, type ChainInventory, type ChainLogItem, type ChainLogKind, type ChainSize, type ChecklistTemplate,
   type Defect, type DefectEvent, type DefectEventType, type DefectOwner, type DefectPhoto, type DefectResolution,
+  type DefectPriority,
   type Equipment, type Invite, type LengthChange, type Member, type Reminder, type Role, type ServiceRecord,
   type SpecSection, type TruckItem, type Vehicle, type ServiceType,
 } from '../logic/model';
@@ -368,14 +369,15 @@ export function submitChecklist(s: FleetStore, plan: InspectionPlan, vehicle: Ve
     .map(([photoId, blob]) => ({ photoId, blob, owner: { kind: 'vehicle', id: vehicle.id }, defectId: defectForPhoto[photoId] })));
 }
 
-export function reportDefect(s: FleetStore, owner: DefectOwner, title: string, details: string, unsafe: boolean,
+export function reportDefect(s: FleetStore, owner: DefectOwner, title: string, details: string, priority: DefectPriority,
   photos: Record<string, Blob>) {
+  const unsafe = priority === 'unsafe';
   const ref = doc(ownerDefects(s, owner));
   const now = new Date();
   const event: DefectEvent = { type: 'reported', by: s.uid, byName: s.myName, at: now };
   if (details.trim()) event.note = details.trim();
   const defect: Omit<Defect, 'id'> = {
-    title: title.trim(), details: details.trim(), unsafe, status: 'open', reportedBy: s.uid, reportedByName: s.myName,
+    title: title.trim(), details: details.trim(), unsafe, priority, status: 'open', reportedBy: s.uid, reportedByName: s.myName,
     reportedAt: now, history: [event], updatedAt: now,
     photos: Object.fromEntries(Object.keys(photos).map((id) => [id, pendingPhoto(s)])),
   };
@@ -400,7 +402,7 @@ export function closeDefect(s: FleetStore, owner: DefectOwner, defect: Defect, r
   if (note.trim()) event.note = note.trim();
   inBackground(updateDoc(doc(ownerDefects(s, owner), defect.id), {
     status: 'closed', resolution, closedAt: now, closedBy: s.uid, closedByName: s.myName, expireAt: retentionExpiry(now),
-    updatedAt: now, history: arrayUnion(toFirestore(event)),
+    updatedAt: now, inProgress: deleteField(), history: arrayUnion(toFirestore(event)),
   }), 'Closing defect');
   if (isOpen(defect)) adjustSummary(s, owner, { openDefects: -1, unsafeDefects: defect.unsafe ? -1 : 0 });
 }
@@ -413,6 +415,22 @@ export function reopenDefect(s: FleetStore, owner: DefectOwner, defect: Defect, 
     expireAt: deleteField(), updatedAt: new Date(), history: arrayUnion(toFirestore(event)),
   }), 'Reopening defect');
   if (!isOpen(defect)) adjustSummary(s, owner, { openDefects: 1, unsafeDefects: defect.unsafe ? 1 : 0 });
+}
+
+/** Managers change a problem's tag; moving to or from "unsafe" also sets the unsafe flag and the summary. */
+export function setDefectPriority(s: FleetStore, owner: DefectOwner, defect: Defect, priority: DefectPriority) {
+  const unsafe = priority === 'unsafe';
+  inBackground(updateDoc(doc(ownerDefects(s, owner), defect.id), { priority, unsafe, updatedAt: new Date() }), 'Changing priority');
+  if (isOpen(defect) && defect.unsafe !== unsafe) adjustSummary(s, owner, { unsafeDefects: unsafe ? 1 : -1 });
+}
+
+/** Managers note that a problem is being worked on (or clear it). */
+export function setDefectInProgress(s: FleetStore, owner: DefectOwner, defect: Defect, working: boolean, note: string) {
+  const value = working
+    ? toFirestore({ since: new Date(), by: s.uid, byName: s.myName, note: note.trim() || undefined })
+    : deleteField();
+  inBackground(updateDoc(doc(ownerDefects(s, owner), defect.id), { inProgress: value, updatedAt: new Date() }),
+    working ? 'Marking as being worked on' : 'Updating defect');
 }
 
 export function setDefectUnsafe(s: FleetStore, owner: DefectOwner, defect: Defect, unsafe: boolean) {

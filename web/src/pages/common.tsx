@@ -6,7 +6,7 @@ import {
   conditionFromSummary, conditionOf, dueLabel, relativeTime, scheduleStatusText, type Condition, type DueStatus,
   type ScheduledDue, checklistScheduleLabel,
 } from '../logic/logic';
-import { defectStatusLabel, type Defect, type DefectPhoto, type Vehicle } from '../logic/model';
+import { defectStatusLabel, defectTag, priorityLabel, type Defect, type DefectPhoto, type Vehicle } from '../logic/model';
 
 export function ConditionBadge({ condition }: { condition: Condition }) {
   if (condition === 'unsafe') return <Badge color="red">⛔ Unsafe to drive</Badge>;
@@ -38,7 +38,14 @@ export function VehicleThumb({ vehicle }: { vehicle: Vehicle }) {
 export function DefectStatusBadge({ defect }: { defect: Defect }) {
   if (defect.status === 'closed') return <Badge color="gray">{defect.resolution === 'notDefect' ? 'Not a defect' : 'Repaired'}</Badge>;
   if (defect.status === 'reportedFixed') return <Badge color="blue">Reported fixed</Badge>;
-  return defect.unsafe ? <Badge color="red">Unsafe</Badge> : <Badge color="orange">{defectStatusLabel(defect.status)}</Badge>;
+  const tag = defectTag(defect);
+  if (!tag) return <Badge color="orange">{defectStatusLabel(defect.status)}</Badge>;
+  return <Badge color={tag === 'whenever' ? 'gray' : tag === 'soon' ? 'orange' : 'red'}>{tag === 'unsafe' ? 'Unsafe' : priorityLabel(tag)}</Badge>;
+}
+
+export function InProgressLine({ defect }: { defect: Defect }) {
+  if (defect.status === 'closed' || !defect.inProgress) return null;
+  return <span className="caption blue strong">🔨 Being worked on{defect.inProgress.note ? `: ${defect.inProgress.note}` : ''}</span>;
 }
 
 export function DefectRowContent({ defect, context }: { defect: Defect; context?: string }) {
@@ -51,6 +58,7 @@ export function DefectRowContent({ defect, context }: { defect: Defect; context?
         <span>{defect.title}</span>
         {defect.details && <span className="subtitle" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{defect.details}</span>}
         <span className="caption">{defect.reportedByName} · {relativeTime(defect.reportedAt)}{photoCount ? ` · 📷 ${photoCount}` : ''}</span>
+        <InProgressLine defect={defect} />
       </span>
       <DefectStatusBadge defect={defect} />
     </span>

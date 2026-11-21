@@ -11,6 +11,8 @@ struct DefectDetailView: View {
     @State private var newPhotoIds: [String] = []
     @State private var newPhotos: [String: Data] = [:]
     @State private var errorMessage: String?
+    @State private var workingSheet = false
+    @State private var workingNote = ""
 
     var body: some View {
         Group {
@@ -49,6 +51,13 @@ struct DefectDetailView: View {
                     }
                     if !defect.details.isEmpty {
                         Text(defect.details)
+                    }
+                    if defect.isOpen, let progress = defect.inProgress {
+                        VStack(alignment: .leading, spacing: 2) {
+                            InProgressLabel(progress: progress)
+                            Text("\(progress.byName), \(progress.since.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption).foregroundStyle(Color.secondary)
+                        }
                     }
                 }
                 .padding(.vertical, 4)
@@ -92,6 +101,38 @@ struct DefectDetailView: View {
             set: { action = $0?.type }
         )) { box in
             noteSheet(for: box.type, defect: defect)
+        }
+        .sheet(isPresented: $workingSheet) {
+            NavigationStack {
+                Form {
+                    Section {
+                        TextField("Note (optional), e.g. Parts ordered, back Thursday", text: $workingNote, axis: .vertical)
+                            .lineLimit(2...5)
+                    } footer: {
+                        Text("Everyone who can see this truck sees that it's being worked on, until it's closed.")
+                    }
+                }
+                .navigationTitle("Being Worked On")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { workingSheet = false; workingNote = "" }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            do {
+                                try fleet.setInProgress(true, note: workingNote, on: defect, owner: owner)
+                                errorMessage = nil
+                            } catch {
+                                errorMessage = error.localizedDescription
+                            }
+                            workingSheet = false
+                            workingNote = ""
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
         }
     }
 
@@ -164,14 +205,28 @@ struct DefectDetailView: View {
                     Button { action = .notDefect } label: {
                         Label("Not a Defect", systemImage: "xmark.seal")
                     }
-                    // Managers can correct the safety flag either way (e.g. something flagged
-                    // unsafe by mistake, or a problem that turns out to be dangerous).
-                    let unsafeName = isEquipment ? "\"Do Not Use\"" : "\"Unsafe to Drive\""
-                    Button(role: defect.unsafe ? nil : .destructive) {
-                        fleet.setUnsafe(!defect.unsafe, on: defect, owner: owner)
+                    // Managers can change the tag either way (e.g. something flagged unsafe by
+                    // mistake, or a problem that turns out to be dangerous).
+                    Picker(selection: Binding(
+                        get: { defect.tag ?? .soon },
+                        set: { fleet.setPriority($0, on: defect, owner: owner) }
+                    )) {
+                        ForEach(DefectPriority.allCases) { tag in
+                            Label(tag.label(equipment: isEquipment), systemImage: tag.symbolName).tag(tag)
+                        }
                     } label: {
-                        Label(defect.unsafe ? "Clear \(unsafeName)" : "Mark \(unsafeName)",
-                              systemImage: "exclamationmark.octagon")
+                        Label("Priority", systemImage: "flag")
+                    }
+                    if defect.inProgress == nil {
+                        Button { workingSheet = true } label: {
+                            Label("Mark Being Worked On", systemImage: "hammer")
+                        }
+                    } else {
+                        Button {
+                            try? fleet.setInProgress(false, note: "", on: defect, owner: owner)
+                        } label: {
+                            Label("No Longer Being Worked On", systemImage: "hammer")
+                        }
                     }
                 }
             } else if fleet.isManager {
@@ -248,7 +303,7 @@ struct ReportDefectView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var details = ""
-    @State private var unsafe = false
+    @State private var priority: DefectPriority = .soon
     @State private var photoIds: [String] = []
     @State private var photos: [String: Data] = [:]
     @State private var errorMessage: String?
@@ -272,17 +327,25 @@ struct ReportDefectView: View {
                     TextField("Details", text: $details, axis: .vertical)
                         .lineLimit(3...6)
                 }
-                if allowUnsafe {
-                    Section {
-                        Toggle(isOn: $unsafe) {
-                            Label(unsafeLabel, systemImage: "exclamationmark.octagon")
-                                .foregroundStyle(unsafe ? Color.red : Color.primary)
+                Section {
+                    Picker(selection: $priority) {
+                        ForEach(DefectPriority.allCases.filter { allowUnsafe || $0 != .unsafe }) { tag in
+                            Label(tag.label(equipment: unsafeLabel != "Unsafe to drive"), systemImage: tag.symbolName)
+                                .tag(tag)
                         }
-                    } footer: {
-                        if unsafe {
-                            Text("Everyone will see a red \"\(unsafeLabel)\" warning until a manager clears it.")
-                                .foregroundStyle(.red)
-                        }
+                    } label: {
+                        Label("Priority", systemImage: "flag")
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } header: {
+                    Text("How urgent is it?")
+                } footer: {
+                    if priority == .unsafe {
+                        Text("Everyone will see a red \"\(unsafeLabel)\" warning until a manager clears it.")
+                            .foregroundStyle(.red)
+                    } else if !allowUnsafe {
+                        Text("Only a manager can mark a rope \"\(unsafeLabel)\".")
                     }
                 }
                 if fleet.photosEnabled {
@@ -306,7 +369,7 @@ struct ReportDefectView: View {
                     Button("Report") {
                         do {
                             try fleet.reportDefect(owner: owner, title: title, details: details,
-                                                   unsafe: allowUnsafe && unsafe,
+                                                   priority: allowUnsafe || priority != .unsafe ? priority : .immediately,
                                                    photos: photos.filter { photoIds.contains($0.key) })
                             dismiss()
                         } catch {

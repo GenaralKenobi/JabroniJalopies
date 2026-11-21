@@ -64,7 +64,12 @@ struct DefectStatusBadge: View {
 
     private var text: String {
         switch defect.status {
-        case .open: defect.unsafe ? "Unsafe" : "Open"
+        case .open:
+            switch defect.tag {
+            case .unsafe: "Unsafe"
+            case .some(let tag): tag.label()
+            case nil: "Open"
+            }
         case .reportedFixed: "Reported fixed"
         case .closed: defect.resolution?.label ?? "Closed"
         }
@@ -72,7 +77,7 @@ struct DefectStatusBadge: View {
 
     private var color: Color {
         switch defect.status {
-        case .open: defect.unsafe ? .red : .orange
+        case .open: defect.tag.map(DefectPriority.color) ?? .orange
         case .reportedFixed: .blue
         case .closed: .green
         }
@@ -87,5 +92,30 @@ struct DefectStatusBadge: View {
             .padding(.vertical, 4)
             .foregroundStyle(color)
             .background(color.opacity(0.15), in: Capsule())
+    }
+}
+
+extension DefectPriority {
+    static func color(_ tag: DefectPriority) -> Color {
+        switch tag {
+        case .unsafe, .immediately: .red
+        case .soon: .orange
+        case .whenever: .secondary
+        }
+    }
+}
+
+/// "Being worked on", shown on open problems a manager has picked up.
+struct InProgressLabel: View {
+    let progress: DefectProgress
+
+    var body: some View {
+        Label {
+            Text("Being worked on" + (progress.note.map { ": \($0)" } ?? ""))
+        } icon: {
+            Image(systemName: "hammer.fill")
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.blue)
     }
 }

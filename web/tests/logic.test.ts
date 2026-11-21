@@ -4,7 +4,7 @@ import {
   parseChainSizes, parseDecimal, parseIntLenient, periodicIsDue, periodicNextDue, planInspection,
   readingStatus, scheduleDueDate, checkReading, readingRequired, scheduleStatus, validateChecklist, type ItemAnswer, emptyAnswer,
 } from '../src/logic/logic';
-import type { ChainInventory, ChecklistItem, ChecklistTemplate, Defect, TruckItem } from '../src/logic/model';
+import { defectTag, urgencyRank, type ChainInventory, type ChecklistItem, type ChecklistTemplate, type Defect, type TruckItem } from '../src/logic/model';
 
 const day = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h);
 const item = (id: string, extra: Partial<ChecklistItem> = {}): ChecklistItem =>
@@ -115,6 +115,7 @@ describe('completing a checklist', () => {
     expect(plan.newDefects).toHaveLength(1);
     expect(plan.newDefects[0].defect.details).toBe('Flat');
     expect(plan.newDefects[0].defect.unsafe).toBe(true);
+    expect(plan.newDefects[0].defect.priority).toBe('unsafe');
     expect(plan.unsafeItems).toEqual(['tires']);
     expect(plan.inspection.failedCount).toBe(1);
     expect(plan.inspection.results[1].reading).toBe(32);
@@ -170,5 +171,23 @@ describe('checklist reading', () => {
     expect(readingRequired(day(2026, 11, 17, 7), false, day(2026, 11, 22, 18))).toBe(false);
     expect(readingRequired(day(2026, 11, 17, 7), false, day(2026, 11, 23, 6))).toBe(true);
     expect(readingRequired(day(2026, 11, 18, 7), true, day(2026, 11, 18, 9))).toBe(true);
+  });
+});
+
+describe('priority tags', () => {
+  test('failed items take the driver\'s tag; safety items are always unsafe', () => {
+    let n = 0;
+    const items = [item('mirrors'), item('tires', { unsafeIfFailed: true })];
+    const template = { id: 'c1', name: 'Morning', items, vehicleIds: [] } as ChecklistTemplate;
+    const plan = planInspection(template, items, {
+      mirrors: { ...emptyAnswer(), verdict: 'fail', priority: 'whenever' },
+      tires: { ...emptyAnswer(), verdict: 'fail', priority: 'whenever' },
+    }, {}, { uid: 'u', name: 'U' }, undefined, new Date(), () => `id${++n}`);
+    expect(plan.newDefects.map((d) => [d.defect.priority, d.defect.unsafe])).toEqual([['whenever', false], ['unsafe', true]]);
+  });
+  test('the unsafe flag wins; untagged sort with "fix soon"', () => {
+    expect(defectTag({ unsafe: true, priority: 'whenever' })).toBe('unsafe');
+    expect(defectTag({ unsafe: false, priority: 'unsafe' })).toBeUndefined();
+    expect([urgencyRank({ unsafe: false, priority: 'whenever' }), urgencyRank({ unsafe: false })]).toEqual([4, 2]);
   });
 });

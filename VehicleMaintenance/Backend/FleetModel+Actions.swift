@@ -454,17 +454,19 @@ extension FleetModel {
     }
 
     /// Reports a problem outside of a checklist, on a truck or a piece of equipment.
-    func reportDefect(owner: DefectOwner, title: String, details: String, unsafe: Bool, photos: [String: Data]) throws {
+    func reportDefect(owner: DefectOwner, title: String, details: String, priority: DefectPriority, photos: [String: Data]) throws {
         let ref = owner.defects(fleetId: fleetId).document()
         let now = Date.now
+        let unsafe = priority == .unsafe
         var photoEntries: [String: DefectPhoto] = [:]
         photos.keys.forEach { photoEntries[$0] = pendingPhoto() }
-        let defect = Defect(
+        var defect = Defect(
             itemId: nil, title: title.trimmed, details: details.trimmed, unsafe: unsafe, status: .open,
             reportedBy: uid, reportedByName: myName, reportedAt: now,
             history: [DefectEvent(type: .reported, by: uid, byName: myName, at: now,
                                   note: details.trimmed.isEmpty ? nil : details.trimmed)],
             photos: photoEntries, updatedAt: now)
+        defect.priority = priority.rawValue
         let batch = FS.db.batch()
         try batch.setData(from: defect, forDocument: ref)
         commitInBackground(batch, "Reporting problem")
@@ -512,6 +514,7 @@ extension FleetModel {
             "closedByName": myName,
             "expireAt": Retention.expiry(from: now),
             "updatedAt": now,
+            "inProgress": FieldValue.delete(),
             "history": FieldValue.arrayUnion([try FS.encode(event)]),
         ], forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Closing defect")
@@ -538,6 +541,32 @@ extension FleetModel {
         if !defect.isOpen {
             adjustSummary(of: owner, ["openDefects": 1, "unsafeDefects": defect.unsafe ? 1 : 0])
         }
+    }
+
+    /// Managers change a problem's tag. Moving to or from "unsafe" also sets the unsafe flag
+    /// (which drives the warnings and the fleet list) and the truck's summary.
+    func setPriority(_ priority: DefectPriority, on defect: Defect, owner: DefectOwner) {
+        guard let defectId = defect.id else { return }
+        let unsafe = priority == .unsafe
+        let batch = FS.db.batch()
+        batch.updateData(["priority": priority.rawValue, "unsafe": unsafe, "updatedAt": Date.now],
+                         forDocument: owner.defects(fleetId: fleetId).document(defectId))
+        commitInBackground(batch, "Changing priority")
+        if defect.isOpen, defect.unsafe != unsafe {
+            adjustSummary(of: owner, ["unsafeDefects": unsafe ? 1 : -1])
+        }
+    }
+
+    /// Managers note that a problem is being worked on (or clear it).
+    func setInProgress(_ working: Bool, note: String, on defect: Defect, owner: DefectOwner) throws {
+        guard let defectId = defect.id else { return }
+        let value: Any = working
+            ? try FS.encode(DefectProgress(since: .now, by: uid, byName: myName, note: note.trimmed.isEmpty ? nil : note.trimmed))
+            : FieldValue.delete()
+        let batch = FS.db.batch()
+        batch.updateData(["inProgress": value, "updatedAt": Date.now],
+                         forDocument: owner.defects(fleetId: fleetId).document(defectId))
+        commitInBackground(batch, working ? "Marking as being worked on" : "Updating defect")
     }
 
     /// Managers can mark an equipment defect "do not use" (or clear it) after it's reported.

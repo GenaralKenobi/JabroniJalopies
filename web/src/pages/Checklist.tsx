@@ -11,6 +11,7 @@ import {
 } from '../logic/logic';
 import {
   checklistStateOf, frequencyLabel, isScheduled, readingName, vehicleName, type ChecklistItem, type Defect,
+  DEFECT_PRIORITIES, priorityLabel, type DefectPriority,
 } from '../logic/model';
 
 // ---------- Saved progress (drafts): answers in localStorage, photos in IndexedDB ----------
@@ -371,7 +372,17 @@ function ItemCard({ item, answer, existing, lastDone, skips, photosEnabled, phot
       )}
       {answer.verdict === 'fail' && !existing && (
         <>
-          {item.unsafeIfFailed && <div className="caption red strong">⛔ This will mark the vehicle UNSAFE TO DRIVE.</div>}
+          {item.unsafeIfFailed ? <div className="caption red strong">⛔ This will mark the vehicle UNSAFE TO DRIVE.</div> : (
+            <>
+              <div className="field" style={{ background: 'var(--field)', borderRadius: 10, padding: '2px 12px' }}>
+                <label style={{ minWidth: 70 }}>Priority</label>
+                <select value={answer.priority ?? 'soon'} onChange={(e) => onChange({ priority: e.target.value as DefectPriority })} aria-label="Priority">
+                  {DEFECT_PRIORITIES.map((p) => <option key={p} value={p}>{priorityLabel(p)}</option>)}
+                </select>
+              </div>
+              {answer.priority === 'unsafe' && <div className="caption red strong">⛔ This will mark the vehicle UNSAFE TO DRIVE.</div>}
+            </>
+          )}
           <textarea className="input" style={{ background: 'var(--field)', borderRadius: 10, padding: 10 }} rows={3}
             placeholder="Describe the problem" value={answer.details} onChange={(e) => onChange({ details: e.target.value })} />
         </>

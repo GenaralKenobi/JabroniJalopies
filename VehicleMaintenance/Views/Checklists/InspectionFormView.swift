@@ -646,6 +646,24 @@ private struct ItemCard: View {
                 Label("This will mark the vehicle UNSAFE TO DRIVE.", systemImage: "exclamationmark.octagon.fill")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.red)
+            } else {
+                // Safety items are always "unsafe to drive"; the driver tags everything else.
+                Picker(selection: Binding(
+                    get: { answer.priority ?? .soon },
+                    set: { answer.priority = $0 }
+                )) {
+                    ForEach(DefectPriority.allCases) { tag in
+                        Text(tag.label()).tag(tag)
+                    }
+                } label: {
+                    Label("Priority", systemImage: "flag")
+                }
+                .pickerStyle(.menu)
+                if answer.priority == .unsafe {
+                    Label("This will mark the vehicle UNSAFE TO DRIVE.", systemImage: "exclamationmark.octagon.fill")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.red)
+                }
             }
             TextField("Describe the problem", text: $answer.details, axis: .vertical)
                 .lineLimit(2...5)

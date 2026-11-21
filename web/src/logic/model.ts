@@ -329,6 +329,36 @@ export interface Defect {
   photos: Record<string, DefectPhoto>;
   expireAt?: Date;
   updatedAt?: Date;
+  /** How urgent it is (see DefectPriority). Missing on older defects. */
+  priority?: string;
+  /** Set by a manager while the problem is being worked on (cleared when closed). */
+  inProgress?: DefectProgress;
+}
+
+export interface DefectProgress { since: Date; by: string; byName: string; note?: string }
+
+export type DefectPriority = 'unsafe' | 'immediately' | 'soon' | 'whenever';
+export const DEFECT_PRIORITIES: DefectPriority[] = ['unsafe', 'immediately', 'soon', 'whenever'];
+
+export function priorityLabel(p: DefectPriority, equipment = false): string {
+  switch (p) {
+    case 'unsafe': return equipment ? 'Do not use' : 'Unsafe to drive';
+    case 'immediately': return 'Fix immediately';
+    case 'soon': return 'Fix soon';
+    case 'whenever': return 'Fix whenever';
+  }
+}
+
+/** The tag to show: the unsafe flag always wins; older defects without a tag show none. */
+export function defectTag(d: Pick<Defect, 'unsafe' | 'priority'>): DefectPriority | undefined {
+  if (d.unsafe) return 'unsafe';
+  return d.priority === 'immediately' || d.priority === 'soon' || d.priority === 'whenever' ? d.priority : undefined;
+}
+
+/** For sorting: unsafe, fix immediately, fix soon, untagged, fix whenever. */
+export function urgencyRank(d: Pick<Defect, 'unsafe' | 'priority'>): number {
+  const tag = defectTag(d);
+  return tag === 'unsafe' ? 0 : tag === 'immediately' ? 1 : tag === 'soon' || !tag ? 2 : 4;
 }
 
 export const isOpen = (d: Pick<Defect, 'status'>) => d.status !== 'closed';

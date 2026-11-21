@@ -69,6 +69,32 @@ struct InspectionPlannerTests {
         #expect(plan.recordCount == 1)
     }
 
+    @Test func failedItemsGetTheDriversPriorityTag() {
+        let plan = InspectionPlanner.plan(
+            template: template([lights, tires]),
+            answers: ["lights": ItemAnswer(verdict: .fail),
+                      "tires": ItemAnswer(verdict: .fail, reading: "20", priority: .immediately)],
+            openDefectsByItem: [:], person: person, odometer: 1000, now: now, makeId: sequentialIds())
+        let lightsDefect = plan.newDefects.first { $0.defect.itemId == "lights" }?.defect
+        let tiresDefect = plan.newDefects.first { $0.defect.itemId == "tires" }?.defect
+        // Safety items are always unsafe, whatever was picked; others default to "fix soon".
+        #expect(lightsDefect?.priority == (lights.unsafeIfFailed ? "unsafe" : "soon"))
+        #expect(tiresDefect?.priority == (tires.unsafeIfFailed ? "unsafe" : "immediately"))
+        #expect(tiresDefect?.unsafe == tires.unsafeIfFailed)
+    }
+
+    @Test func theUnsafeFlagAlwaysWinsForTheTag() {
+        var defect = Defect(title: "x", details: "", unsafe: true, status: .open, reportedBy: "a", reportedByName: "A",
+                            reportedAt: now, history: [], photos: [:])
+        defect.priority = "whenever"
+        #expect(defect.tag == .unsafe)
+        defect.unsafe = false
+        #expect(defect.tag == .whenever)
+        defect.priority = nil
+        #expect(defect.tag == nil)
+        #expect(defect.urgencyRank == 2)
+    }
+
     @Test func failingSafetyItemCreatesUnsafeDefectWithPendingPhotos() {
         let plan = InspectionPlanner.plan(
             template: template([lights, horn]),

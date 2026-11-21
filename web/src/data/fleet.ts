@@ -6,7 +6,7 @@ import { docData } from './convert';
 import { P } from './paths';
 import { Observable, errors, noteLoadingProblem } from './store';
 import {
-  appliesTo, checklistStateOf, isOpen, vehicleName, vehicleUnit,
+  appliesTo, checklistStateOf, isOpen, urgencyRank, vehicleName, vehicleUnit,
   type ChecklistItem, type ChecklistTemplate, type Defect, type DefectOwner, type DistanceUnit, type Equipment,
   type Fleet, type Invite, type LengthChange, type Member, type MemberContact, type Reminder, type ServiceRecord,
   type Vehicle,
@@ -169,8 +169,8 @@ export class FleetStore extends Observable {
         entries.push({ owner, context: this.context(owner), defect: d });
       }
     }
-    return entries.sort((a, b) => a.defect.unsafe !== b.defect.unsafe ? (a.defect.unsafe ? -1 : 1)
-      : b.defect.reportedAt.getTime() - a.defect.reportedAt.getTime());
+    return entries.sort((a, b) => urgencyRank(a.defect) - urgencyRank(b.defect)
+      || b.defect.reportedAt.getTime() - a.defect.reportedAt.getTime());
   }
 
   get allPendingServices() {

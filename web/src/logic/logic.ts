@@ -5,6 +5,7 @@ import {
   type ChainInventory, type ChainLog, type ChainLogItem, type ChainSize, type ChecklistItem, type ChecklistPlan,
   type ChecklistState, type ChecklistTemplate, type Defect, type DefectEvent, type DistanceUnit,
   type Inspection, type InspectionResult, type ItemFrequency, type Reminder, type TruckItem, type VehicleSummary,
+  type DefectPriority,
   frequencyLabel, isOpen,
 } from './model';
 
@@ -319,6 +320,8 @@ export interface ItemAnswer {
   details: string;
   note: string;
   photoIds: string[];
+  /** The tag for a new problem (failed items that aren't safety items). Defaults to "Fix soon". */
+  priority?: DefectPriority;
 }
 
 export const emptyAnswer = (): ItemAnswer => ({ reading: '', details: '', note: '', photoIds: [] });
@@ -413,6 +416,8 @@ export function planInspection(template: ChecklistTemplate, items: ChecklistItem
     } else if (!passed) {
       const defectId = makeId();
       const details = answer.details.trim();
+      // Safety items are always "unsafe to drive"; others take the driver's tag.
+      const priority: DefectPriority = item.unsafeIfFailed ? 'unsafe' : (answer.priority ?? 'soon');
       result.defectId = defectId;
       if (details) result.note = details;
       const reported: DefectEvent = { type: 'reported', by: person.uid, byName: person.name, at: now };
@@ -424,12 +429,12 @@ export function planInspection(template: ChecklistTemplate, items: ChecklistItem
       newDefects.push({
         id: defectId,
         defect: {
-          itemId: item.id, title: item.title, details, unsafe: item.unsafeIfFailed, status: 'open',
+          itemId: item.id, title: item.title, details, unsafe: priority === 'unsafe', priority, status: 'open',
           reportedBy: person.uid, reportedByName: person.name, reportedAt: now, inspectionId,
           history: [reported], photos, updatedAt: now,
         },
       });
-      if (item.unsafeIfFailed) unsafeItems.push(item.title);
+      if (priority === 'unsafe') unsafeItems.push(item.title);
     }
     results.push(result);
   }

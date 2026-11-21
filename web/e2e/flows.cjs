@@ -83,9 +83,13 @@ async function emulatorUser(email, password) {
     await page.getByText('Car 2').first().click();
     await page.getByText('Report a Problem').click();
     await page.getByLabel('Problem').fill('Check engine light');
+    await page.getByRole('radio', { name: 'Fix immediately' }).check();
     await page.getByRole('button', { name: 'Report Problem' }).click();
     await check('report-problem');
     await page.getByText('Check engine light').first().click();
+    await page.getByText('Mark Being Worked On').click();
+    await check('in-progress');
+    if (!(await page.getByText(/Being worked on/).count())) failures.push('[in-progress] "Being worked on" did not show.');
     await page.getByText('Mark Repaired').click();
     await check('close-defect');
 

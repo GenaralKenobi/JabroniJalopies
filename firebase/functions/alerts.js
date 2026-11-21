@@ -12,18 +12,20 @@ function clip(text, max) {
  * @param {string} input.fleetName
  * @param {string} input.vehicleName   the truck (for equipment: the truck it's on)
  * @param {string} [input.equipmentName] set for a chainsaw or rope
- * @param {object} input.defect        { title, details, unsafe }
+ * @param {object} input.defect        { title, details, unsafe, priority }
  * @param {string} input.reportedByName
  * @returns {{ title: string, body: string }}
  */
 function buildAlert({ fleetName, vehicleName, equipmentName, defect, reportedByName }) {
   const truck = vehicleName || 'a vehicle';
   const unsafe = defect?.unsafe === true;
+  // "Fix immediately" gets its own title; "fix soon", "fix whenever" and untagged ones are a new problem.
+  const lead = defect?.priority === 'immediately' ? 'Fix immediately' : 'New problem';
   let title;
   if (equipmentName) {
-    title = unsafe ? `DO NOT USE: ${equipmentName} (on ${truck})` : `New problem: ${equipmentName} (on ${truck})`;
+    title = unsafe ? `DO NOT USE: ${equipmentName} (on ${truck})` : `${lead}: ${equipmentName} (on ${truck})`;
   } else {
-    title = unsafe ? `UNSAFE TO DRIVE: ${truck}` : `New problem: ${truck}`;
+    title = unsafe ? `UNSAFE TO DRIVE: ${truck}` : `${lead}: ${truck}`;
   }
   const what = clip(defect?.title || 'A problem was reported', 80);
   const details = clip(defect?.details, 60);

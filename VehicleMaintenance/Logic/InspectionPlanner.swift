@@ -16,6 +16,8 @@ struct ItemAnswer: Codable, Equatable {
     var note: String = ""
     /// Photos taken for this item, by photo id.
     var photoIds: [String] = []
+    /// The tag for a new problem (failed items that aren't safety items). Defaults to "Fix soon".
+    var priority: DefectPriority? = nil
 }
 
 /// Turns a completed checklist into the records to save: the inspection itself,
@@ -192,15 +194,18 @@ enum InspectionPlanner {
                     photos[photoId] = DefectPhoto(status: .pending, path: nil, addedBy: person.uid,
                                                   addedByName: person.name, addedAt: now, byteCount: nil)
                 }
-                let defect = Defect(
-                    itemId: item.id, title: item.title, details: details, unsafe: item.unsafeIfFailed,
+                // Safety items are always "unsafe to drive"; others take the driver's tag.
+                let priority: DefectPriority = item.unsafeIfFailed ? .unsafe : (answer.priority ?? .soon)
+                var defect = Defect(
+                    itemId: item.id, title: item.title, details: details, unsafe: priority == .unsafe,
                     status: .open, resolution: nil, reportedBy: person.uid, reportedByName: person.name,
                     reportedAt: now, inspectionId: inspectionId, closedAt: nil, closedBy: nil, closedByName: nil,
                     history: [DefectEvent(type: .reported, by: person.uid, byName: person.name, at: now,
                                           note: details.isEmpty ? nil : details)],
                     photos: photos, expireAt: nil, updatedAt: now)
+                defect.priority = priority.rawValue
                 newDefects.append(.init(id: defectId, defect: defect))
-                if item.unsafeIfFailed { unsafeItems.append(item.title) }
+                if priority == .unsafe { unsafeItems.append(item.title) }
             }
             results.append(result)
         }

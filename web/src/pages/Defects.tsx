@@ -2,17 +2,18 @@ import { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect } from 'react';
-import { Badge, Banner, Empty, Field, OfflineBanner, Page, Row, Section, ToggleRow, confirmAction, useFleet } from '../ui/kit';
-import { DefectPhotoView, DefectRowContent, DefectStatusBadge, Lightbox } from './common';
+import { Badge, Banner, Empty, Field, OfflineBanner, Page, Row, Section, confirmAction, useFleet } from '../ui/kit';
+import { DefectPhotoView, DefectRowContent, DefectStatusBadge, InProgressLine, Lightbox } from './common';
 import {
-  addDefectEvent, addDefectPhotos, closeDefect, reopenDefect, reportDefect, setDefectUnsafe,
+  addDefectEvent, addDefectPhotos, closeDefect, reopenDefect, reportDefect, setDefectInProgress, setDefectPriority,
 } from '../data/actions';
 import { docData } from '../data/convert';
 import { P } from '../data/paths';
 import { processPhoto } from '../data/photos';
 import { dayAndTime, formatCurrency, formatDistance, formatFeet, shortDate } from '../logic/logic';
 import {
-  defectEventLabel, equipmentName, isOpen, serviceTitle, vehicleName, type Defect, type DefectOwner,
+  DEFECT_PRIORITIES, defectEventLabel, defectTag, equipmentName, isOpen, priorityLabel, serviceTitle, vehicleName,
+  type Defect, type DefectOwner, type DefectPriority,
 } from '../logic/model';
 import { reviewLengthChange } from '../data/actions';
 
@@ -139,7 +140,6 @@ export function DefectDetailPage() {
   const context = fleet.context(owner);
   const photos = Object.entries(defect.photos ?? {}).sort((a, b) => a[1].addedAt.getTime() - b[1].addedAt.getTime());
   const canAct = isOpen(defect);
-  const equipment = owner.kind === 'equipment' ? fleet.equipmentItem(owner.id) : undefined;
 
   async function addPhotos(files: FileList | null) {
     if (!files?.length || !defect) return;
@@ -158,6 +158,9 @@ export function DefectDetailPage() {
           <span className="badges"><DefectStatusBadge defect={defect} />{defect.unsafe && isOpen(defect) && <Badge color="red">{owner.kind === 'vehicle' ? 'Unsafe to drive' : 'Do not use'}</Badge>}</span>
           {defect.details && <span className="wrap">{defect.details}</span>}
           <span className="caption">Reported by {defect.reportedByName} {dayAndTime(defect.reportedAt)}</span>
+          {defect.inProgress && isOpen(defect) && (
+            <span className="stack"><InProgressLine defect={defect} /><span className="caption">{defect.inProgress.byName}, {dayAndTime(defect.inProgress.since)}</span></span>
+          )}
           {pendingSync && <span className="caption blue">⟳ Waiting to sync</span>}
         </div>
       </Section>
@@ -183,10 +186,16 @@ export function DefectDetailPage() {
             <>
               <Row className="accent" chevron={false} icon="✔︎" onClick={() => { closeDefect(fleet, owner, defect, 'repaired', note); setNote(''); }}>Mark Repaired</Row>
               <Row chevron={false} icon="✕" onClick={() => { if (confirmAction('Close this as not a defect?')) { closeDefect(fleet, owner, defect, 'notDefect', note); setNote(''); } }}>Not a Defect</Row>
-              {owner.kind === 'equipment' && (
-                <ToggleRow label="Do not use" checked={defect.unsafe} onChange={(v) => setDefectUnsafe(fleet, owner, defect, v)}
-                  detail={equipment?.type === 'rope' ? 'Only managers can mark a rope "do not use".' : undefined} />
-              )}
+              <Field label="Priority">
+                <select value={defectTag(defect) ?? 'soon'} onChange={(e) => setDefectPriority(fleet, owner, defect, e.target.value as DefectPriority)}>
+                  {DEFECT_PRIORITIES.map((p) => <option key={p} value={p}>{priorityLabel(p, owner.kind === 'equipment')}</option>)}
+                </select>
+              </Field>
+              {defect.inProgress
+                ? <Row chevron={false} icon="🔨" onClick={() => setDefectInProgress(fleet, owner, defect, false, '')}>No Longer Being Worked On</Row>
+                : <Row className="accent" chevron={false} icon="🔨" onClick={() => { setDefectInProgress(fleet, owner, defect, true, note); setNote(''); }}>
+                  Mark Being Worked On<div className="caption">Uses the note above, e.g. "Parts ordered, back Thursday"</div>
+                </Row>}
             </>
           ) : (
             <>
@@ -230,7 +239,7 @@ export function ReportDefectPage() {
   const equipment = equipmentId ? fleet.equipmentItem(equipmentId) : undefined;
   const [title, setTitle] = useState('');
   const [details, setDetails] = useState('');
-  const [unsafe, setUnsafe] = useState(false);
+  const [priority, setPriority] = useState<DefectPriority>('soon');
   const [photos, setPhotos] = useState<Record<string, Blob>>({});
   const [error, setError] = useState<string>();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -255,11 +264,16 @@ export function ReportDefectPage() {
         <Field><input placeholder="What's wrong? (e.g. Cracked windshield)" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Problem" /></Field>
         <Field><textarea rows={3} placeholder="Details (optional)" value={details} onChange={(e) => setDetails(e.target.value)} aria-label="Details" /></Field>
       </Section>
-      {unsafeAllowed && (
-        <Section footer={owner.kind === 'vehicle' ? 'Marks the vehicle UNSAFE TO DRIVE until a manager clears it.' : 'Marks it DO NOT USE until a manager clears it.'}>
-          <ToggleRow label={owner.kind === 'vehicle' ? 'Unsafe to drive' : 'Do not use'} checked={unsafe} onChange={setUnsafe} />
-        </Section>
-      )}
+      <Section header="How urgent is it?" footer={priority === 'unsafe'
+        ? (owner.kind === 'vehicle' ? 'Marks the vehicle UNSAFE TO DRIVE until a manager clears it.' : 'Marks it DO NOT USE until a manager clears it.')
+        : !unsafeAllowed ? 'Only a manager can mark a rope "do not use".' : undefined}>
+        {DEFECT_PRIORITIES.filter((p) => unsafeAllowed || p !== 'unsafe').map((p) => (
+          <label key={p} className="row" style={{ cursor: 'pointer' }}>
+            <input type="radio" name="priority" checked={priority === p} onChange={() => setPriority(p)} />
+            <span className={`grow ${p === 'unsafe' ? 'red strong' : ''}`}>{priorityLabel(p, owner.kind === 'equipment')}</span>
+          </label>
+        ))}
+      </Section>
       {fleet.photosEnabled && (
         <Section header="Photos" footer="Optional. The problem is reported right away; photos upload when there's signal.">
           {Object.keys(photos).length > 0 && (
@@ -273,7 +287,7 @@ export function ReportDefectPage() {
       {error && <Banner color="red">{error}</Banner>}
       <Section plain>
         <button className="btn" disabled={!title.trim()} onClick={() => {
-          reportDefect(fleet, owner, title, details, unsafe, photos);
+          reportDefect(fleet, owner, title, details, priority, photos);
           navigate(-1);
         }}>Report Problem</button>
       </Section>

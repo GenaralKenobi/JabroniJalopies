@@ -147,7 +147,7 @@ final class FleetModel {
             }
         }
         return (vehicleEntries + equipmentEntries).sorted { lhs, rhs in
-            if lhs.defect.unsafe != rhs.defect.unsafe { return lhs.defect.unsafe }
+            if lhs.defect.urgencyRank != rhs.defect.urgencyRank { return lhs.defect.urgencyRank < rhs.defect.urgencyRank }
             return lhs.defect.reportedAt > rhs.defect.reportedAt
         }
     }
