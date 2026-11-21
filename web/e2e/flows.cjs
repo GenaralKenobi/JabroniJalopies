@@ -169,6 +169,16 @@ async function emulatorUser(email, password) {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.locator('text=Gauze pads ×4 · Eyewash').nth(2).waitFor();
     await check('contents-kit');
+    // Change the truck lead from the vehicle page, then put it back
+    await page.goBack();
+    await page.getByLabel('Truck lead').selectOption('');
+    await page.getByText("What's on the Truck").click();
+    await page.getByText('Lead: Dan Okafor').waitFor({ state: 'detached' });
+    await page.goBack();
+    await page.getByLabel('Truck lead').selectOption({ label: 'Dan Okafor' });
+    await page.getByText("What's on the Truck").click();
+    await page.getByText('Lead: Dan Okafor').waitFor();
+    await check('truck-lead');
 
     // Equipment: add a rope, cut it, approve
     await page.goto(BASE + '/equipment/new');

@@ -7,7 +7,7 @@ import {
   ConditionBadge, DefectRowContent, DueBadge, ScheduledRowContent, VehicleThumb, vehicleCondition,
 } from './common';
 import { useChainInventory, useVehicleRecords } from '../data/records';
-import { removeVehicle, updateOdometer } from '../data/actions';
+import { removeVehicle, setTruckLead, updateOdometer } from '../data/actions';
 import { loadDraftSummary } from './Checklist';
 import {
   dayAndTime, formatCurrency, formatDistance, mediumDate, parseIntLenient, reminderNextDate, reminderNextOdometer,
@@ -137,6 +137,16 @@ export function VehiclePage() {
       <Section>
         <Row to={`/v/${vehicleId}/specs`} icon="📋">Fluids, Tires &amp; Pressures</Row>
         <Row to={`/v/${vehicleId}/contents`} icon="📦">What's on the Truck</Row>
+        {fleet.isManager && (
+          <div className="row">
+            <span>🔑 Truck Lead</span>
+            <select style={{ marginLeft: 'auto' }} aria-label="Truck lead" value={vehicle.contentsEditorUid ?? ''}
+              onChange={(e) => setTruckLead(fleet, vehicleId, e.target.value || undefined)}>
+              <option value="">None</option>
+              {fleet.leadOptions(vehicle).map((m) => <option key={m.id} value={m.id}>{m.displayName}</option>)}
+            </select>
+          </div>
+        )}
       </Section>
 
       {scheduled.length > 0 && (

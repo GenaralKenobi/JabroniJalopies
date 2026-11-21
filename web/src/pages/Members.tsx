@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Banner, Empty, Field, Page, Row, Section, ToggleRow, confirmAction, useFleet } from '../ui/kit';
-import { invite, removeMember, revokeInvite, setAssigned, setRole, setSeesAllVehicles } from '../data/actions';
+import { invite, removeMember, revokeInvite, setAssigned, setRole, setSeesAllVehicles, setTruckLead } from '../data/actions';
 import { roleName, vehicleName, type Role } from '../logic/model';
 
 export function MembersPage() {
@@ -89,6 +89,17 @@ export function MemberPage() {
           {!member.seesAllVehicles && fleet.sortedVehicles.map((v) => (
             <ToggleRow key={v.id} label={vehicleName(v)} checked={v.assignedUids.includes(member.id)} onChange={(on) => setAssigned(fleet, member.id, v.id, on)} />
           ))}
+        </Section>
+      )}
+      {(member.role === 'driver' || fleet.sortedVehicles.some((v) => v.contentsEditorUid === member.id)) && fleet.sortedVehicles.length > 0 && (
+        <Section header="Truck Lead For" footer="The truck lead keeps the truck's list of what's on it up to date. Each truck has one lead; ticking a truck replaces its current lead.">
+          {fleet.sortedVehicles.map((v) => {
+            const other = v.contentsEditorUid && v.contentsEditorUid !== member.id ? fleet.truckLeadName(v) : undefined;
+            return (
+              <ToggleRow key={v.id} label={vehicleName(v)} detail={other ? `Lead now: ${other}` : undefined} checked={v.contentsEditorUid === member.id}
+                onChange={(on) => setTruckLead(fleet, v.id, on ? member.id : undefined)} />
+            );
+          })}
         </Section>
       )}
       {member.id !== fleet.uid && (

@@ -102,6 +102,14 @@ export class FleetStore extends Observable {
     return !!vehicle && (this.isManager || (!!vehicle.contentsEditorUid && vehicle.contentsEditorUid === this.uid));
   }
 
+  /** Who can be picked as a truck's lead: drivers, plus the current lead (in case they've since become a manager). */
+  leadOptions(vehicle: Vehicle): Member[] {
+    const options = this.members.filter((m) => m.role !== 'manager');
+    const current = vehicle.contentsEditorUid ? this.member(vehicle.contentsEditorUid) : undefined;
+    if (current && !options.some((m) => m.id === current.id)) options.push(current);
+    return options;
+  }
+
   truckLeadName(vehicle: Vehicle | undefined) {
     if (!vehicle?.contentsEditorUid) return undefined;
     return this.member(vehicle.contentsEditorUid)?.displayName ?? vehicle.contentsEditorName;

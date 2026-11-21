@@ -519,7 +519,17 @@ struct VehicleDetailView: View {
                 let assigned = fleet.members.filter { vehicle.assignedUids.contains($0.id ?? "") }
                 LabeledContent("Assigned Drivers",
                                value: assigned.isEmpty ? "None" : assigned.map(\.displayName).joined(separator: ", "))
-                LabeledContent("Truck Lead", value: fleet.truckLeadName(of: vehicle) ?? "None")
+                if let vehicleId = vehicle.id {
+                    Picker("Truck Lead", selection: Binding(
+                        get: { fleet.truckLead(of: vehicle)?.id ?? "" },
+                        set: { fleet.setTruckLead($0.isEmpty ? nil : $0, vehicle: vehicleId) }
+                    )) {
+                        Text("None").tag("")
+                        ForEach(fleet.leadOptions(for: vehicle)) { member in
+                            Text(member.displayName).tag(member.id ?? "")
+                        }
+                    }
+                }
             }
         }
     }

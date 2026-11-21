@@ -27,6 +27,16 @@ extension FleetModel {
         vehicle?.contentsEditorUid != nil && vehicle?.contentsEditorUid == uid
     }
 
+    /// Who can be picked as a truck's lead: drivers, plus whoever is lead now
+    /// (in case they've since become a manager).
+    func leadOptions(for vehicle: Vehicle) -> [Member] {
+        var options = members.filter { $0.role == .driver }
+        if let current = truckLead(of: vehicle), !options.contains(where: { $0.id == current.id }) {
+            options.append(current)
+        }
+        return options
+    }
+
     /// Managers pick the truck lead. A driver who can't see every vehicle is also
     /// given access to this one, so they can open the list they're responsible for.
     func setTruckLead(_ memberId: String?, vehicle vehicleId: String) {

@@ -120,7 +120,7 @@ struct TruckContentsView: View {
                     set: { fleet.setTruckLead($0.isEmpty ? nil : $0, vehicle: vehicleId) }
                 )) {
                     Text("None").tag("")
-                    ForEach(leadOptions(vehicle)) { member in
+                    ForEach(fleet.leadOptions(for: vehicle)) { member in
                         Text(member.displayName).tag(member.id ?? "")
                     }
                 } label: {
@@ -142,15 +142,6 @@ struct TruckContentsView: View {
                 }
             }
         }
-    }
-
-    /// Drivers, plus whoever is lead now (in case they've since become a manager).
-    private func leadOptions(_ vehicle: Vehicle) -> [Member] {
-        var options = fleet.members.filter { $0.role == .driver }
-        if let current = fleet.truckLead(of: vehicle), !options.contains(where: { $0.id == current.id }) {
-            options.append(current)
-        }
-        return options
     }
 
     private func deleteHandler(_ group: TruckContents.Group) -> (IndexSet) -> Void {

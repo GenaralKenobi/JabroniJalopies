@@ -121,7 +121,7 @@ export function ContentsPage() {
           <Field label="Lead">
             <select value={vehicle.contentsEditorUid ?? ''} onChange={(e) => setTruckLead(fleet, vehicleId, e.target.value || undefined)}>
               <option value="">None</option>
-              {fleet.members.filter((m) => m.role !== 'manager').map((m) => <option key={m.id} value={m.id}>{m.displayName}</option>)}
+              {fleet.leadOptions(vehicle).map((m) => <option key={m.id} value={m.id}>{m.displayName}</option>)}
             </select>
           </Field>
         </Section>

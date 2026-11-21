@@ -168,6 +168,36 @@ struct MemberDetailView: View {
                     }
                 }
 
+                if member.role == .driver || fleet.vehicles.contains(where: { $0.contentsEditorUid == memberId }),
+                   !fleet.sortedVehicles.isEmpty {
+                    Section {
+                        ForEach(fleet.sortedVehicles) { vehicle in
+                            let isLead = vehicle.contentsEditorUid == memberId
+                            Button {
+                                if let vehicleId = vehicle.id {
+                                    fleet.setTruckLead(isLead ? nil : memberId, vehicle: vehicleId)
+                                }
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(vehicle.displayName).foregroundStyle(Color.primary)
+                                        if !isLead, vehicle.contentsEditorUid != nil, let other = fleet.truckLeadName(of: vehicle) {
+                                            Text("Lead now: \(other)").font(.caption).foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    Image(systemName: isLead ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(isLead ? Color.brand : .secondary)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Truck Lead For")
+                    } footer: {
+                        Text("The truck lead keeps the truck's list of what's on it up to date. Each truck has one lead; checking a truck replaces its current lead.")
+                    }
+                }
+
                 if let errorMessage {
                     Section { Text(errorMessage).foregroundStyle(.red) }
                 }
