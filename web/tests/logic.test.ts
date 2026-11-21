@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   addMonths, bulkPassable, chainCount, chainSize, dueReading, dueStatus, groupContents, missingContents,
-  parseChainSizes, parseDecimal, parseIntLenient, periodicIsDue, periodicNextDue, planInspection,
+  parseChainSizes, parseDecimal, normalizeChainInventory, parseIntLenient, periodicIsDue, periodicNextDue, planInspection,
   readingStatus, scheduleDueDate, checkReading, readingRequired, scheduleStatus, validateChecklist, type ItemAnswer, emptyAnswer,
 } from '../src/logic/logic';
 import { defectTag, urgencyRank, type ChainInventory, type ChecklistItem, type ChecklistTemplate, type Defect, type TruckItem } from '../src/logic/model';
@@ -189,5 +189,12 @@ describe('priority tags', () => {
     expect(defectTag({ unsafe: true, priority: 'whenever' })).toBe('unsafe');
     expect(defectTag({ unsafe: false, priority: 'unsafe' })).toBeUndefined();
     expect([urgencyRank({ unsafe: false, priority: 'whenever' }), urgencyRank({ unsafe: false })]).toEqual([4, 2]);
+  });
+});
+
+describe('chain records without counts', () => {
+  test('a truck whose sizes were just set up reads as zero chains', () => {
+    const inv = normalizeChainInventory({ sizes: [chainSize(18)] });
+    expect(chainCount(inv, chainSize(18))).toBe(0);
   });
 });

@@ -8,7 +8,7 @@ import { docData } from '../data/convert';
 import { P } from '../data/paths';
 import { friendlyError } from '../data/store';
 import {
-  addDays, chainCount, chainLabel, chainLogSummary, chainTotals, dayAndTime, parseChainSizes, parseIntLenient,
+  addDays, chainCount, normalizeChainInventory, chainLabel, chainLogSummary, chainTotals, dayAndTime, parseChainSizes, parseIntLenient,
   sortedChainSizes, type ChainTotalsRow,
 } from '../logic/logic';
 import { chainLogLabel, vehicleName, type ChainInventory, type ChainLog } from '../logic/model';
@@ -133,7 +133,7 @@ export function ChainTotalsPage() {
           logs.push(...inv.docs.map((d) => docData<ChainLog>(d)));
           const { getDoc } = await import('firebase/firestore');
           const snap = await getDoc(P.chainInventory(fleet.fleetId, v.id));
-          if (snap.exists()) inventories.push(docData<ChainInventory & { id: string }>(snap));
+          if (snap.exists()) inventories.push(normalizeChainInventory(docData<ChainInventory & { id: string }>(snap)));
         }
         if (!cancelled) setRows(chainTotals(inventories, logs, since));
       } catch (e) { if (!cancelled) setError(friendlyError(e)); }

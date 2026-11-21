@@ -161,6 +161,21 @@ struct ChainInventory: Codable, Hashable {
     var hasNegativeCount: Bool { sizes.contains { count($0) < 0 } }
 }
 
+extension ChainInventory {
+    /// Tolerant reading: a truck whose chain sizes were just set up has no counts yet
+    /// (and older records may lack other fields). Missing values read as empty or zero
+    /// instead of making the whole record unreadable.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sizes = try c.decodeIfPresent([ChainSize].self, forKey: .sizes) ?? []
+        counts = try c.decodeIfPresent([String: Int].self, forKey: .counts) ?? [:]
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt)
+        correctedAt = try c.decodeIfPresent(Date.self, forKey: .correctedAt)
+        correctedByName = try c.decodeIfPresent(String.self, forKey: .correctedByName)
+        changes = try c.decodeIfPresent([String: ChainChange].self, forKey: .changes)
+    }
+}
+
 /// One log's effect on a truck's chain counts.
 struct ChainChange: Codable, Hashable {
     /// When the log was made on the phone.

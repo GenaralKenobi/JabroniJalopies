@@ -171,6 +171,19 @@ async function emulatorUser(email, password) {
     await page.locator('.field', { hasText: 'Name' }).first().locator('input').fill('Truck 99');
     await page.getByRole('button', { name: 'Save' }).click();
     await check('vehicle-add');
+
+    // Chain tracking on a brand-new truck: set sizes, log chains added, and the count must show.
+    await page.waitForURL(/\/v\/[^/]+$/);
+    await page.goto(page.url() + '/chains');
+    await page.getByLabel('Chain sizes').fill('18, 20');
+    await page.getByText('Save Sizes').click();
+    await page.waitForTimeout(1500);
+    await page.getByRole('button', { name: 'Added' }).click();
+    await page.locator('input[aria-label="add-in18"]').fill('6');
+    await page.getByRole('button', { name: 'Log Chains Added' }).click();
+    await check('chains-new-truck');
+    const onTruck = await page.locator('section', { hasText: 'On the Truck' }).first().innerText().catch(() => '');
+    if (!/18"[\s\S]*6/.test(onTruck)) failures.push(`[chains-new-truck] Expected 6 18" chains, saw: ${onTruck.replace(/\s+/g, ' ').slice(0, 120)}`);
     await page.goto(BASE + '/settings/storage');
     await check('storage');
 

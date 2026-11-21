@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { limit, onSnapshot, orderBy, query, type Query } from 'firebase/firestore';
 import { docData } from './convert';
+import { normalizeChainInventory } from '../logic/logic';
 import { P } from './paths';
 import { errors } from './store';
 import type {
@@ -44,7 +45,7 @@ export function useContents(fleetId: string, vehicleId: string) {
 export function useChainInventory(fleetId: string, vehicleId: string): { inventory?: ChainInventory; loaded: boolean } {
   const [state, setState] = useState<{ inventory?: ChainInventory; loaded: boolean }>({ loaded: false });
   useEffect(() => onSnapshot(P.chainInventory(fleetId, vehicleId), (snapshot) => {
-    setState({ inventory: snapshot.exists() ? docData<ChainInventory & { id: string }>(snapshot) : undefined, loaded: true });
+    setState({ inventory: snapshot.exists() ? normalizeChainInventory(docData<ChainInventory & { id: string }>(snapshot)) : undefined, loaded: true });
   }, () => setState({ loaded: true })), [fleetId, vehicleId]);
   return state;
 }

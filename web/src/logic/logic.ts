@@ -513,6 +513,11 @@ function chainNumber(inches: number): string {
 export const chainLabel = (inches: number) => `${chainNumber(inches)}"`;
 export const chainSize = (inches: number): ChainSize => ({ key: `in${chainNumber(inches).replace('.', '_')}`, inches });
 
+/** A truck whose chain sizes were just set up has no counts yet: read missing parts as empty. */
+export function normalizeChainInventory(data: Partial<ChainInventory>): ChainInventory {
+  return { ...data, sizes: data.sizes ?? [], counts: data.counts ?? {} };
+}
+
 export function activeChainChanges(inv: ChainInventory) {
   return Object.values(inv.changes ?? {}).filter((c) => !inv.correctedAt || c.at > inv.correctedAt);
 }
