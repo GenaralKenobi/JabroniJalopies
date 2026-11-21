@@ -458,7 +458,7 @@ export function filterContents(items: TruckItem[], search: string): TruckItem[] 
   const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (!terms.length) return items;
   return items.filter((item) => {
-    const text = `${item.name} ${item.location} ${item.notes}`.toLowerCase();
+    const text = `${item.name} ${item.location} ${item.notes} ${(item.parts ?? []).map((p) => p.name).join(' ')}`.toLowerCase();
     return terms.every((t) => text.includes(t));
   });
 }
@@ -481,6 +481,12 @@ export function groupContents(items: TruckItem[], search = ''): ContentsGroup[] 
       items: [...entry.items].sort((a, b) => compare(a.name, b.name)),
     };
   });
+}
+
+/** "Gauze pads ×4 · Eyewash · Tourniquet" for a kit's contents. */
+export function partsText(parts: { name: string; quantity?: number }[] | undefined): string | undefined {
+  const named = (parts ?? []).filter((p) => p.name.trim());
+  return named.length ? named.map((p) => (p.quantity != null ? `${p.name} ×${p.quantity}` : p.name)).join(' · ') : undefined;
 }
 
 export function contentsLocations(items: TruckItem[]): string[] {

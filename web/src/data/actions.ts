@@ -19,7 +19,7 @@ import {
   type Defect, type DefectEvent, type DefectEventType, type DefectOwner, type DefectPhoto, type DefectResolution,
   type DefectPriority,
   type Equipment, type Invite, type LengthChange, type Member, type Reminder, type Role, type ServiceRecord,
-  type SpecSection, type TruckItem, type Vehicle, type ServiceType,
+  type SpecSection, type TruckItem, type Vehicle, type ServiceType, type KitPart, type TruckKit,
 } from '../logic/model';
 
 // Every write the website makes, matching VehicleMaintenance/Backend/FleetModel+*.swift so the
@@ -175,12 +175,31 @@ export function setTruckLead(s: FleetStore, vehicleId: string, memberId: string 
 }
 
 export function saveTruckItem(s: FleetStore, vehicleId: string, item: Partial<TruckItem> & { name: string }) {
+  const parts = (item.parts ?? []).map((p) => ({ id: p.id, name: p.name.trim(), quantity: p.quantity })).filter((p) => p.name);
   const record: Omit<TruckItem, 'id'> = {
     name: item.name.trim(), location: (item.location ?? '').trim(), notes: (item.notes ?? '').trim(),
     quantity: item.quantity, updatedAt: new Date(), updatedBy: s.uid, updatedByName: s.myName,
+    parts: parts.length ? parts : undefined,
   };
   const ref = item.id ? doc(P.contents(s.fleetId, vehicleId), item.id) : doc(P.contents(s.fleetId, vehicleId));
   inBackground(writeBatch(fb().db).set(ref, toFirestore(record)).commit(), `Saving ${record.name}`);
+}
+
+// Written out by hand: toFirestore drops `id` keys, and the app needs each kit's and part's id.
+const partOut = (p: KitPart) => (p.quantity != null ? { id: p.id, name: p.name, quantity: p.quantity } : { id: p.id, name: p.name });
+const kitOut = (k: TruckKit) => ({ id: k.id, name: k.name, parts: k.parts.map(partOut) });
+
+/** Managers save a kit for the fleet. A kit with the same name is replaced. */
+export function saveKit(s: FleetStore, name: string, parts: KitPart[]) {
+  const cleaned = parts.map((p) => ({ id: p.id, name: p.name.trim(), quantity: p.quantity })).filter((p) => p.name);
+  const kits = (s.fleet?.kits ?? []).filter((k) => k.name.toLowerCase() !== name.trim().toLowerCase());
+  kits.push({ id: crypto.randomUUID().toUpperCase(), name: name.trim(), parts: cleaned });
+  inBackground(updateDoc(P.fleet(s.fleetId), { kits: kits.map(kitOut) }), 'Saving kit');
+}
+
+export function deleteKit(s: FleetStore, kit: TruckKit) {
+  const kits = (s.fleet?.kits ?? []).filter((k) => k.id !== kit.id);
+  inBackground(updateDoc(P.fleet(s.fleetId), { kits: kits.map(kitOut) }), 'Deleting kit');
 }
 
 export function deleteTruckItem(s: FleetStore, vehicleId: string, item: TruckItem) {

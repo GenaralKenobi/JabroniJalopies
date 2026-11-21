@@ -51,7 +51,8 @@ enum TruckContents {
         let terms = search.trimmed.split(whereSeparator: \.isWhitespace).map(String.init)
         guard !terms.isEmpty else { return items }
         return items.filter { item in
-            let text = "\(item.name) \(item.location) \(item.notes)"
+            let parts = (item.parts ?? []).map(\.name).joined(separator: " ")
+            let text = "\(item.name) \(item.location) \(item.notes) \(parts)"
             return terms.allSatisfy { text.localizedCaseInsensitiveContains($0) }
         }
     }
@@ -66,6 +67,13 @@ enum TruckContents {
             result.append(item)
         }
         return result
+    }
+
+    /// "Gauze pads ×4 · Eyewash · Tourniquet" for a kit's contents.
+    static func partsText(_ parts: [KitPart]?) -> String? {
+        let named = (parts ?? []).filter { !$0.name.trimmed.isEmpty }
+        guard !named.isEmpty else { return nil }
+        return named.map { part in part.quantity.map { "\(part.name) ×\($0)" } ?? part.name }.joined(separator: " · ")
     }
 
     /// "×3", or nil when no quantity was entered.

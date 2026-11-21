@@ -48,6 +48,14 @@ struct TruckContentsTests {
         #expect(missing.map { "\($0.name)@\($0.location)" } == ["Rakes@Bed", "Cones@Cab"])
     }
 
+    @Test func kitsListWhatsInsideAndSearchFindsIt() {
+        var kit = item("First-aid kit", "Cab")
+        kit.parts = [KitPart.new("Gauze pads", quantity: 4), KitPart.new("Eyewash"), KitPart.new("  ")]
+        #expect(TruckContents.partsText(kit.parts) == "Gauze pads ×4 · Eyewash")
+        #expect(TruckContents.partsText(nil) == nil)
+        #expect(TruckContents.filter([kit, item("Rope")], "eyewash").map(\.name) == ["First-aid kit"])
+    }
+
     @Test func formatsQuantity() {
         #expect(TruckContents.quantityText(3) == "×3")
         #expect(TruckContents.quantityText(nil) == nil)

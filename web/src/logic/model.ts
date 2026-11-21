@@ -20,7 +20,12 @@ export interface Fleet {
   distanceUnit?: string;
   checklistReminderTime?: string;
   checklistReminderDays?: number[];
+  /** Kits managers saved (e.g. a first-aid kit and what's in it), to add to any truck. */
+  kits?: TruckKit[];
 }
+
+export interface KitPart { id: string; name: string; quantity?: number }
+export interface TruckKit { id: string; name: string; parts: KitPart[] }
 
 export interface Member {
   id: string;
@@ -137,6 +142,8 @@ export interface TruckItem {
   updatedAt?: Date;
   updatedBy?: string;
   updatedByName?: string;
+  /** What's inside it, for a kit such as a first-aid kit. */
+  parts?: KitPart[];
 }
 
 // ---------- Maintenance ----------

@@ -86,10 +86,30 @@ struct TruckItem: Codable, Identifiable, Hashable {
     var updatedAt: Date?
     var updatedBy: String?
     var updatedByName: String?
+    /// What's inside it, for a kit such as a first-aid kit (gauze, eyewash, tourniquet…).
+    var parts: [KitPart]? = nil
 
     static func new(location: String = "") -> TruckItem {
         TruckItem(name: "", quantity: nil, location: location, notes: "")
     }
+}
+
+/// One thing inside a kit, e.g. "Gauze pads" ×4.
+struct KitPart: Codable, Hashable, Identifiable {
+    var id: String
+    var name: String
+    var quantity: Int?
+
+    static func new(_ name: String = "", quantity: Int? = nil) -> KitPart {
+        KitPart(id: UUID().uuidString, name: name, quantity: quantity)
+    }
+}
+
+/// A kit a manager saved for the fleet, to add to any truck in one go.
+struct TruckKit: Codable, Hashable, Identifiable {
+    var id: String
+    var name: String
+    var parts: [KitPart]
 }
 
 /// A manager's planned day for a scheduled checklist on one truck.

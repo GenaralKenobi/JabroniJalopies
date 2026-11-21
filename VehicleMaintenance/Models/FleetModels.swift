@@ -30,6 +30,8 @@ struct Fleet: Codable, Identifiable, Hashable {
     var checklistReminderTime: String?
     /// Days the reminder goes out (Calendar weekdays, 1 = Sunday … 7 = Saturday). nil = every day.
     var checklistReminderDays: [Int]?
+    /// Kits managers saved (e.g. "First-aid kit" with what's in it), to add to any truck.
+    var kits: [TruckKit]?
 }
 
 struct FleetUsage: Codable, Hashable {

@@ -11,6 +11,7 @@ struct TruckContentsView: View {
     @State private var editing: TruckItem?
     @State private var copying = false
     @State private var copyMessage: String?
+    @State private var managingKits = false
 
     var body: some View {
         let vehicle = fleet.vehicle(vehicleId)
@@ -60,6 +61,23 @@ struct TruckContentsView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button { editing = .new() } label: { Label("Add Item", systemImage: "plus") }
+                        if !fleet.kits.isEmpty {
+                            Menu {
+                                ForEach(fleet.kits) { kit in
+                                    Button(kit.name) {
+                                        var item = TruckItem.new()
+                                        item.name = kit.name
+                                        item.parts = kit.parts.map { KitPart.new($0.name, quantity: $0.quantity) }
+                                        editing = item
+                                    }
+                                }
+                            } label: {
+                                Label("Add from Kit", systemImage: "shippingbox")
+                            }
+                        }
+                        if fleet.isManager && !fleet.kits.isEmpty {
+                            Button { managingKits = true } label: { Label("Manage Kits", systemImage: "list.bullet") }
+                        }
                         let others = fleet.sortedVehicles.filter { $0.id != vehicleId }
                         if !others.isEmpty {
                             Menu {
@@ -82,6 +100,7 @@ struct TruckContentsView: View {
         .sheet(item: $editing) { item in
             TruckItemFormView(vehicleId: vehicleId, item: item, locations: TruckContents.locations(items))
         }
+        .sheet(isPresented: $managingKits) { KitsView() }
         .alert("Copied", isPresented: Binding(get: { copyMessage != nil }, set: { if !$0 { copyMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -155,6 +174,12 @@ struct TruckContentsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
                     .foregroundStyle(Color.primary)
+                if let parts = TruckContents.partsText(item.parts) {
+                    Label(parts, systemImage: "shippingbox")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(4)
+                }
                 if !item.notes.isEmpty {
                     Text(item.notes)
                         .font(.footnote)
@@ -204,6 +229,7 @@ struct TruckItemFormView: View {
     @State private var item: TruckItem
     @State private var quantityText: String
     @State private var addedCount = 0
+    @State private var kitSaved = false
     @FocusState private var nameFocused: Bool
     private let isNew: Bool
 
@@ -216,6 +242,10 @@ struct TruckItemFormView: View {
     }
 
     private var isValid: Bool { !item.name.trimmed.isEmpty }
+
+    private var partsBinding: Binding<[KitPart]> {
+        Binding(get: { item.parts ?? [] }, set: { item.parts = $0 })
+    }
 
     var body: some View {
         NavigationStack {
@@ -249,6 +279,45 @@ struct TruckItemFormView: View {
                 Section("Notes") {
                     TextField("Optional", text: $item.notes, axis: .vertical)
                         .lineLimit(1...4)
+                }
+
+                Section {
+                    ForEach(item.parts ?? []) { part in
+                        let binding = elementBinding(partsBinding, part)
+                        HStack {
+                            TextField("e.g. Gauze pads", text: binding.name)
+                            TextField("Qty", text: Binding(
+                                get: { binding.wrappedValue.quantity.map(String.init) ?? "" },
+                                set: { binding.wrappedValue.quantity = NumberParsing.int($0) }
+                            ))
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 56)
+                        }
+                    }
+                    .onDelete { item.parts?.remove(atOffsets: $0) }
+                    Button {
+                        item.parts = (item.parts ?? []) + [.new()]
+                    } label: {
+                        Label("Add Item Inside", systemImage: "plus")
+                    }
+                    if fleet.isManager, !(item.parts ?? []).isEmpty, !item.name.trimmed.isEmpty {
+                        Button {
+                            do {
+                                try fleet.saveKit(name: item.name, parts: item.parts ?? [])
+                                kitSaved = true
+                            } catch {
+                                ErrorCenter.shared.report(error, "Saving kit")
+                            }
+                        } label: {
+                            Label(kitSaved ? "Saved as a Kit" : "Save as a Kit for Other Trucks", systemImage: "shippingbox")
+                        }
+                        .disabled(kitSaved)
+                    }
+                } header: {
+                    Text("Inside This Item")
+                } footer: {
+                    Text("For kits, like a first-aid kit: list what's in it. Saving it as a kit lets you add it to any truck with Add from Kit.")
                 }
 
                 if isNew {
@@ -314,6 +383,41 @@ struct TruckItemFormView: View {
         addedCount += 1
         item = .new(location: item.location)
         quantityText = ""
+        kitSaved = false
         nameFocused = true
+    }
+}
+
+/// Managers' saved kits: delete the ones no longer used. (Kits are saved from an item's
+/// "Inside This Item" section with "Save as a Kit for Other Trucks".)
+struct KitsView: View {
+    @Environment(FleetModel.self) private var fleet
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(fleet.kits) { kit in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(kit.name)
+                            if let parts = TruckContents.partsText(kit.parts) {
+                                Text(parts).font(.footnote).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .onDelete { offsets in
+                        for index in offsets {
+                            try? fleet.deleteKit(fleet.kits[index])
+                        }
+                    }
+                } footer: {
+                    Text("Swipe left to delete a kit. Trucks that already have it keep their items. To change a kit, edit it on a truck and save it as a kit again with the same name.")
+                }
+            }
+            .navigationTitle("Kits")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
     }
 }

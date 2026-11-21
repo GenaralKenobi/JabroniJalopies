@@ -50,9 +50,34 @@ extension FleetModel {
         commitInBackground(batch, "Changing truck lead")
     }
 
+    // MARK: Kits
+
+    var kits: [TruckKit] {
+        (fleet?.kits ?? []).sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    /// Managers save a kit for the fleet. A kit with the same name is replaced.
+    func saveKit(name: String, parts: [KitPart]) throws {
+        let cleaned = parts.map { KitPart(id: $0.id, name: $0.name.trimmed, quantity: $0.quantity) }.filter { !$0.name.isEmpty }
+        var kits = (fleet?.kits ?? []).filter { $0.name.localizedCaseInsensitiveCompare(name.trimmed) != .orderedSame }
+        kits.append(TruckKit(id: UUID().uuidString, name: name.trimmed, parts: cleaned))
+        let batch = FS.db.batch()
+        batch.updateData(["kits": try FS.encode(kits)], forDocument: FS.fleet(fleetId))
+        commitInBackground(batch, "Saving kit")
+    }
+
+    func deleteKit(_ kit: TruckKit) throws {
+        let kits = (fleet?.kits ?? []).filter { $0.id != kit.id }
+        let batch = FS.db.batch()
+        batch.updateData(["kits": try FS.encode(kits)], forDocument: FS.fleet(fleetId))
+        commitInBackground(batch, "Deleting kit")
+    }
+
     func save(_ item: TruckItem, vehicle vehicleId: String) throws {
         var item = item
         item.name = item.name.trimmed
+        let parts = (item.parts ?? []).map { KitPart(id: $0.id, name: $0.name.trimmed, quantity: $0.quantity) }.filter { !$0.name.isEmpty }
+        item.parts = parts.isEmpty ? nil : parts
         item.location = item.location.trimmed
         item.notes = item.notes.trimmed
         item.updatedAt = .now

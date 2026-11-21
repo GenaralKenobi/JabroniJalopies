@@ -198,3 +198,14 @@ describe('chain records without counts', () => {
     expect(chainCount(inv, chainSize(18))).toBe(0);
   });
 });
+
+describe('kits', () => {
+  test('lists what is inside and search finds it', async () => {
+    const { partsText, filterContents } = await import('../src/logic/logic');
+    const parts = [{ id: '1', name: 'Gauze pads', quantity: 4 }, { id: '2', name: 'Eyewash' }, { id: '3', name: '  ' }];
+    expect(partsText(parts)).toBe('Gauze pads ×4 · Eyewash');
+    expect(partsText([])).toBeUndefined();
+    const item = { id: 'a', name: 'First aid kit', location: 'Cab', notes: '', parts };
+    expect(filterContents([item], 'eyewash')).toHaveLength(1);
+  });
+});

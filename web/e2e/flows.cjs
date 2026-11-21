@@ -152,6 +152,23 @@ async function emulatorUser(email, password) {
     await page.getByLabel('Item').fill('Fire blanket');
     await page.getByRole('button', { name: 'Save' }).click();
     await check('contents-add');
+    // A kit: a first-aid kit with what's inside, saved for other trucks, then added from the kit
+    await page.getByRole('button', { name: '＋ Add' }).click();
+    await page.getByLabel('Item', { exact: true }).fill('First aid kit');
+    await page.getByText('＋ Add Item Inside').click();
+    await page.getByLabel('Inside item').nth(0).fill('Gauze pads');
+    await page.getByLabel('Inside quantity').nth(0).fill('4');
+    await page.getByText('＋ Add Item Inside').click();
+    await page.getByLabel('Inside item').nth(1).fill('Eyewash');
+    await page.getByText('Save as a Kit for Other Trucks').click();
+    await page.getByText('✓ Saved as a Kit').waitFor();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByText('Gauze pads ×4 · Eyewash').first().waitFor();
+    await page.getByLabel('Add from kit').selectOption({ label: 'First aid kit' });
+    await page.getByLabel('Inside item').nth(1).waitFor();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.locator('text=Gauze pads ×4 · Eyewash').nth(2).waitFor();
+    await check('contents-kit');
 
     // Equipment: add a rope, cut it, approve
     await page.goto(BASE + '/equipment/new');
