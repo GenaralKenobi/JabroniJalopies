@@ -22,8 +22,19 @@ enum ChecklistDefaults {
                 item("Engine oil level"),
                 item("Warning lights on dash"),
                 item("Fire extinguisher and first-aid kit"),
+                item("Coolant level"),
+                item("Lug nuts and wheels"),
+                item("Backup alarm"),
+                item("Load and tools secured", unsafe: true),
             ],
             vehicleIds: [],
             updatedAt: .now)
+    }
+
+    /// The template's items that aren't already on a checklist (matched by title),
+    /// so managers can add general items one at a time, in the order they want.
+    static func commonItems(notIn items: [ChecklistItem]) -> [ChecklistItem] {
+        let existing = Set(items.map { $0.title.trimmed.lowercased() })
+        return morningChecklist().items.filter { !existing.contains($0.title.lowercased()) }
     }
 }

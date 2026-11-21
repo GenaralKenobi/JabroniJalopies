@@ -22,10 +22,20 @@ export function morningChecklist(): Omit<ChecklistTemplate, 'id'> {
       item('Engine oil level'),
       item('Warning lights on dash'),
       item('Fire extinguisher and first-aid kit'),
+      item('Coolant level'),
+      item('Lug nuts and wheels'),
+      item('Backup alarm'),
+      item('Load and tools secured', undefined, true),
     ],
     vehicleIds: [],
     updatedAt: new Date(),
   };
+}
+
+/** The template's items not already on a checklist (by title), to add one at a time. */
+export function commonItems(items: ChecklistItem[]): ChecklistItem[] {
+  const existing = new Set(items.map((i) => i.title.trim().toLowerCase()));
+  return morningChecklist().items.filter((i) => !existing.has(i.title.toLowerCase()));
 }
 
 export const newChecklistItem = (title = ''): ChecklistItem =>

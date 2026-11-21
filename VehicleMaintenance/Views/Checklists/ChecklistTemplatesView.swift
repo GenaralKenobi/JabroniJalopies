@@ -5,6 +5,7 @@ struct ChecklistTemplatesView: View {
     @Environment(FleetModel.self) private var fleet
     @State private var editing: ChecklistTemplate?
     @State private var creating = false
+    @State private var creatingFromTemplate = false
 
     var body: some View {
         List {
@@ -22,11 +23,17 @@ struct ChecklistTemplatesView: View {
             }
             Section {
                 Button { creating = true } label: { Label("New Checklist", systemImage: "plus") }
+                Button { creatingFromTemplate = true } label: { Label("New from Morning Template", systemImage: "doc.on.doc") }
+            } footer: {
+                Text("The template has the general daily checks (tires, brakes, lights, fluids…). Pick the vehicles it's for, then reorder or remove items to suit them.")
             }
         }
         .navigationTitle("Checklists")
         .sheet(item: $editing) { ChecklistEditorView(checklist: $0) }
         .sheet(isPresented: $creating) { ChecklistEditorView(checklist: nil) }
+        .sheet(isPresented: $creatingFromTemplate) {
+            ChecklistEditorView(checklist: nil, startingFrom: ChecklistDefaults.morningChecklist())
+        }
     }
 
     private func summary(_ checklist: ChecklistTemplate) -> String {
@@ -47,9 +54,9 @@ struct ChecklistEditorView: View {
     @State private var confirmingDelete = false
     @State private var errorMessage: String?
 
-    init(checklist: ChecklistTemplate?) {
+    init(checklist: ChecklistTemplate?, startingFrom template: ChecklistTemplate? = nil) {
         original = checklist
-        _draft = State(initialValue: checklist ?? ChecklistTemplate(name: "", items: [.new()], vehicleIds: []))
+        _draft = State(initialValue: checklist ?? template ?? ChecklistTemplate(name: "", items: [.new()], vehicleIds: []))
     }
 
     private var isValid: Bool {
@@ -76,6 +83,16 @@ struct ChecklistEditorView: View {
                         draft.items.append(.new())
                     } label: {
                         Label("Add Item", systemImage: "plus")
+                    }
+                    let common = ChecklistDefaults.commonItems(notIn: draft.items)
+                    if !common.isEmpty {
+                        Menu {
+                            ForEach(common) { item in
+                                Button(item.title) { draft.items.append(item) }
+                            }
+                        } label: {
+                            Label("Add Common Item", systemImage: "text.badge.plus")
+                        }
                     }
                 } header: {
                     Text("Items")

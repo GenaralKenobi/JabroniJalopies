@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Empty, Field, Page, Row, Section, ToggleRow, confirmAction, fromDateInput, toDateInput, useFleet } from '../ui/kit';
 import { deleteChecklist, saveChecklist } from '../data/actions';
-import { newChecklistItem } from '../logic/defaults';
+import { commonItems, morningChecklist, newChecklistItem } from '../logic/defaults';
 import { ALERT_LEAD_DAYS, SKIP_LIMIT, addDays, alertMargin, checklistScheduleLabel, formatNumber, parseIntLenient } from '../logic/logic';
 import { vehicleName, type ChecklistItem, type ChecklistTemplate, type ItemFrequency } from '../logic/model';
 
@@ -23,6 +23,10 @@ export function ChecklistsAdminPage() {
           </Row>
         ))}
       </Section>
+      <Section footer="The template has the general daily checks (tires, brakes, lights, fluids…). Pick the vehicles it's for, then reorder or remove items to suit them.">
+        <Row to="/settings/checklists/new">＋ New Checklist</Row>
+        <Row to="/settings/checklists/new?template=morning">📋 New from Morning Template</Row>
+      </Section>
     </Page>
   );
 }
@@ -38,8 +42,10 @@ export function ChecklistEditorPage() {
   const fleet = useFleet();
   const navigate = useNavigate();
   const original = fleet.checklists.find((c) => c.id === checklistId);
-  const [draft, setDraft] = useState<Omit<ChecklistTemplate, 'id'>>(() => original
-    ? structuredClone(original) : { name: '', items: [newChecklistItem()], vehicleIds: [] });
+  const [searchParams] = useSearchParams();
+  const [draft, setDraft] = useState<Omit<ChecklistTemplate, 'id'>>(() => original ? structuredClone(original)
+    : searchParams.get('template') === 'morning' ? morningChecklist()
+    : { name: '', items: [newChecklistItem()], vehicleIds: [] });
   if (checklistId !== 'new' && !original) return <Page back title="Checklist"><Empty title="Checklist not found" /></Page>;
   if (!fleet.isManager) return <Page back title="Checklist"><Empty title="Managers only" /></Page>;
 
@@ -149,6 +155,17 @@ export function ChecklistEditorPage() {
           );
         })}
         <button className="row link accent" onClick={() => set({ items: [...draft.items, newChecklistItem()] })}>＋ Add Item</button>
+        {commonItems(draft.items).length > 0 && (
+          <div className="row">
+            <select className="accent" aria-label="Add common item" value="" style={{ width: '100%' }} onChange={(e) => {
+              const item = commonItems(draft.items).find((i) => i.title === e.target.value);
+              if (item) set({ items: [...draft.items, item] });
+            }}>
+              <option value="">＋ Add Common Item…</option>
+              {commonItems(draft.items).map((i) => <option key={i.title} value={i.title}>{i.title}</option>)}
+            </select>
+          </div>
+        )}
       </Section>
 
       <Section footer={draft.allowsQuickPass

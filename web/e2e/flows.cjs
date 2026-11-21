@@ -126,6 +126,16 @@ async function emulatorUser(email, password) {
     await page.locator('input[aria-label="Item 4"]').fill('Hoses');
     await page.getByRole('button', { name: 'Save' }).click();
     await check('edit-checklist');
+    // New checklist from the morning template: remove an item, add it back from the common items, move it up
+    await page.goto(BASE + '/settings/checklists');
+    await page.getByText('New from Morning Template').click();
+    await page.getByLabel('Checklist name').fill('Chipper Truck Daily');
+    await page.getByLabel('Delete item').first().click();
+    await page.getByLabel('Add common item').selectOption('Tires — inflation and tread');
+    await page.getByLabel('Move up').last().click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Chipper Truck Daily').waitFor();
+    await check('checklist-from-template');
 
     // Invite someone
     await page.goto(BASE + '/settings/invite');

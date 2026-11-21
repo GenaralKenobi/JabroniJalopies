@@ -209,3 +209,14 @@ describe('kits', () => {
     expect(filterContents([item], 'eyewash')).toHaveLength(1);
   });
 });
+
+describe('checklist template', () => {
+  test('common items skip ones already on the checklist', async () => {
+    const { commonItems, morningChecklist } = await import('../src/logic/defaults');
+    const all = morningChecklist().items;
+    expect(commonItems([])).toHaveLength(all.length);
+    const left = commonItems([{ ...all[0], title: ' TIRES — inflation and tread ' }]);
+    expect(left).toHaveLength(all.length - 1);
+    expect(left.some((i) => i.title === all[0].title)).toBe(false);
+  });
+});

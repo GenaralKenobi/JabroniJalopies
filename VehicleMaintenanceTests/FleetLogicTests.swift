@@ -200,6 +200,16 @@ struct ChecklistTests {
         #expect(checklist.items.contains { $0.unsafeIfFailed })
         #expect(checklist.items.contains { $0.requiresReading && $0.readingLabel == "PSI" })
     }
+
+    @Test func commonItemsSkipOnesAlreadyOnTheChecklist() {
+        let all = ChecklistDefaults.morningChecklist().items
+        #expect(ChecklistDefaults.commonItems(notIn: []).count == all.count)
+        var existing = all[0]
+        existing.title = " TIRES — inflation and tread "
+        let left = ChecklistDefaults.commonItems(notIn: [existing])
+        #expect(left.count == all.count - 1)
+        #expect(!left.contains { $0.title == all[0].title })
+    }
 }
 
 struct ReminderTests {
