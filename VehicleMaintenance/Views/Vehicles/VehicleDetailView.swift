@@ -442,7 +442,7 @@ struct VehicleDetailView: View {
                         }
                     }
                     if records.inspections.count > 5 {
-                        NavigationLink("All Checklists (\(records.inspections.count))") {
+                        NavigationLink("All Checklists") {
                             InspectionListView(vehicleId: vehicleId, records: records)
                         }
                     }

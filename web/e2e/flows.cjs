@@ -189,6 +189,13 @@ async function emulatorUser(email, password) {
     await page.getByText("What's on the Truck").click();
     await page.getByText('Lead: Dan Okafor').waitFor();
     await check('truck-lead');
+    // The vehicle page loads only the newest checklists; the full list and one checklist load on their own pages
+    await page.goBack();
+    await page.getByText('All Checklists').click();
+    await page.waitForFunction(() => document.querySelectorAll('a[href*="/inspections/"]').length >= 6);
+    await page.locator('a[href*="/inspections/"]').last().click();
+    await page.getByText('Results').waitFor();
+    await check('checklist-history');
 
     // Equipment: add a rope, cut it, approve
     await page.goto(BASE + '/equipment/new');

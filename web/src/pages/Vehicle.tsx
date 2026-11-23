@@ -6,7 +6,7 @@ import {
 import {
   ConditionBadge, DefectRowContent, DueBadge, ScheduledRowContent, VehicleThumb, vehicleCondition,
 } from './common';
-import { useChainInventory, useVehicleRecords } from '../data/records';
+import { RECENT_INSPECTIONS, useChainInventory, useVehicleRecords } from '../data/records';
 import { removeVehicle, setTruckLead, updateOdometer } from '../data/actions';
 import { loadDraftSummary } from './Checklist';
 import {
@@ -23,7 +23,7 @@ export function VehiclePage() {
   const fleet = useFleet();
   const navigate = useNavigate();
   const vehicle = fleet.vehicle(vehicleId);
-  const records = useVehicleRecords(fleet.fleetId, vehicleId, fleet.isManager);
+  const records = useVehicleRecords(fleet.fleetId, vehicleId, fleet.isManager, RECENT_INSPECTIONS);
   const chains = useChainInventory(fleet.fleetId, vehicleId);
   const [picking, setPicking] = useState(false);
   const [showAllServices, setShowAllServices] = useState(false);

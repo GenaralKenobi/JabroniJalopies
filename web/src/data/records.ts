@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { limit, onSnapshot, orderBy, query, type Query } from 'firebase/firestore';
+import { doc, limit, onSnapshot, orderBy, query, type Query } from 'firebase/firestore';
 import { docData } from './convert';
 import { normalizeChainInventory } from '../logic/logic';
 import { P } from './paths';
@@ -29,13 +29,30 @@ export function useLive<T>(makeQuery: () => Query | undefined, deps: unknown[]):
   return state;
 }
 
-export function useVehicleRecords(fleetId: string, vehicleId: string, includeCosts: boolean) {
-  const inspections = useLive<Inspection>(() => query(P.inspections(fleetId, vehicleId), orderBy('completedAt', 'desc'), limit(100)), [fleetId, vehicleId]);
+/** The vehicle page shows the 5 newest checklists, so it loads 6 (the 6th means there are more). */
+export const RECENT_INSPECTIONS = 6;
+
+/**
+ * A vehicle's records while a page is open. `inspectionLimit` is how many checklists to load:
+ * 100 for the full history, RECENT_INSPECTIONS for the vehicle page, 0 for pages that don't show them.
+ */
+export function useVehicleRecords(fleetId: string, vehicleId: string, includeCosts: boolean, inspectionLimit = 100) {
+  const inspections = useLive<Inspection>(() => (inspectionLimit > 0
+    ? query(P.inspections(fleetId, vehicleId), orderBy('completedAt', 'desc'), limit(inspectionLimit)) : undefined), [fleetId, vehicleId, inspectionLimit]);
   const defects = useLive<Defect>(() => query(P.defects(fleetId, vehicleId), orderBy('reportedAt', 'desc'), limit(100)), [fleetId, vehicleId]);
   const services = useLive<ServiceRecord>(() => query(P.services(fleetId, vehicleId), orderBy('date', 'desc'), limit(200)), [fleetId, vehicleId]);
   const costs = useLive<{ id: string; amount: number }>(() => (includeCosts ? P.costs(fleetId, vehicleId) : undefined), [fleetId, vehicleId, includeCosts]);
   const costMap: Record<string, number> = Object.fromEntries(costs.items.map((c) => [c.id, c.amount]));
   return { inspections, defects, services, costs: costMap };
+}
+
+/** One checklist, for its own page (instead of loading the truck's whole history to show it). */
+export function useInspection(fleetId: string, vehicleId: string, inspectionId: string): { inspection?: Inspection; loaded: boolean } {
+  const [state, setState] = useState<{ inspection?: Inspection; loaded: boolean }>({ loaded: false });
+  useEffect(() => onSnapshot(doc(P.inspections(fleetId, vehicleId), inspectionId), (snapshot) => {
+    setState({ inspection: snapshot.exists() ? docData<Inspection>(snapshot) : undefined, loaded: true });
+  }, () => setState({ loaded: true })), [fleetId, vehicleId, inspectionId]);
+  return state;
 }
 
 export function useContents(fleetId: string, vehicleId: string) {

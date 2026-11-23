@@ -44,6 +44,7 @@ struct InspectionListView: View {
             }
         }
         .navigationTitle("Checklists")
+        .onAppear { records.loadAllInspections() }
     }
 }
 

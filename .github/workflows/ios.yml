@@ -1,8 +1,12 @@
 name: iOS Build & Test
 
 on:
+  # Skipped when a change only touches the website or documents, since those can't affect the app.
+  # (A 10–20 minute Mac build each time, and it would cancel an app build already running.)
   push:
+    paths-ignore: ['web/**', 'docs/**', '**.md', '.github/workflows/web.yml']
   pull_request:
+    paths-ignore: ['web/**', 'docs/**', '**.md', '.github/workflows/web.yml']
   workflow_dispatch:
 
 concurrency:

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Badge, Banner, Empty, Field, Page, Row, Section, ToggleRow, confirmAction, fromDateInput, toDateInput, useFleet } from '../ui/kit';
 import { DefectRowContent } from './common';
-import { useVehicleRecords } from '../data/records';
+import { useInspection, useVehicleRecords } from '../data/records';
 import {
   approveService, deleteReminder, deleteService, logService, rejectService, saveReminder,
 } from '../data/actions';
@@ -100,7 +100,7 @@ export function ServiceFormPage() {
   const fleet = useFleet();
   const navigate = useNavigate();
   const vehicle = fleet.vehicle(vehicleId);
-  const records = useVehicleRecords(fleet.fleetId, vehicleId, fleet.isManager);
+  const records = useVehicleRecords(fleet.fleetId, vehicleId, fleet.isManager, 0);
   const original = records.services.items.find((s) => s.id === serviceId);
   if (!vehicle) return <Page back title="Service"><Empty title="Vehicle not found" /></Page>;
   if (serviceId !== 'new' && !original) return <Page back title="Service">{records.services.loaded ? <Empty title="Service not found" /> : null}</Page>;
@@ -162,7 +162,7 @@ export function ServiceReviewPage() {
   const fleet = useFleet();
   const navigate = useNavigate();
   const vehicle = fleet.vehicle(vehicleId);
-  const records = useVehicleRecords(fleet.fleetId, vehicleId, true);
+  const records = useVehicleRecords(fleet.fleetId, vehicleId, true, 0);
   const record = records.services.items.find((s) => s.id === serviceId) ?? fleet.pendingServices[vehicleId]?.find((s) => s.id === serviceId);
   const [costText, setCostText] = useState('');
   const [note, setNote] = useState('');
@@ -240,9 +240,8 @@ export function HistoryPage() {
 export function InspectionPage() {
   const { vehicleId = '', inspectionId = '' } = useParams();
   const fleet = useFleet();
-  const records = useVehicleRecords(fleet.fleetId, vehicleId, false);
-  const inspection = records.inspections.items.find((i) => i.id === inspectionId);
-  if (!inspection) return <Page back title="Checklist">{records.inspections.loaded ? <Empty title="Checklist not found" /> : null}</Page>;
+  const { inspection, loaded } = useInspection(fleet.fleetId, vehicleId, inspectionId);
+  if (!inspection) return <Page back title="Checklist">{loaded ? <Empty title="Checklist not found" /> : null}</Page>;
   const vehicle = fleet.vehicle(vehicleId);
   const unit = vehicle ? fleet.unitOf(vehicle) : 'mi';
   return (
