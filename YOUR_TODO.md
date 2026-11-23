@@ -4,7 +4,7 @@
 - **Bundle ID:** `com.generalkenobi.jabronijalopies`
 - **Company:** Tailgate Labs (tailgatelabshr@icloud.com)
 - **Devices:** iPhone and iPad
-- **Release:** public App Store (eventually)
+- **Release:** App Store, submitted for review (unlisted for your crew first, public later)
 
 Decisions for you to check are in [DECISIONS.md](DECISIONS.md). Anything marked 🆕 there is waiting for you.
 
@@ -21,6 +21,9 @@ Decisions for you to check are in [DECISIONS.md](DECISIONS.md). Anything marked 
 - Defect photo uploads work.
 - Sign-in emails are signed "Jabroni Jalopies" (public-facing name and sender name).
 - Instant defect alerts are set up (push key uploaded to Firebase for development and production, alert function deployed) and tested between two devices.
+- App Store listing filled in: name, description, support and privacy URLs, screenshots, App Privacy answers, age rating, copyright and content rights.
+- Reviewer account made with the **App Review demo fleet** workflow and entered in App Store Connect.
+- Version 1.0 submitted for review (Nov 20, 2026) with the unlisted distribution request, and the latest build (kits, problem tags, truck lead pickers, morning template) attached.
 
 ## 1. Things for you to do
 
@@ -35,7 +38,7 @@ I can't see these settings, so if you've done them, tick them off and ignore the
 
 - [ ] Test on two real iPhones, one manager and one driver: invite, join, a checklist in **airplane mode**, and a photo on weak signal.
 - [ ] Tell drivers to sign up with the **same email** you invite and to confirm it.
-- [ ] To get drivers the app, create an external TestFlight group with a **Public Link** (see [TESTFLIGHT.md](TESTFLIGHT.md)). The first build for external testers goes through a short Apple beta review.
+- [ ] Once the app is approved: invite each person in **Settings → Members → Invite**, then send them the App Store link. (TestFlight is only needed for testing builds before they're released; see [TESTFLIGHT.md](TESTFLIGHT.md).)
 
 ### Legal and business (before you charge anyone or release publicly)
 
@@ -50,33 +53,23 @@ None of this is legal advice; these are the things worth getting a professional 
 - [ ] **Taxes and insurance:** ask an accountant about sales tax on software subscriptions in your state, and an insurance agent about general liability and technology errors-and-omissions cover.
 - [ ] **Big customers** will ask for a data processing agreement (how you handle their employees' data). Have the lawyer prepare one when the first one asks.
 
-### App Store review (submitted Nov 20, 2026)
+### App Store review (in progress)
 
-- [x] Version 1.0 submitted for review, with the sample-fleet reviewer account, and the **unlisted distribution** request sent.
-- [ ] Wait for Apple's emails: the review result (usually 1–3 days) and the unlisted request (can take longer). If either is rejected, send me the exact message.
-- [ ] Keep the reviewer account and "Sample Fleet (App Review)" as they are until approval. Apple reuses them for every update, so keep them afterwards too.
-- [ ] Once approved and unlisted, share the App Store link with your crew (instead of TestFlight).
+- [ ] **Apple asked for more information.** Make the screen recording on your iPhone, upload it and paste its link at the top of the Notes in **App Review Information**, then reply to Apple's message. Ask me for the recording steps and the notes text any time.
+- [ ] After recording, run **App Review demo fleet** on GitHub again to reset the sample fleet.
+- [ ] Wait for the review result and the unlisted request. If either is rejected, send me the exact message.
+- [ ] Keep the reviewer account and "Sample Fleet (App Review)" as they are. Apple reuses them for every update.
+- [ ] When the status is **Pending Developer Release**, click **Release This Version** (unless you chose automatic release). Share the link only once it says **Ready for Distribution**.
 
-### Before the public App Store release
+### Good to know before selling to other companies
 
-- [ ] **Demo account for Apple's reviewers** (5 minutes):
-  1. On the website, **Create Account** with an email used only for this (Apple will see it), and a password you'll give Apple. You don't need to confirm the email.
-  2. Sign out of the website.
-  3. GitHub → **Actions** → **App Review demo fleet** → **Run workflow**, enter that email. It confirms the email and makes the account the manager of "Sample Fleet (App Review)" with trucks, checklists, a problem, reminders and history.
-  4. In App Store Connect → **App Review Information**, tick **Sign-in required** and enter the email and password, with a note: "Internal fleet app. This account manages a sample fleet."
-- [ ] **Listing:**
-  - name **Jabroni Jalopies**
-  - subtitle (suggestion: "Truck checklists & defects")
-  - description
-  - **support URL** `https://genaralkenobi.github.io/JabroniJalopies/`
-  - **privacy policy URL** `https://genaralkenobi.github.io/JabroniJalopies/privacy`
-- [ ] **Screenshots:** CI captures iPhone and 13" iPad screenshots on every push; see the `ci-screenshots` branch. Pick the ones you like.
-- [ ] **App Privacy questions:**
-  - **Data collected:** name, email address, phone number, photos, other user content, user ID, and **device ID** (the notification token).
-  - **Use:** all of it is linked to the user, used for App Functionality, and **not** used for tracking.
-- [ ] **Age rating questionnaire:** answer "none" for everything.
-- [ ] **Tell customers about employee-monitoring notices.** The app records who did each checklist and when. Some states (for example New York, Connecticut and Delaware) require employers to tell employees in writing about electronic monitoring. That's the employer's job, and the draft Terms say so, but mention it when you sign up a company.
-- [ ] **Seller name (for your information).** If you enrolled as an **individual**, the App Store shows your legal name as the seller. "Tailgate Labs" appears in the app and on its website, but not as the seller. To show "Tailgate Labs" as the seller, you'd need a registered business and an Organization developer account, which requires a D-U-N-S number.
+- **Employee-monitoring notices.** The app records who did each checklist and when. Some states (for example New York, Connecticut and Delaware) require employers to tell employees in writing about electronic monitoring. That's the employer's job, and the draft Terms say so, but mention it when you sign up a company.
+- **Seller name.** If you enrolled as an **individual**, the App Store shows your legal name as the seller. To show "Tailgate Labs", you'd need a registered business and an Organization developer account, which requires a D-U-N-S number.
+
+### Coming up (I'll handle these; nothing for you to do)
+
+- After 1.0 is approved, the next update becomes **version 1.1**. Apple reviews each update; small updates are usually quicker.
+- From **April 2027** Apple only accepts apps built with Xcode 27. The build workflows already pick the newest Xcode on GitHub's Macs, so it's one rebuild once GitHub installs it.
 
 ## 2. Open questions
 
@@ -85,7 +78,7 @@ None of this is legal advice; these are the things worth getting a professional 
 
 ## 3. Not confirmed on a real phone yet
 
-- **Confirmed:** the app installs from TestFlight, the fixed build passes all automated tests on GitHub's Macs and simulators, and instant defect alerts reach a manager's device.
+- **Confirmed:** the app installs from TestFlight, every build passes all automated tests on GitHub's Macs and simulators, instant defect alerts reach a manager's device, and defect photo uploads work.
 - **Not confirmed yet** (these need a real phone):
   - a checklist completed in airplane mode and syncing afterwards
   - reminder notifications and calendar events
