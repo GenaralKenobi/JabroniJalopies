@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { Badge, Banner, Empty, Field, OfflineBanner, Page, Row, Section, confirmAction, useFleet } from '../ui/kit';
 import { DefectPhotoView, DefectRowContent, DefectStatusBadge, InProgressLine, Lightbox } from './common';
 import {
-  addDefectEvent, addDefectPhotos, closeDefect, reopenDefect, reportDefect, setDefectInProgress, setDefectPriority,
+  addDefectEvent, addDefectPhotos, closeDefect, reopenDefect, reportDefect, setDefectInProgress, setDefectInProgressNote, setDefectPriority,
 } from '../data/actions';
 import { docData } from '../data/convert';
 import { P } from '../data/paths';
@@ -122,6 +122,10 @@ export function DefectDetailPage() {
   const [pendingSync, setPendingSync] = useState(false);
   const [missing, setMissing] = useState(false);
   const [note, setNote] = useState('');
+  // The "being worked on" note, kept in step with what's saved (so it can be edited).
+  const [workNote, setWorkNote] = useState('');
+  const savedWorkNote = defect?.inProgress?.note ?? '';
+  useEffect(() => setWorkNote(savedWorkNote), [savedWorkNote]);
   const [lightbox, setLightbox] = useState<string>();
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -191,11 +195,7 @@ export function DefectDetailPage() {
                   {DEFECT_PRIORITIES.map((p) => <option key={p} value={p}>{priorityLabel(p, owner.kind === 'equipment')}</option>)}
                 </select>
               </Field>
-              {defect.inProgress
-                ? <Row chevron={false} icon="🔨" onClick={() => setDefectInProgress(fleet, owner, defect, false, '')}>No Longer Being Worked On</Row>
-                : <Row className="accent" chevron={false} icon="🔨" onClick={() => { setDefectInProgress(fleet, owner, defect, true, note); setNote(''); }}>
-                  Mark Being Worked On<div className="caption">Uses the note above, e.g. "Parts ordered, back Thursday"</div>
-                </Row>}
+              {defect.inProgress && <Row chevron={false} icon="🔨" onClick={() => setDefectInProgress(fleet, owner, defect, false, '')}>No Longer Being Worked On</Row>}
             </>
           ) : (
             <>
@@ -203,6 +203,19 @@ export function DefectDetailPage() {
               <Row chevron={false} icon="‼︎" onClick={() => { addDefectEvent(fleet, owner, defect, 'confirmed', note); setNote(''); }}>Still a Problem</Row>
             </>
           )}
+        </Section>
+      )}
+
+      {canAct && fleet.isManager && (
+        <Section header="Being Worked On" footer="Everyone who can see this truck sees that it's being worked on, until it's closed. Return adds a new line.">
+          <Field><textarea rows={3} placeholder='Note (optional), e.g. "Parts ordered, back Thursday"' value={workNote}
+            onChange={(e) => setWorkNote(e.target.value)} aria-label="Being worked on note" /></Field>
+          <div className="pad">
+            <button className="btn" onClick={() => {
+              if (defect.inProgress) setDefectInProgressNote(fleet, owner, defect, workNote);
+              else setDefectInProgress(fleet, owner, defect, true, workNote);
+            }}>{defect.inProgress ? 'Submit Note' : 'Submit: Mark Being Worked On'}</button>
+          </div>
         </Section>
       )}
       {!canAct && fleet.isManager && (

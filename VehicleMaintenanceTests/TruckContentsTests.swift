@@ -61,3 +61,22 @@ struct TruckContentsTests {
         #expect(TruckContents.quantityText(nil) == nil)
     }
 }
+
+struct ServiceContactTests {
+    @Test func emptyFieldsAreDroppedAndAllEmptyIsNil() {
+        #expect(ServiceContact.cleaned(name: "  ", phone: "", website: "", address: "\n") == nil)
+        let contact = ServiceContact.cleaned(name: " Main Street Ford ", phone: "", website: "", address: "")
+        #expect(contact?.name == "Main Street Ford")
+        #expect(contact?.phone == nil)
+    }
+
+    @Test func linksForPhoneWebsiteAndAddress() {
+        let contact = ServiceContact(name: nil, phone: "(555) 123-4567", website: "mainstreetford.com", address: "12 Main St, Springfield")
+        #expect(contact.phoneURL?.absoluteString == "tel:5551234567")
+        #expect(contact.websiteURL?.absoluteString == "https://mainstreetford.com")
+        #expect(contact.mapsURL?.absoluteString.hasPrefix("https://maps.apple.com/?q=12%20Main%20St") == true)
+        #expect(ServiceContact(name: nil, phone: "+1 555 123 4567", website: "http://x.com", address: nil).phoneURL?.absoluteString == "tel:+15551234567")
+        #expect(ServiceContact(name: nil, phone: "call Bob", website: "not a site", address: nil).phoneURL == nil)
+        #expect(ServiceContact(name: nil, phone: nil, website: "not a site", address: nil).websiteURL == nil)
+    }
+}

@@ -11,7 +11,7 @@ import { removeVehicle, setTruckLead, updateOdometer } from '../data/actions';
 import { loadDraftSummary } from './Checklist';
 import {
   dayAndTime, formatCurrency, formatDistance, mediumDate, parseIntLenient, reminderNextDate, reminderNextOdometer,
-  reminderStatus, shortDate, chainCount, sortedChainSizes, chainLabel,
+  reminderStatus, shortDate, chainCount, sortedChainSizes, chainLabel, mapsHref, phoneHref, websiteHref,
 } from '../logic/logic';
 import {
   equipmentName, isOpen, readingName, reminderTitle, serviceTitle, vehicleName, yearMakeModel, type ChecklistTemplate,
@@ -262,6 +262,21 @@ export function VehiclePage() {
         <Section header="Costs (Managers Only)">
           <Row value={formatCurrency(spentThisYear)}>This year</Row>
           <Row value={formatCurrency(totalSpent)}>All time</Row>
+        </Section>
+      )}
+
+      {vehicle.serviceContact && Object.values(vehicle.serviceContact).some(Boolean) && (
+        <Section header="Service Shop or Dealer">
+          {vehicle.serviceContact.name && <Row icon="🔧" chevron={false}>{vehicle.serviceContact.name}</Row>}
+          {vehicle.serviceContact.phone && (phoneHref(vehicle.serviceContact.phone)
+            ? <a className="row link accent" href={phoneHref(vehicle.serviceContact.phone)}><span className="icon">📞</span><span className="grow">{vehicle.serviceContact.phone}</span></a>
+            : <Row icon="📞" chevron={false}>{vehicle.serviceContact.phone}</Row>)}
+          {vehicle.serviceContact.website && (websiteHref(vehicle.serviceContact.website)
+            ? <a className="row link accent" href={websiteHref(vehicle.serviceContact.website)} target="_blank" rel="noopener noreferrer"><span className="icon">🌐</span><span className="grow">{vehicle.serviceContact.website}</span></a>
+            : <Row icon="🌐" chevron={false}>{vehicle.serviceContact.website}</Row>)}
+          {vehicle.serviceContact.address && (
+            <a className="row link accent" href={mapsHref(vehicle.serviceContact.address)} target="_blank" rel="noopener noreferrer"><span className="icon">📍</span><span className="grow wrap">{vehicle.serviceContact.address}</span></a>
+          )}
         </Section>
       )}
 

@@ -32,6 +32,8 @@ struct Vehicle: Codable, Identifiable, Hashable {
     var specSections: [SpecSection]
     /// Small JPEG thumbnail stored inline so it works offline and on the free plan.
     var photo: Data?
+    /// Who services this truck (a mechanic or dealer). Every field is optional.
+    var serviceContact: ServiceContact?
     @ServerTimestamp var createdAt: Date?
 
     static func new() -> Vehicle {
@@ -95,6 +97,44 @@ struct TruckItem: Codable, Identifiable, Hashable {
 }
 
 /// One thing inside a kit, e.g. "Gauze pads" ×4.
+/// A truck's mechanic or dealer. Any of the fields can be missing.
+struct ServiceContact: Codable, Hashable {
+    var name: String?
+    var phone: String?
+    var website: String?
+    var address: String?
+
+    /// Trims each field and drops empty ones; nil when nothing is left.
+    static func cleaned(name: String, phone: String, website: String, address: String) -> ServiceContact? {
+        func clean(_ s: String) -> String? { let t = s.trimmingCharacters(in: .whitespacesAndNewlines); return t.isEmpty ? nil : t }
+        let contact = ServiceContact(name: clean(name), phone: clean(phone), website: clean(website), address: clean(address))
+        return contact.isEmpty ? nil : contact
+    }
+
+    var isEmpty: Bool { name == nil && phone == nil && website == nil && address == nil }
+
+    /// tel: link from the digits (and a leading +).
+    var phoneURL: URL? {
+        guard let phone else { return nil }
+        let digits = phone.enumerated().filter { $0.element.isNumber || ($0.offset == 0 && $0.element == "+") }.map { String($0.element) }.joined()
+        return digits.count >= 3 ? URL(string: "tel:\(digits)") : nil
+    }
+
+    /// Adds https:// when the website was typed without it.
+    var websiteURL: URL? {
+        guard let website else { return nil }
+        let text = website.lowercased().hasPrefix("http://") || website.lowercased().hasPrefix("https://") ? website : "https://\(website)"
+        guard let url = URL(string: text), url.host?.contains(".") == true else { return nil }
+        return url
+    }
+
+    /// Opens the address in Maps.
+    var mapsURL: URL? {
+        guard let address, let query = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+        return URL(string: "https://maps.apple.com/?q=\(query)")
+    }
+}
+
 struct KitPart: Codable, Hashable, Identifiable {
     var id: String
     var name: String

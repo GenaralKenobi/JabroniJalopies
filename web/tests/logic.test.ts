@@ -220,3 +220,17 @@ describe('checklist template', () => {
     expect(left.some((i) => i.title === all[0].title)).toBe(false);
   });
 });
+
+describe('service contact', () => {
+  test('cleans fields and builds links', async () => {
+    const { cleanServiceContact, phoneHref, websiteHref, mapsHref } = await import('../src/logic/logic');
+    expect(cleanServiceContact({ name: '  ', phone: '' })).toBeUndefined();
+    expect(cleanServiceContact({ name: ' Main Street Ford ', phone: '' })).toEqual({ name: 'Main Street Ford' });
+    expect(phoneHref('(555) 123-4567')).toBe('tel:5551234567');
+    expect(phoneHref('+1 555 123 4567')).toBe('tel:+15551234567');
+    expect(phoneHref('call Bob')).toBeUndefined();
+    expect(websiteHref('mainstreetford.com')).toBe('https://mainstreetford.com/');
+    expect(websiteHref('not a site')).toBeUndefined();
+    expect(mapsHref('12 Main St, Springfield')).toBe('https://maps.apple.com/?q=12%20Main%20St%2C%20Springfield');
+  });
+});

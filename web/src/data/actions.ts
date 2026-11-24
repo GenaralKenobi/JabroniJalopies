@@ -11,7 +11,7 @@ import { inBackground } from './store';
 import { enqueuePhotos } from './photos';
 import { deleteEquipment, deleteVehicle, deleteAll } from './deleter';
 import {
-  chainCount, chainItemChange, missingContents, retentionExpiry, sortedChainSizes, startOfDay, type InspectionPlan,
+  chainCount, chainItemChange, cleanServiceContact, missingContents, retentionExpiry, sortedChainSizes, startOfDay, type InspectionPlan,
   type ScheduledDue,
 } from '../logic/logic';
 import {
@@ -71,7 +71,8 @@ export function setChecklistReminder(s: FleetStore, time: string | undefined, da
 
 export function addVehicle(s: FleetStore, vehicle: Omit<Vehicle, 'id'>): string {
   const ref = doc(P.vehicles(s.fleetId));
-  const record = { ...vehicle, summary: { openDefects: 0, unsafeDefects: 0, pendingServices: 0, hasReminders: false } };
+  const record = { ...vehicle, serviceContact: cleanServiceContact(vehicle.serviceContact),
+    summary: { openDefects: 0, unsafeDefects: 0, pendingServices: 0, hasReminders: false } };
   inBackground(writeBatch(fb().db).set(ref, { ...toFirestore(record), createdAt: serverTimestamp() }).commit(), 'Adding vehicle');
   return ref.id;
 }
@@ -82,6 +83,7 @@ export function updateVehicle(s: FleetStore, edited: Omit<Vehicle, 'id'>, origin
     licensePlate: edited.licensePlate,
     photo: edited.photo ? toFirestore({ photo: edited.photo }).photo : deleteField(),
     readingUnit: edited.readingUnit ?? deleteField(),
+    serviceContact: cleanServiceContact(edited.serviceContact) ?? deleteField(),
   };
   if (edited.odometer !== original.odometer) {
     Object.assign(fields, { odometer: edited.odometer, odometerUpdatedAt: serverTimestamp(), odometerUpdatedBy: s.uid });
@@ -450,6 +452,13 @@ export function setDefectInProgress(s: FleetStore, owner: DefectOwner, defect: D
     : deleteField();
   inBackground(updateDoc(doc(ownerDefects(s, owner), defect.id), { inProgress: value, updatedAt: new Date() }),
     working ? 'Marking as being worked on' : 'Updating defect');
+}
+
+/** Changes the "being worked on" note, keeping who marked it and when. */
+export function setDefectInProgressNote(s: FleetStore, owner: DefectOwner, defect: Defect, note: string) {
+  if (!defect.inProgress) return;
+  inBackground(updateDoc(doc(ownerDefects(s, owner), defect.id), { 'inProgress.note': note.trim() || deleteField(), updatedAt: new Date() }),
+    'Updating note');
 }
 
 export function setDefectUnsafe(s: FleetStore, owner: DefectOwner, defect: Defect, unsafe: boolean) {

@@ -77,6 +77,9 @@ struct VehicleDetailView: View {
             if fleet.isManager, let records, !records.approvedServices.isEmpty {
                 costSection(records)
             }
+            if let contact = vehicle.serviceContact, !contact.isEmpty {
+                serviceContactSection(contact)
+            }
             detailsSection(vehicle)
         }
         .readableWidth()
@@ -504,6 +507,35 @@ struct VehicleDetailView: View {
             CostChartView(monthlyTotals: records.monthlyCosts)
                 .frame(height: 170)
                 .padding(.vertical, 8)
+        }
+    }
+
+    private func serviceContactSection(_ contact: ServiceContact) -> some View {
+        Section("Service Shop or Dealer") {
+            if let name = contact.name {
+                Label(name, systemImage: "wrench.and.screwdriver")
+            }
+            if let phone = contact.phone {
+                if let url = contact.phoneURL {
+                    Link(destination: url) { Label(phone, systemImage: "phone") }
+                } else {
+                    Label(phone, systemImage: "phone")
+                }
+            }
+            if let website = contact.website {
+                if let url = contact.websiteURL {
+                    Link(destination: url) { Label(website, systemImage: "safari") }
+                } else {
+                    Label(website, systemImage: "safari")
+                }
+            }
+            if let address = contact.address {
+                if let url = contact.mapsURL {
+                    Link(destination: url) { Label(address, systemImage: "map") }
+                } else {
+                    Label(address, systemImage: "map")
+                }
+            }
         }
     }
 

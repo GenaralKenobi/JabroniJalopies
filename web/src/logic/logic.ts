@@ -483,6 +483,36 @@ export function groupContents(items: TruckItem[], search = ''): ContentsGroup[] 
   });
 }
 
+/** Trims each field and drops empty ones; undefined when nothing is left (ServiceContact.cleaned in the app). */
+export function cleanServiceContact(c: { name?: string; phone?: string; website?: string; address?: string } | undefined) {
+  const clean = (v?: string) => (v ?? '').trim() || undefined;
+  const out = { name: clean(c?.name), phone: clean(c?.phone), website: clean(c?.website), address: clean(c?.address) };
+  const kept = Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined)) as typeof out;
+  return Object.keys(kept).length ? kept : undefined;
+}
+
+/** tel: link from the digits (and a leading +). */
+export function phoneHref(phone?: string): string | undefined {
+  if (!phone) return undefined;
+  const digits = [...phone].filter((ch, i) => /\d/.test(ch) || (i === 0 && ch === '+')).join('');
+  return digits.length >= 3 ? `tel:${digits}` : undefined;
+}
+
+/** Adds https:// when a website was typed without it. */
+export function websiteHref(website?: string): string | undefined {
+  if (!website) return undefined;
+  const text = /^https?:\/\//i.test(website) ? website : `https://${website}`;
+  try {
+    const url = new URL(text);
+    return url.hostname.includes('.') && !/\s/.test(website) ? url.href : undefined;
+  } catch { return undefined; }
+}
+
+/** Opens the address in the phone's maps app (Apple Maps on iPhone, Google Maps elsewhere). */
+export function mapsHref(address?: string): string | undefined {
+  return address ? `https://maps.apple.com/?q=${encodeURIComponent(address)}` : undefined;
+}
+
 /** "Gauze pads ×4 · Eyewash · Tourniquet" for a kit's contents. */
 export function partsText(parts: { name: string; quantity?: number }[] | undefined): string | undefined {
   const named = (parts ?? []).filter((p) => p.name.trim());

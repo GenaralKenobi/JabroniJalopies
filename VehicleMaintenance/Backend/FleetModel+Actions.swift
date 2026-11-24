@@ -86,6 +86,11 @@ extension FleetModel {
         } else {
             fields["readingUnit"] = FieldValue.delete()
         }
+        if let contact = edited.serviceContact, !contact.isEmpty, let encoded = try? FS.encode(contact) {
+            fields["serviceContact"] = encoded
+        } else {
+            fields["serviceContact"] = FieldValue.delete()
+        }
         if edited.odometer != original.odometer {
             fields["odometer"] = edited.odometer
             fields["odometerUpdatedAt"] = FieldValue.serverTimestamp()
@@ -567,6 +572,16 @@ extension FleetModel {
         batch.updateData(["inProgress": value, "updatedAt": Date.now],
                          forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, working ? "Marking as being worked on" : "Updating defect")
+    }
+
+    /// Changes the "being worked on" note, keeping who marked it and when.
+    func setInProgressNote(_ note: String, on defect: Defect, owner: DefectOwner) {
+        guard let defectId = defect.id, defect.inProgress != nil else { return }
+        let trimmed = note.trimmed
+        let batch = FS.db.batch()
+        batch.updateData(["inProgress.note": trimmed.isEmpty ? FieldValue.delete() : trimmed, "updatedAt": Date.now],
+                         forDocument: owner.defects(fleetId: fleetId).document(defectId))
+        commitInBackground(batch, "Updating note")
     }
 
     /// Managers can mark an equipment defect "do not use" (or clear it) after it's reported.

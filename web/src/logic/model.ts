@@ -24,6 +24,9 @@ export interface Fleet {
   kits?: TruckKit[];
 }
 
+/** A truck's mechanic or dealer. Any of the fields can be missing. */
+export interface ServiceContact { name?: string; phone?: string; website?: string; address?: string }
+
 export interface KitPart { id: string; name: string; quantity?: number }
 export interface TruckKit { id: string; name: string; parts: KitPart[] }
 
@@ -107,6 +110,8 @@ export interface Vehicle {
   /** Small JPEG thumbnail stored on the record. */
   photo?: Uint8Array;
   createdAt?: Date;
+  /** Who services this truck (a mechanic or dealer). Every field is optional. */
+  serviceContact?: ServiceContact;
 }
 
 export function vehicleUnit(vehicle: Pick<Vehicle, 'readingUnit'>, fleetUnit?: string): DistanceUnit {

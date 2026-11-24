@@ -15,6 +15,10 @@ struct VehicleFormView: View {
     @State private var showingCamera = false
     @State private var showingLibrary = false
     @State private var errorMessage: String?
+    @State private var shopName: String
+    @State private var shopPhone: String
+    @State private var shopWebsite: String
+    @State private var shopAddress: String
 
     private static let years: [Int] = {
         let current = Calendar.current.component(.year, from: .now)
@@ -25,6 +29,11 @@ struct VehicleFormView: View {
         original = vehicle
         _draft = State(initialValue: vehicle ?? .new())
         _odometerText = State(initialValue: vehicle.map { String($0.odometer) } ?? "")
+        let contact = vehicle?.serviceContact
+        _shopName = State(initialValue: contact?.name ?? "")
+        _shopPhone = State(initialValue: contact?.phone ?? "")
+        _shopWebsite = State(initialValue: contact?.website ?? "")
+        _shopAddress = State(initialValue: contact?.address ?? "")
     }
 
     private var isValid: Bool { !draft.make.trimmed.isEmpty || !draft.name.trimmed.isEmpty }
@@ -90,6 +99,25 @@ struct VehicleFormView: View {
                         .autocorrectionDisabled()
                 }
 
+                Section {
+                    TextField("Name (e.g. Main Street Ford)", text: $shopName)
+                        .textContentType(.organizationName)
+                    TextField("Phone", text: $shopPhone)
+                        .keyboardType(.phonePad)
+                        .textContentType(.telephoneNumber)
+                    TextField("Website", text: $shopWebsite)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    TextField("Address", text: $shopAddress, axis: .vertical)
+                        .textContentType(.fullStreetAddress)
+                        .lineLimit(1...3)
+                } header: {
+                    Text("Service Shop or Dealer")
+                } footer: {
+                    Text("Who services this truck. Fill in whatever you have; everyone who can see the truck can call or look it up.")
+                }
+
                 if original == nil {
                     Section {
                         Text("Fluids, tires and pressures can be filled in from the vehicle's Specs page after saving.")
@@ -140,6 +168,7 @@ struct VehicleFormView: View {
         vehicle.vin = vehicle.vin.trimmed.uppercased()
         vehicle.licensePlate = vehicle.licensePlate.trimmed.uppercased()
         vehicle.odometer = NumberParsing.int(odometerText) ?? original?.odometer ?? 0
+        vehicle.serviceContact = ServiceContact.cleaned(name: shopName, phone: shopPhone, website: shopWebsite, address: shopAddress)
         if let original {
             fleet.update(vehicle, from: original)
             dismiss()

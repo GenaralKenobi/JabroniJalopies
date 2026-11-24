@@ -87,11 +87,27 @@ async function emulatorUser(email, password) {
     await page.getByRole('button', { name: 'Report Problem' }).click();
     await check('report-problem');
     await page.getByText('Check engine light').first().click();
-    await page.getByText('Mark Being Worked On').click();
+    await page.getByLabel('Being worked on note').fill('Parts ordered');
+    await page.getByRole('button', { name: 'Submit: Mark Being Worked On' }).click();
+    await page.getByText('Being worked on: Parts ordered').waitFor();
     await check('in-progress');
-    if (!(await page.getByText(/Being worked on/).count())) failures.push('[in-progress] "Being worked on" did not show.');
+    // Edit the note: the box shows the saved note, and Submit saves the change
+    await page.getByLabel('Being worked on note').fill('Parts ordered\nBack Thursday');
+    await page.getByRole('button', { name: 'Submit Note' }).click();
+    await page.getByText(/Being worked on: Parts ordered\s+Back Thursday/).waitFor();
+    await check('in-progress-edit');
     await page.getByText('Mark Repaired').click();
     await check('close-defect');
+
+    // The truck's service shop: fill in some of the fields, then call it from the truck's page
+    await page.goto(BASE + '/');
+    await page.getByText('Car 2').first().click();
+    await page.getByRole('link', { name: 'Edit', exact: true }).click();
+    await page.getByLabel('Shop name').fill('Main Street Ford');
+    await page.getByLabel('Shop phone').fill('(555) 123-4567');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.locator('a[href="tel:5551234567"]').waitFor();
+    await check('service-shop');
 
     // Log a service with a cost; add a reminder
     await page.goto(BASE + '/');

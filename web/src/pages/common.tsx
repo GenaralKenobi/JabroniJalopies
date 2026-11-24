@@ -45,7 +45,7 @@ export function DefectStatusBadge({ defect }: { defect: Defect }) {
 
 export function InProgressLine({ defect }: { defect: Defect }) {
   if (defect.status === 'closed' || !defect.inProgress) return null;
-  return <span className="caption blue strong">🔨 Being worked on{defect.inProgress.note ? `: ${defect.inProgress.note}` : ''}</span>;
+  return <span className="caption blue strong wrap">🔨 Being worked on{defect.inProgress.note ? `: ${defect.inProgress.note}` : ''}</span>;
 }
 
 export function DefectRowContent({ defect, context }: { defect: Defect; context?: string }) {

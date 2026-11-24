@@ -83,6 +83,16 @@ export function VehicleFormPage() {
         <Field label="License plate"><input className="right" value={draft.licensePlate} onChange={(e) => set({ licensePlate: e.target.value })} /></Field>
         <Field label="VIN"><input className="right" value={draft.vin} autoCapitalize="characters" onChange={(e) => set({ vin: e.target.value })} /></Field>
       </Section>
+      <Section header="Service Shop or Dealer" footer="Who services this truck. Fill in whatever you have; everyone who can see the truck can call or look it up.">
+        <Field label="Name"><input className="right" placeholder="e.g. Main Street Ford" value={draft.serviceContact?.name ?? ''}
+          onChange={(e) => set({ serviceContact: { ...draft.serviceContact, name: e.target.value } })} aria-label="Shop name" /></Field>
+        <Field label="Phone"><input className="right" type="tel" autoComplete="tel" value={draft.serviceContact?.phone ?? ''}
+          onChange={(e) => set({ serviceContact: { ...draft.serviceContact, phone: e.target.value } })} aria-label="Shop phone" /></Field>
+        <Field label="Website"><input className="right" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" value={draft.serviceContact?.website ?? ''}
+          onChange={(e) => set({ serviceContact: { ...draft.serviceContact, website: e.target.value } })} aria-label="Shop website" /></Field>
+        <Field><textarea rows={2} placeholder="Address" autoComplete="street-address" value={draft.serviceContact?.address ?? ''}
+          onChange={(e) => set({ serviceContact: { ...draft.serviceContact, address: e.target.value } })} aria-label="Shop address" /></Field>
+      </Section>
       {!valid && <div className="section-footer" style={{ marginTop: -12, marginBottom: 16 }}>Enter a name, make or model.</div>}
       {error && <Banner color="red">{error}</Banner>}
       {!original && <Section><Row><span className="caption">Fluids, tires and pressures can be filled in from the truck's page after saving.</span></Row></Section>}

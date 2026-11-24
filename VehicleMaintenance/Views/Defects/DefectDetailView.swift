@@ -13,6 +13,7 @@ struct DefectDetailView: View {
     @State private var errorMessage: String?
     @State private var workingSheet = false
     @State private var workingNote = ""
+    @State private var editingWorkingNote = false
 
     var body: some View {
         Group {
@@ -57,6 +58,11 @@ struct DefectDetailView: View {
                             InProgressLabel(progress: progress)
                             Text("\(progress.byName), \(progress.since.formatted(date: .abbreviated, time: .shortened))")
                                 .font(.caption).foregroundStyle(Color.secondary)
+                            if fleet.isManager {
+                                Button("Edit Note") { editWorkingNote(defect) }
+                                    .font(.caption.weight(.semibold))
+                                    .buttonStyle(.borderless)
+                            }
                         }
                     }
                 }
@@ -106,34 +112,47 @@ struct DefectDetailView: View {
             NavigationStack {
                 Form {
                     Section {
+                        // Return adds a new line; the Submit button below saves.
                         TextField("Note (optional), e.g. Parts ordered, back Thursday", text: $workingNote, axis: .vertical)
-                            .lineLimit(2...5)
+                            .lineLimit(3...8)
                     } footer: {
                         Text("Everyone who can see this truck sees that it's being worked on, until it's closed.")
                     }
-                }
-                .navigationTitle("Being Worked On")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { workingSheet = false; workingNote = "" }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
+                    Section {
+                        Button {
                             do {
-                                try fleet.setInProgress(true, note: workingNote, on: defect, owner: owner)
+                                if editingWorkingNote {
+                                    fleet.setInProgressNote(workingNote, on: defect, owner: owner)
+                                } else {
+                                    try fleet.setInProgress(true, note: workingNote, on: defect, owner: owner)
+                                }
                                 errorMessage = nil
                             } catch {
                                 errorMessage = error.localizedDescription
                             }
                             workingSheet = false
                             workingNote = ""
+                        } label: {
+                            Text("Submit").fontWeight(.semibold).frame(maxWidth: .infinity)
                         }
                     }
                 }
+                .navigationTitle(editingWorkingNote ? "Edit Note" : "Being Worked On")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { workingSheet = false; workingNote = "" }
+                    }
+                }
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.medium, .large])
         }
+    }
+
+    private func editWorkingNote(_ defect: Defect) {
+        editingWorkingNote = true
+        workingNote = defect.inProgress?.note ?? ""
+        workingSheet = true
     }
 
     private var isEquipment: Bool {
@@ -218,10 +237,13 @@ struct DefectDetailView: View {
                         Label("Priority", systemImage: "flag")
                     }
                     if defect.inProgress == nil {
-                        Button { workingSheet = true } label: {
+                        Button { editingWorkingNote = false; workingNote = ""; workingSheet = true } label: {
                             Label("Mark Being Worked On", systemImage: "hammer")
                         }
                     } else {
+                        Button { editWorkingNote(defect) } label: {
+                            Label("Edit Being Worked On Note", systemImage: "pencil")
+                        }
                         Button {
                             try? fleet.setInProgress(false, note: "", on: defect, owner: owner)
                         } label: {
