@@ -4,7 +4,7 @@
 - **Bundle ID:** `com.generalkenobi.jabronijalopies`
 - **Company:** Tailgate Labs (tailgatelabshr@icloud.com)
 - **Devices:** iPhone and iPad
-- **Release:** App Store, submitted for review (unlisted for your crew first, public later)
+- **Release:** version 1.0 approved by Apple (Nov 2026); version 1.1 is next
 
 Decisions for you to check are in [DECISIONS.md](DECISIONS.md). Anything marked 🆕 there is waiting for you.
 
