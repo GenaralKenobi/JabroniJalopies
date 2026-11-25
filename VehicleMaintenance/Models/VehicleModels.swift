@@ -171,6 +171,8 @@ struct VehicleSummary: Codable, Hashable {
     /// Open (or reported fixed) defects, and how many of those are safety defects.
     var openDefects: Int?
     var unsafeDefects: Int?
+    /// How many open defects are "fix whenever" ones, which don't flag the truck.
+    var minorDefects: Int?
     /// Driver-logged services waiting for a manager.
     var pendingServices: Int?
     /// The earliest maintenance reminder due date and lowest due odometer.

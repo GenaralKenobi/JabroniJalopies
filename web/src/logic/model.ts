@@ -69,6 +69,8 @@ export interface VehicleSummary {
   lastChecklistBy?: string;
   openDefects?: number;
   unsafeDefects?: number;
+  /** How many open defects are "fix whenever" ones, which don't flag the truck. */
+  minorDefects?: number;
   pendingServices?: number;
   nextDueDate?: Date;
   nextDueOdometer?: number;
@@ -366,6 +368,9 @@ export function defectTag(d: Pick<Defect, 'unsafe' | 'priority'>): DefectPriorit
   if (d.unsafe) return 'unsafe';
   return d.priority === 'immediately' || d.priority === 'soon' || d.priority === 'whenever' ? d.priority : undefined;
 }
+
+/** "Fix whenever" (and not unsafe): doesn't flag the truck as needing attention. */
+export const isMinorDefect = (d: Pick<Defect, 'unsafe' | 'priority'>) => defectTag(d) === 'whenever';
 
 /** For sorting: unsafe, fix immediately, fix soon, untagged, fix whenever. */
 export function urgencyRank(d: Pick<Defect, 'unsafe' | 'priority'>): number {

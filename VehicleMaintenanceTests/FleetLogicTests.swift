@@ -569,6 +569,25 @@ struct VehicleSummaryTests {
         #expect(VehicleSummaries.condition(nil) == .ok)
         #expect(VehicleSummaries.condition(VehicleSummary(openDefects: 2, unsafeDefects: 0)) == .needsAttention)
         #expect(VehicleSummaries.condition(VehicleSummary(openDefects: 2, unsafeDefects: 1)) == .outOfService)
+        // Only "fix whenever" problems: no flag.
+        #expect(VehicleSummaries.condition(VehicleSummary(openDefects: 2, unsafeDefects: 0, minorDefects: 2)) == .ok)
+        #expect(VehicleSummaries.condition(VehicleSummary(openDefects: 2, unsafeDefects: 0, minorDefects: 1)) == .needsAttention)
+    }
+
+    @Test func fixWheneverProblemsDontFlagTheTruck() {
+        var whenever = openDefect(item: horn)
+        whenever.priority = DefectPriority.whenever.rawValue
+        #expect(whenever.isMinor)
+        #expect(VehicleCondition(openDefects: [whenever]) == .ok)
+        #expect(VehicleCondition(openDefects: [whenever, openDefect(item: lights)]) == .needsAttention)
+        var unsafeWhenever = whenever
+        unsafeWhenever.unsafe = true
+        #expect(!unsafeWhenever.isMinor)
+        #expect(VehicleCondition(openDefects: [unsafeWhenever]) == .outOfService)
+        let changes = VehicleSummaries.defectChanges([whenever], openDefects: 1, unsafeDefects: 0, countMinor: true, minorDefects: nil)
+        #expect(changes["summary.minorDefects"] as? Int == 1)
+        #expect(VehicleSummaries.defectChanges([whenever], openDefects: 1, unsafeDefects: 0, countMinor: true, minorDefects: 1).isEmpty)
+        #expect(VehicleSummaries.defectChanges([whenever], openDefects: 1, unsafeDefects: 0).isEmpty)
     }
 
     @Test func onlyDriftedValuesAreRewritten() {

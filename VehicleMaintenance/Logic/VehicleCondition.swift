@@ -12,7 +12,8 @@ enum VehicleCondition: Int, Comparable {
         let open = openDefects.filter(\.isOpen)
         if open.contains(where: \.unsafe) {
             self = .outOfService
-        } else if !open.isEmpty {
+        } else if open.contains(where: { !$0.isMinor }) {
+            // Only "fix whenever" problems don't flag the truck.
             self = .needsAttention
         } else {
             self = .ok

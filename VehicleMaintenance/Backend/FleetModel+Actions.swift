@@ -412,6 +412,8 @@ extension FleetModel {
             fields[FieldPath(["summary", "openDefects"])] = FieldValue.increment(Int64(plan.newDefects.count))
             let unsafe = plan.newDefects.filter(\.defect.unsafe).count
             if unsafe > 0 { fields[FieldPath(["summary", "unsafeDefects"])] = FieldValue.increment(Int64(unsafe)) }
+            let minor = plan.newDefects.filter(\.defect.isMinor).count
+            if minor > 0 { fields[FieldPath(["summary", "minorDefects"])] = FieldValue.increment(Int64(minor)) }
         }
         for itemId in repeatingItemIds {
             fields[FieldPath(["checklistState", "lastDone", itemId])] = completedAt
@@ -475,7 +477,7 @@ extension FleetModel {
         let batch = FS.db.batch()
         try batch.setData(from: defect, forDocument: ref)
         commitInBackground(batch, "Reporting problem")
-        adjustSummary(of: owner, ["openDefects": 1, "unsafeDefects": unsafe ? 1 : 0])
+        adjustSummary(of: owner, ["openDefects": 1, "unsafeDefects": unsafe ? 1 : 0, "minorDefects": priority == .whenever ? 1 : 0])
         bumpRecordCount(1)
         for (photoId, data) in photos {
             PhotoUploadQueue.shared.enqueue(data: data, photoId: photoId, fleetId: fleetId,
@@ -524,7 +526,7 @@ extension FleetModel {
         ], forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Closing defect")
         if defect.isOpen {
-            adjustSummary(of: owner, ["openDefects": -1, "unsafeDefects": defect.unsafe ? -1 : 0])
+            adjustSummary(of: owner, ["openDefects": -1, "unsafeDefects": defect.unsafe ? -1 : 0, "minorDefects": defect.isMinor ? -1 : 0])
         }
     }
 
@@ -544,7 +546,7 @@ extension FleetModel {
         ], forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Reopening defect")
         if !defect.isOpen {
-            adjustSummary(of: owner, ["openDefects": 1, "unsafeDefects": defect.unsafe ? 1 : 0])
+            adjustSummary(of: owner, ["openDefects": 1, "unsafeDefects": defect.unsafe ? 1 : 0, "minorDefects": defect.isMinor ? 1 : 0])
         }
     }
 
@@ -557,8 +559,9 @@ extension FleetModel {
         batch.updateData(["priority": priority.rawValue, "unsafe": unsafe, "updatedAt": Date.now],
                          forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Changing priority")
-        if defect.isOpen, defect.unsafe != unsafe {
-            adjustSummary(of: owner, ["unsafeDefects": unsafe ? 1 : -1])
+        if defect.isOpen {
+            let minorChange = (priority == .whenever ? 1 : 0) - (defect.isMinor ? 1 : 0)
+            adjustSummary(of: owner, ["unsafeDefects": defect.unsafe != unsafe ? (unsafe ? 1 : -1) : 0, "minorDefects": minorChange])
         }
     }
 
@@ -592,7 +595,10 @@ extension FleetModel {
                          forDocument: owner.defects(fleetId: fleetId).document(defectId))
         commitInBackground(batch, "Updating defect")
         if defect.isOpen, defect.unsafe != unsafe {
-            adjustSummary(of: owner, ["unsafeDefects": unsafe ? 1 : -1])
+            var after = defect
+            after.unsafe = unsafe
+            adjustSummary(of: owner, ["unsafeDefects": unsafe ? 1 : -1,
+                                      "minorDefects": (after.isMinor ? 1 : 0) - (defect.isMinor ? 1 : 0)])
         }
     }
 

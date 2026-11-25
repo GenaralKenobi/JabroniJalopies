@@ -290,6 +290,9 @@ extension Defect {
 
     /// The tag to show. The unsafe flag always wins (it drives the "do not drive" warnings);
     /// older defects without a tag show none.
+    /// "Fix whenever" (and not unsafe): doesn't flag the truck as needing attention.
+    var isMinor: Bool { tag == .whenever }
+
     var tag: DefectPriority? {
         if unsafe { return .unsafe }
         guard let priority, let tag = DefectPriority(rawValue: priority), tag != .unsafe else { return nil }

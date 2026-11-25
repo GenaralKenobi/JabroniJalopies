@@ -6,10 +6,10 @@ import { docData } from './convert';
 import { P } from './paths';
 import { Observable, errors, noteLoadingProblem } from './store';
 import {
-  appliesTo, checklistStateOf, isOpen, urgencyRank, vehicleName, vehicleUnit,
+  appliesTo, checklistStateOf, isMinorDefect, isOpen, urgencyRank, vehicleName, vehicleUnit,
   type ChecklistItem, type ChecklistTemplate, type Defect, type DefectOwner, type DistanceUnit, type Equipment,
   type Fleet, type Invite, type LengthChange, type Member, type MemberContact, type Reminder, type ServiceRecord,
-  type Vehicle,
+  type Vehicle, type VehicleSummary,
 } from '../logic/model';
 import {
   isSkippedTooOften, periodicIsDue, reminderNextDate, reminderNextOdometer, scheduledEntry, scheduledSortDate,
@@ -253,6 +253,10 @@ export class FleetStore extends Observable {
     if (summary?.openDefects !== open.length) fields['summary.openDefects'] = open.length;
     const unsafe = open.filter((d) => d.unsafe).length;
     if (summary?.unsafeDefects !== unsafe) fields['summary.unsafeDefects'] = unsafe;
+    if (owner === 'vehicle') {
+      const minor = open.filter(isMinorDefect).length;
+      if ((summary as VehicleSummary | undefined)?.minorDefects !== minor) fields['summary.minorDefects'] = minor;
+    }
     this.reconcile(owner, id, fields);
   }
 

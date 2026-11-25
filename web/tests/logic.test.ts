@@ -234,3 +234,17 @@ describe('service contact', () => {
     expect(mapsHref('12 Main St, Springfield')).toBe('https://maps.apple.com/?q=12%20Main%20St%2C%20Springfield');
   });
 });
+
+describe('fix whenever problems', () => {
+  test("don't flag the truck", async () => {
+    const { conditionOf, conditionFromSummary } = await import('../src/logic/logic');
+    const base = { id: 'd', title: 'Scratch', details: '', status: 'open', reportedBy: 'a', reportedByName: 'A', reportedAt: new Date(), history: [] };
+    const whenever = { ...base, unsafe: false, priority: 'whenever' } as never;
+    const soon = { ...base, id: 'e', unsafe: false, priority: 'soon' } as never;
+    expect(conditionOf([whenever])).toBe('ok');
+    expect(conditionOf([whenever, soon])).toBe('attention');
+    expect(conditionOf([{ ...(whenever as object), unsafe: true } as never])).toBe('unsafe');
+    expect(conditionFromSummary({ openDefects: 2, unsafeDefects: 0, minorDefects: 2 })).toBe('ok');
+    expect(conditionFromSummary({ openDefects: 2, unsafeDefects: 0, minorDefects: 1 })).toBe('attention');
+  });
+});

@@ -26,7 +26,7 @@ enum VehicleSummaries {
 
     static func condition(_ summary: VehicleSummary?) -> VehicleCondition {
         if (summary?.unsafeDefects ?? 0) > 0 { return .outOfService }
-        if (summary?.openDefects ?? 0) > 0 { return .needsAttention }
+        if (summary?.openDefects ?? 0) - (summary?.minorDefects ?? 0) > 0 { return .needsAttention }
         return .ok
     }
 
@@ -48,12 +48,19 @@ enum VehicleSummaries {
     }
 
     /// Summary fields that differ from the loaded open defects.
-    static func defectChanges(_ defects: [Defect], openDefects: Int?, unsafeDefects: Int?, prefix: String = "summary") -> [String: Any] {
+    /// `countMinor` is for trucks, whose summaries also count "fix whenever" problems.
+    static func defectChanges(_ defects: [Defect], openDefects: Int?, unsafeDefects: Int?,
+                              countMinor: Bool = false, minorDefects: Int? = nil,
+                              prefix: String = "summary") -> [String: Any] {
         let open = defects.filter(\.isOpen)
         var fields: [String: Any] = [:]
         if openDefects != open.count { fields["\(prefix).openDefects"] = open.count }
         let unsafe = open.filter(\.unsafe).count
         if unsafeDefects != unsafe { fields["\(prefix).unsafeDefects"] = unsafe }
+        if countMinor {
+            let minor = open.filter(\.isMinor).count
+            if minorDefects != minor { fields["\(prefix).minorDefects"] = minor }
+        }
         return fields
     }
 
@@ -77,7 +84,8 @@ extension FleetModel {
     func reconcileDefectSummary(vehicleId: String, defects: [Defect]) {
         guard let vehicle = vehicle(vehicleId) else { return }
         writeSummary(VehicleSummaries.defectChanges(defects, openDefects: vehicle.summary?.openDefects,
-                                                    unsafeDefects: vehicle.summary?.unsafeDefects),
+                                                    unsafeDefects: vehicle.summary?.unsafeDefects,
+                                                    countMinor: true, minorDefects: vehicle.summary?.minorDefects),
                      to: FS.vehicle(fleetId, vehicleId))
     }
 

@@ -6,7 +6,7 @@ import {
   type ChecklistState, type ChecklistTemplate, type Defect, type DefectEvent, type DistanceUnit,
   type Inspection, type InspectionResult, type ItemFrequency, type Reminder, type TruckItem, type VehicleSummary,
   type DefectPriority,
-  frequencyLabel, isOpen,
+  frequencyLabel, isMinorDefect, isOpen,
 } from './model';
 
 // ---------- Dates (local time, like the phone's calendar) ----------
@@ -160,12 +160,13 @@ export const conditionLabel = (c: Condition) =>
 export function conditionOf(defects: Defect[]): Condition {
   const open = defects.filter(isOpen);
   if (open.some((d) => d.unsafe)) return 'unsafe';
-  return open.length ? 'attention' : 'ok';
+  // Only "fix whenever" problems don't flag the truck.
+  return open.some((d) => !isMinorDefect(d)) ? 'attention' : 'ok';
 }
 
 export function conditionFromSummary(summary?: VehicleSummary): Condition {
   if ((summary?.unsafeDefects ?? 0) > 0) return 'unsafe';
-  if ((summary?.openDefects ?? 0) > 0) return 'attention';
+  if ((summary?.openDefects ?? 0) - (summary?.minorDefects ?? 0) > 0) return 'attention';
   return 'ok';
 }
 

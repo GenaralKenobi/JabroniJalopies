@@ -15,7 +15,7 @@ import {
   type ScheduledDue,
 } from '../logic/logic';
 import {
-  isOpen, type ChainInventory, type ChainLogItem, type ChainLogKind, type ChainSize, type ChecklistTemplate,
+  isMinorDefect, isOpen, type ChainInventory, type ChainLogItem, type ChainLogKind, type ChainSize, type ChecklistTemplate,
   type Defect, type DefectEvent, type DefectEventType, type DefectOwner, type DefectPhoto, type DefectResolution,
   type DefectPriority,
   type Equipment, type Invite, type LengthChange, type Member, type Reminder, type Role, type ServiceRecord,
@@ -364,6 +364,8 @@ export function submitChecklist(s: FleetStore, plan: InspectionPlan, vehicle: Ve
     fieldsAndValues.push(new FieldPath('summary', 'openDefects'), increment(plan.newDefects.length));
     const unsafe = plan.newDefects.filter((d) => d.defect.unsafe).length;
     if (unsafe) fieldsAndValues.push(new FieldPath('summary', 'unsafeDefects'), increment(unsafe));
+    const minor = plan.newDefects.filter((d) => isMinorDefect(d.defect)).length;
+    if (minor) fieldsAndValues.push(new FieldPath('summary', 'minorDefects'), increment(minor));
   }
   for (const id of repeatingItemIds) {
     fieldsAndValues.push(new FieldPath('checklistState', 'lastDone', id), at, new FieldPath('checklistState', 'skips', id), 0);
@@ -403,7 +405,7 @@ export function reportDefect(s: FleetStore, owner: DefectOwner, title: string, d
     photos: Object.fromEntries(Object.keys(photos).map((id) => [id, pendingPhoto(s)])),
   };
   inBackground(writeBatch(fb().db).set(ref, { ...toFirestore(defect), receivedAt: serverTimestamp() }).commit(), 'Reporting problem');
-  adjustSummary(s, owner, { openDefects: 1, unsafeDefects: unsafe ? 1 : 0 });
+  adjustSummary(s, owner, { openDefects: 1, unsafeDefects: unsafe ? 1 : 0, minorDefects: priority === 'whenever' ? 1 : 0 });
   bumpRecordCount(s, 1);
   enqueuePhotos(s, Object.entries(photos).map(([photoId, blob]) => ({ photoId, blob, owner, defectId: ref.id })));
 }
@@ -425,7 +427,7 @@ export function closeDefect(s: FleetStore, owner: DefectOwner, defect: Defect, r
     status: 'closed', resolution, closedAt: now, closedBy: s.uid, closedByName: s.myName, expireAt: retentionExpiry(now),
     updatedAt: now, inProgress: deleteField(), history: arrayUnion(toFirestore(event)),
   }), 'Closing defect');
-  if (isOpen(defect)) adjustSummary(s, owner, { openDefects: -1, unsafeDefects: defect.unsafe ? -1 : 0 });
+  if (isOpen(defect)) adjustSummary(s, owner, { openDefects: -1, unsafeDefects: defect.unsafe ? -1 : 0, minorDefects: isMinorDefect(defect) ? -1 : 0 });
 }
 
 export function reopenDefect(s: FleetStore, owner: DefectOwner, defect: Defect, note: string) {
@@ -435,14 +437,19 @@ export function reopenDefect(s: FleetStore, owner: DefectOwner, defect: Defect, 
     status: 'open', resolution: deleteField(), closedAt: deleteField(), closedBy: deleteField(), closedByName: deleteField(),
     expireAt: deleteField(), updatedAt: new Date(), history: arrayUnion(toFirestore(event)),
   }), 'Reopening defect');
-  if (!isOpen(defect)) adjustSummary(s, owner, { openDefects: 1, unsafeDefects: defect.unsafe ? 1 : 0 });
+  if (!isOpen(defect)) adjustSummary(s, owner, { openDefects: 1, unsafeDefects: defect.unsafe ? 1 : 0, minorDefects: isMinorDefect(defect) ? 1 : 0 });
 }
 
 /** Managers change a problem's tag; moving to or from "unsafe" also sets the unsafe flag and the summary. */
 export function setDefectPriority(s: FleetStore, owner: DefectOwner, defect: Defect, priority: DefectPriority) {
   const unsafe = priority === 'unsafe';
   inBackground(updateDoc(doc(ownerDefects(s, owner), defect.id), { priority, unsafe, updatedAt: new Date() }), 'Changing priority');
-  if (isOpen(defect) && defect.unsafe !== unsafe) adjustSummary(s, owner, { unsafeDefects: unsafe ? 1 : -1 });
+  if (isOpen(defect)) {
+    adjustSummary(s, owner, {
+      unsafeDefects: defect.unsafe !== unsafe ? (unsafe ? 1 : -1) : 0,
+      minorDefects: (priority === 'whenever' ? 1 : 0) - (isMinorDefect(defect) ? 1 : 0),
+    });
+  }
 }
 
 /** Managers note that a problem is being worked on (or clear it). */
@@ -463,7 +470,10 @@ export function setDefectInProgressNote(s: FleetStore, owner: DefectOwner, defec
 
 export function setDefectUnsafe(s: FleetStore, owner: DefectOwner, defect: Defect, unsafe: boolean) {
   inBackground(updateDoc(doc(ownerDefects(s, owner), defect.id), { unsafe, updatedAt: new Date() }), 'Updating defect');
-  if (isOpen(defect) && defect.unsafe !== unsafe) adjustSummary(s, owner, { unsafeDefects: unsafe ? 1 : -1 });
+  if (isOpen(defect) && defect.unsafe !== unsafe) {
+    adjustSummary(s, owner, { unsafeDefects: unsafe ? 1 : -1,
+      minorDefects: (isMinorDefect({ ...defect, unsafe }) ? 1 : 0) - (isMinorDefect(defect) ? 1 : 0) });
+  }
 }
 
 export function addDefectPhotos(s: FleetStore, owner: DefectOwner, defect: Defect, photos: Record<string, Blob>) {
