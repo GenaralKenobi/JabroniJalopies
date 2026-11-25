@@ -130,7 +130,7 @@ struct ReminderFormView: View {
                     }
                 }
             }
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .navigationTitle(original == nil ? "New Reminder" : "Edit Reminder")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

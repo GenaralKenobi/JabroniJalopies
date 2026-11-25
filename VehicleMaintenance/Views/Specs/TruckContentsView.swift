@@ -335,7 +335,7 @@ struct TruckItemFormView: View {
             }
             .navigationTitle(isNew ? "Add Item" : "Edit Item")
             .navigationBarTitleDisplayMode(.inline)
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(isNew && addedCount > 0 ? "Done" : "Cancel") { dismiss() }

@@ -319,7 +319,7 @@ struct LengthReductionFormView: View {
                 }
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .navigationTitle("Length Reduction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -396,7 +396,7 @@ struct EquipmentFormView: View {
                 }
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .navigationTitle(original == nil ? "Add \(draft.type.displayName)" : "Edit \(draft.type.displayName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

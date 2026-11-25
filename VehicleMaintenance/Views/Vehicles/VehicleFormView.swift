@@ -130,7 +130,7 @@ struct VehicleFormView: View {
                     Text(errorMessage).foregroundStyle(.red)
                 }
             }
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .navigationTitle(original == nil ? "New Vehicle" : "Edit Vehicle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

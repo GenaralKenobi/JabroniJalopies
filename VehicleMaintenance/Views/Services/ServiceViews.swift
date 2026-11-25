@@ -126,7 +126,7 @@ struct ServiceRecordFormView: View {
                     }
                 }
             }
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .navigationTitle(original == nil ? "Log Service" : "Edit Service")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -222,7 +222,7 @@ struct ServiceReviewView: View {
                     }
                 }
             }
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .navigationTitle("Review Service")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

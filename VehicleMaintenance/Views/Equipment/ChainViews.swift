@@ -284,7 +284,7 @@ struct ChainSizesEditorView: View {
                 }
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .navigationTitle("Chain Sizes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

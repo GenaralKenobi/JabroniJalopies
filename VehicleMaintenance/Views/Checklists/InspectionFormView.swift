@@ -208,7 +208,7 @@ struct InspectionFormView: View {
             }
             .scrollDismissesKeyboard(.immediately)
             .sensoryFeedback(.success, trigger: bulkPassCount)
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .navigationTitle(checklist.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

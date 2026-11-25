@@ -401,7 +401,7 @@ struct ProfileEditView: View {
                     Text("This profile is only used in \(fleet.fleet?.name ?? "this fleet"). Your name is shown to the fleet; your phone number is only visible to its managers.")
                 }
             }
-            .keyboardDoneButton()
+            .dismissesKeyboardOnScroll()
             .navigationTitle("Your Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
