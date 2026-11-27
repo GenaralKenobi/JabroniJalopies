@@ -21,8 +21,9 @@ export function FleetPickerPage({ initial = false }: { initial?: boolean }) {
         <Section>
           <div className="pad">
             <div className="strong" style={{ fontSize: 20, marginBottom: 6 }}>Welcome!</div>
-            <p style={{ margin: '0 0 6px' }}><b>Managers:</b> create a fleet, then invite your drivers.</p>
-            <p style={{ margin: 0 }}><b>Drivers:</b> ask your manager to invite <b>{session.email}</b>. The invite will appear here.</p>
+            {session.canCreateFleets
+              ? <p style={{ margin: 0 }}>Create a fleet, then invite your drivers and managers.</p>
+              : <p style={{ margin: 0 }}>Ask your manager to invite <b>{session.email}</b>. The invite will appear here.</p>}
           </div>
         </Section>
       )}
@@ -48,9 +49,11 @@ export function FleetPickerPage({ initial = false }: { initial?: boolean }) {
           ))}
         </Section>
       )}
-      <Section>
-        <Row className="accent" icon="＋" onClick={() => setCreating(true)} chevron={false}>Create a New Fleet</Row>
-      </Section>
+      {session.canCreateFleets && (
+        <Section>
+          <Row className="accent" icon="＋" onClick={() => setCreating(true)} chevron={false}>Create a New Fleet</Row>
+        </Section>
+      )}
       {initial && (
         <Section footer={`Signed in as ${session.email}`}>
           <Row className="destructive" onClick={() => session.signOut()} chevron={false}>Sign Out</Row>

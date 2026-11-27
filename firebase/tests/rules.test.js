@@ -59,6 +59,8 @@ beforeEach(async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     const d = ctx.firestore();
     await setDoc(doc(d, `fleets/${FLEET}`), { name: 'Acme', createdBy: 'mia', usage: { photoBytes: 0 } });
+    // Accounts the owner has allowed to create fleets.
+    for (const uid of ['newbie', 'faker', 'leaky']) await setDoc(doc(d, `fleetCreators/${uid}`), { addedAt: new Date() });
     const member = (role, seesAll) => ({ role, seesAllVehicles: seesAll, displayName: role });
     await setDoc(doc(d, `fleets/${FLEET}/members/mia`), member('manager', true));
     await setDoc(doc(d, `fleets/${FLEET}/members/dan`), member('driver', true));
@@ -79,7 +81,31 @@ beforeEach(async () => {
 });
 
 describe('fleets and members', () => {
-  it('lets anyone create a fleet and become its manager in one batch', async () => {
+  it('only lets allowed accounts create fleets', async () => {
+    const d = db('olly', verified('olly@example.com'));
+    const batch = writeBatch(d);
+    batch.set(doc(d, 'fleets/f9'), { name: 'Mine', createdBy: 'olly' });
+    batch.set(doc(d, 'fleets/f9/members/olly'), { role: 'manager', seesAllVehicles: true, displayName: 'O' });
+    batch.set(doc(d, 'fleets/f9/contacts/olly'), { email: 'olly@example.com', phone: '' });
+    await assertFails(batch.commit());
+    // Managers of an existing fleet can't either.
+    const m = db('mia', verified('mia@example.com'));
+    const b2 = writeBatch(m);
+    b2.set(doc(m, 'fleets/f8'), { name: 'Second', createdBy: 'mia' });
+    b2.set(doc(m, 'fleets/f8/members/mia'), { role: 'manager', seesAllVehicles: true, displayName: 'M' });
+    b2.set(doc(m, 'fleets/f8/contacts/mia'), { email: 'mia@example.com', phone: '' });
+    await assertFails(b2.commit());
+  });
+
+  it('lets people check only their own fleet-creator status, and nobody add themselves', async () => {
+    await assertSucceeds(getDoc(doc(db('newbie'), 'fleetCreators/newbie')));
+    await assertSucceeds(getDoc(doc(db('olly'), 'fleetCreators/olly')));
+    await assertFails(getDoc(doc(db('olly'), 'fleetCreators/newbie')));
+    await assertFails(setDoc(doc(db('olly'), 'fleetCreators/olly'), { addedAt: new Date() }));
+    await assertFails(updateDoc(doc(db('newbie'), 'fleetCreators/newbie'), { addedAt: new Date() }));
+  });
+
+  it('lets an allowed account create a fleet and become its manager in one batch', async () => {
     const d = db('newbie', verified('newbie@example.com'));
     const batch = writeBatch(d);
     batch.set(doc(d, 'fleets/f2'), { name: 'New', createdBy: 'newbie' });

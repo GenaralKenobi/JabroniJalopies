@@ -12,6 +12,8 @@ final class SessionModel {
     private(set) var memberships: [Membership] = []
     private(set) var membershipsLoaded = false
     private(set) var invites: [Invite] = []
+    /// Only accounts the app's owner has allowed can create fleets; everyone else joins by invite.
+    private(set) var canCreateFleets = false
     private(set) var fleetModel: FleetModel?
 
     private var listeners: [ListenerRegistration] = []
@@ -36,6 +38,11 @@ final class SessionModel {
             .whereField("status", isEqualTo: InviteStatus.pending.rawValue)
         listeners.append(firestoreListen(inviteQuery) { [weak self] (items: [Invite], _) in
             self?.invites = items
+        })
+
+        listeners.append(FS.fleetCreator(uid).addSnapshotListener { [weak self] snapshot, _ in
+            let allowed = snapshot?.exists == true
+            Task { @MainActor in self?.canCreateFleets = allowed }
         })
     }
 

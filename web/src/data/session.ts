@@ -24,6 +24,8 @@ class Session extends Observable {
   memberships: Membership[] = [];
   membershipsLoaded = false;
   invites: Invite[] = [];
+  /** Only accounts the app's owner has allowed can create fleets; everyone else joins by invite. */
+  canCreateFleets = false;
   fleet: FleetStore | undefined;
 
   private unsubscribes: Unsubscribe[] = [];
@@ -56,6 +58,7 @@ class Session extends Observable {
     this.memberships = [];
     this.membershipsLoaded = false;
     this.invites = [];
+    this.canCreateFleets = false;
     const user = this.user;
     if (!user || this.needsEmailVerification) return;
     // Right after signing in, the database can get its first request before it has the new
@@ -88,6 +91,10 @@ class Session extends Observable {
       this.invites = snapshot.docs.map((d) => docData<Invite>(d));
       this.changed();
     }, () => { /* Invites need a confirmed email; nothing to show otherwise. */ }));
+    this.unsubscribes.push(onSnapshot(_doc(fb().db, 'fleetCreators', uid), (snapshot) => {
+      this.canCreateFleets = snapshot.exists();
+      this.changed();
+    }, () => { this.canCreateFleets = false; this.changed(); }));
   }
 
   private restoreSelection() {

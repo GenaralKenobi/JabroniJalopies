@@ -27,6 +27,10 @@ Decisions for you to check are in [DECISIONS.md](DECISIONS.md). Anything marked 
 
 ## 1. Things for you to do
 
+### Allow yourself to create fleets (2 minutes)
+
+- [ ] Only accounts on the fleet-creator list can create fleets now, and the list starts empty. GitHub → **Actions** → **Allow fleet creation** → **Run workflow**, enter **your own account's email**, choose **allow**. "Create a New Fleet" then appears in Fleets for you. (The email is hidden in the run's log.)
+
 ### Firebase and Google (about 10 minutes, if you haven't already)
 
 I can't see these settings, so if you've done them, tick them off and ignore them.
@@ -73,8 +77,7 @@ None of this is legal advice; these are the things worth getting a professional 
 
 ## 2. Open questions
 
-1. **Who can create a fleet:** right now anyone who downloads the app, creates an account and confirms their email can create a fleet (that's how a new company signs up). Tell me if you'd rather only approved accounts could, for now.
-2. **Pricing:** I suggested charging per vehicle per month with unlimited users, and invoicing the first few customers by hand. Tell me if you'd like me to plan the billing side.
+1. **Pricing:** I suggested charging per vehicle per month with unlimited users, and invoicing the first few customers by hand. Tell me if you'd like me to plan the billing side.
 
 ## 3. Not confirmed on a real phone yet
 

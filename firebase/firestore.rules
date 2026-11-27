@@ -167,10 +167,19 @@ service cloud.firestore {
 
     // ---------- fleets ----------
 
+    // Accounts allowed to create fleets. Only the app's owner adds to this list
+    // (GitHub → Actions → "Allow fleet creation", or the Firebase console); everyone
+    // else joins a fleet by invite. People can check whether they're on it.
+    match /fleetCreators/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
     match /fleets/{fleetId} {
       allow read: if isMember(fleetId);
 
       allow create: if signedIn()
+        && exists(/databases/$(database)/documents/fleetCreators/$(request.auth.uid))
         && request.resource.data.createdBy == request.auth.uid
         && existsAfter(memberPath(fleetId));
 

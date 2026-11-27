@@ -17,8 +17,11 @@ struct FleetPickerView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Welcome!").font(.title2.bold())
-                        Text("**Managers:** create a fleet, then invite your drivers.")
-                        Text("**Drivers:** ask your manager to invite **\(session.email)**. The invite will appear here.")
+                        if session.canCreateFleets {
+                            Text("Create a fleet, then invite your drivers and managers.")
+                        } else {
+                            Text("Ask your manager to invite **\(session.email)**. The invite will appear here.")
+                        }
                     }
                     .padding(.vertical, 4)
                 }
@@ -70,11 +73,13 @@ struct FleetPickerView: View {
                 }
             }
 
-            Section {
-                Button {
-                    showingCreate = true
-                } label: {
-                    Label("Create a New Fleet", systemImage: "plus.circle")
+            if session.canCreateFleets {
+                Section {
+                    Button {
+                        showingCreate = true
+                    } label: {
+                        Label("Create a New Fleet", systemImage: "plus.circle")
+                    }
                 }
             }
 

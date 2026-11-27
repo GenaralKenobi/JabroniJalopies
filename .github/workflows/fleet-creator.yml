@@ -1,0 +1,49 @@
+name: Allow fleet creation
+
+# Only accounts on the fleet-creator list can create fleets; everyone else joins by invite.
+# Run this with your own account's email to allow yourself (create the account first).
+# This repository is public, so the email is hidden from the run's log.
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "The account's email"
+        required: true
+      action:
+        description: "allow or remove"
+        required: true
+        default: allow
+        type: choice
+        options: [allow, remove]
+
+jobs:
+  fleet-creator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      CREATOR_EMAIL: ${{ inputs.email }}
+      CREATOR_ACTION: ${{ inputs.action }}
+    steps:
+      - name: Hide the email in logs
+        run: echo "::add-mask::$CREATOR_EMAIL"
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: firebase/functions/package-lock.json
+      - name: Install
+        run: npm ci --prefix firebase/functions
+      - name: Update the list
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/service-account.json"
+          cp firebase/scripts/fleet-creator.mjs firebase/functions/fleet-creator.mjs
+          cd firebase/functions
+          node fleet-creator.mjs
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/service-account.json"
