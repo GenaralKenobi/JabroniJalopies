@@ -169,12 +169,20 @@ extension PrintDocument {
         let items = checklist.items.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty }
         let entries = items.enumerated().map { index, item in
             Entry(title: "\(index + 1). \(item.title.trimmingCharacters(in: .whitespaces))",
-                  suffix: item.requiresReading ? "\(item.readingLabel.isEmpty ? "Reading" : item.readingLabel): ________" : nil,
+                  suffix: checklistSuffix(item),
                   bullets: item.detailLines)
         }
         return PrintDocument(title: checklist.name.isEmpty ? "Checklist" : checklist.name,
                              subtitle: nil, sections: [Section(heading: nil, entries: entries)],
                              columns: 1, entrySpacing: 36, largeUnderlinedTitle: true)
+    }
+
+    /// "(Weekly)" for repeating items, and a blank for items that record a number.
+    static func checklistSuffix(_ item: ChecklistItem) -> String? {
+        var parts: [String] = []
+        if let frequency = item.frequency { parts.append("(\(frequency.label))") }
+        if item.requiresReading { parts.append("\(item.readingLabel.isEmpty ? "Reading" : item.readingLabel): ________") }
+        return parts.isEmpty ? nil : parts.joined(separator: "   ")
     }
 
     /// What's on a truck, grouped by where it's kept; kits list what's inside them.

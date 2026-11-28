@@ -7,7 +7,8 @@ struct PrintTests {
     private func checklist() -> ChecklistTemplate {
         var mirrors = ChecklistItem.new("Mirrors")
         mirrors.details = ["Not cracked", "  ", "Adjusted correctly", "Clear to see through"]
-        return ChecklistTemplate(name: "Morning", items: [mirrors, .new("Lowest tire pressure", reading: "PSI"), .new("  ")],
+        return ChecklistTemplate(name: "Morning", items: [mirrors, .new("Lowest tire pressure", reading: "PSI"), .new("  "),
+                                                          .new("Grease fittings", frequency: .weekly)],
                                  vehicleIds: [])
     }
 
@@ -17,6 +18,7 @@ struct PrintTests {
         #expect(doc.sections.first?.entries == [
             PrintDocument.Entry(title: "1. Mirrors", suffix: nil, bullets: ["Not cracked", "Adjusted correctly", "Clear to see through"]),
             PrintDocument.Entry(title: "2. Lowest tire pressure", suffix: "PSI: ________", bullets: []),
+            PrintDocument.Entry(title: "3. Grease fittings", suffix: "(Weekly)", bullets: []),
         ])
     }
 

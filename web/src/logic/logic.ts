@@ -639,7 +639,9 @@ export interface PrintDoc { title: string; sections: PrintSection[]; columns?: 1
 export function printChecklist(checklist: Pick<ChecklistTemplate, 'name' | 'items'>): PrintDoc {
   const entries = checklist.items.filter((i) => i.title.trim()).map((i, n) => ({
     title: `${n + 1}. ${i.title.trim()}`,
-    suffix: i.requiresReading ? `${i.readingLabel.trim() || 'Reading'}: ________` : undefined,
+    // "(Weekly)" for repeating items, and a blank for items that record a number.
+    suffix: [i.frequency ? `(${frequencyLabel(i.frequency)})` : '', i.requiresReading ? `${i.readingLabel.trim() || 'Reading'}: ________` : '']
+      .filter(Boolean).join('   ') || undefined,
     bullets: detailLines(i),
   }));
   return { title: checklist.name.trim() || 'Checklist', sections: [{ entries }], largeUnderlinedTitle: true };
