@@ -22,8 +22,9 @@ struct PrintDocument {
     /// 1 for checklists; 2 for truck lists (entries flow down the left column, then the right).
     var columns: Int = 1
     /// Space after each entry, and extra space after each section (e.g. after everything in the cab).
-    /// Entries with bullet points get a third less, since their bullets already open up the page.
     var entrySpacing: CGFloat = 36
+    /// Space after entries that have bullet points (checklists use a third less; truck lists the same).
+    var bulletedEntrySpacing: CGFloat? = nil
     var sectionSpacing: CGFloat = 0
 
     // US Letter with three-quarter-inch margins.
@@ -119,7 +120,7 @@ struct PrintDocument {
                         Self.text("•", Self.bulletFont).draw(at: CGPoint(x: x + Self.bulletIndent, y: y))
                         draw(Self.text(bullet, Self.bulletFont), x: x + Self.bulletTextIndent, width: width - Self.bulletTextIndent)
                     }
-                    y += entry.bullets.isEmpty ? entrySpacing : (entrySpacing * 2 / 3).rounded()
+                    y += entry.bullets.isEmpty ? entrySpacing : (bulletedEntrySpacing ?? entrySpacing)
                 }
                 y += sectionSpacing
             }
@@ -163,7 +164,7 @@ extension PrintDocument {
         }
         return PrintDocument(title: checklist.name.isEmpty ? "Checklist" : checklist.name,
                              subtitle: nil, sections: [Section(heading: nil, entries: entries)],
-                             columns: 1, entrySpacing: 36)
+                             columns: 1, entrySpacing: 36, bulletedEntrySpacing: 24)
     }
 
     /// What's on a truck, grouped by where it's kept; kits list what's inside them.
