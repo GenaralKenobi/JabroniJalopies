@@ -201,7 +201,7 @@ input::placeholder, textarea::placeholder { color: var(--secondary); opacity: 0.
 /* Truck lists: two columns, tighter items, extra space after each location (e.g. after the cab). */
 .two-col .print-body { column-count: 2; column-gap: 28px; }
 .two-col .print-entry { margin-bottom: 12px; }
-.two-col .print-section { margin-bottom: 26px; }
+.two-col .print-section { margin-bottom: 44px; }
 .two-col .print-section:last-child { margin-bottom: 0; }
 .print-title { font-weight: 700; font-size: 15px; }
 .print-suffix { font-weight: 400; margin-left: 14px; }
