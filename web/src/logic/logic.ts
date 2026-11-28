@@ -632,7 +632,8 @@ export function formatBytes(bytes: number): string {
 
 export interface PrintEntry { title: string; suffix?: string; bullets: string[] }
 export interface PrintSection { heading?: string; entries: PrintEntry[] }
-export interface PrintDoc { title: string; sections: PrintSection[] }
+/** `columns`: 1 for checklists, 2 for truck lists. */
+export interface PrintDoc { title: string; sections: PrintSection[]; columns?: 1 | 2 }
 
 /** A checklist for printing: each item in bold, with what to check as bullet points (PrintDocument.swift). */
 export function printChecklist(checklist: Pick<ChecklistTemplate, 'name' | 'items'>): PrintDoc {
@@ -648,6 +649,7 @@ export function printChecklist(checklist: Pick<ChecklistTemplate, 'name' | 'item
 export function printContents(items: TruckItem[], truckName: string): PrintDoc {
   return {
     title: `${truckName}: What's on the Truck`,
+    columns: 2,
     sections: groupContents(items, '').map((group) => ({
       heading: group.title,
       entries: group.items.map((item) => ({

@@ -19,11 +19,16 @@ struct PrintDocument {
     var title: String
     var subtitle: String?
     var sections: [Section]
+    /// 1 for checklists; 2 for truck lists (entries flow down the left column, then the right).
+    var columns: Int = 1
+    /// Space after each entry, and extra space after each section (e.g. after everything in the cab).
+    var entrySpacing: CGFloat = 36
+    var sectionSpacing: CGFloat = 0
 
     // US Letter with three-quarter-inch margins.
     static let pageSize = CGSize(width: 612, height: 792)
     static let margin: CGFloat = 54
-    static let entrySpacing: CGFloat = 22
+    static let columnGap: CGFloat = 28
 
     private static let titleFont = UIFont.systemFont(ofSize: 22, weight: .bold)
     private static let subtitleFont = UIFont.systemFont(ofSize: 12)
@@ -35,21 +40,44 @@ struct PrintDocument {
     private static let bulletIndent: CGFloat = 18
     private static let bulletTextIndent: CGFloat = 32
 
+    /// The width of one column.
+    var columnWidth: CGFloat {
+        let full = Self.pageSize.width - Self.margin * 2
+        let count = CGFloat(max(1, columns))
+        return (full - Self.columnGap * (count - 1)) / count
+    }
+
     func pdfData() -> Data {
         let page = CGRect(origin: .zero, size: Self.pageSize)
         let margin = Self.margin
-        let width = page.width - margin * 2
+        let fullWidth = page.width - margin * 2
+        let width = columnWidth
         let bottom = page.height - margin
+        let columnCount = max(1, columns)
         var pageNumber = 0
+        var column = 0
+        var top = margin
         var y = margin
 
         return UIGraphicsPDFRenderer(bounds: page).pdfData { context in
+            var x: CGFloat { margin + CGFloat(column) * (width + Self.columnGap) }
             func newPage() {
                 context.beginPage()
                 pageNumber += 1
+                column = 0
+                top = margin
                 y = margin
                 let footer = Self.text("\(title) · Page \(pageNumber)", Self.footerFont, color: .gray)
                 footer.draw(at: CGPoint(x: margin, y: page.height - margin / 2 - 6))
+            }
+            /// The next column, or a new page after the last one.
+            func nextColumn() {
+                if column + 1 < columnCount {
+                    column += 1
+                    y = top
+                } else {
+                    newPage()
+                }
             }
             func draw(_ string: NSAttributedString, x: CGFloat, width: CGFloat) {
                 let h = Self.height(string, width)
@@ -59,35 +87,34 @@ struct PrintDocument {
             }
 
             newPage()
-            draw(Self.text(title, Self.titleFont), x: margin, width: width)
+            draw(Self.text(title, Self.titleFont), x: margin, width: fullWidth)
             if let subtitle, !subtitle.isEmpty {
                 y += 4
-                draw(Self.text(subtitle, Self.subtitleFont, color: .darkGray), x: margin, width: width)
+                draw(Self.text(subtitle, Self.subtitleFont, color: .darkGray), x: margin, width: fullWidth)
             }
-            y += 20
+            y += 24
+            top = y
 
             for section in sections {
                 for (index, entry) in section.entries.enumerated() {
                     var needed = Self.entryHeight(entry, width: width)
                     let heading = index == 0 ? section.heading.map { Self.text($0.uppercased(), Self.headingFont, color: .darkGray) } : nil
                     if let heading { needed += Self.height(heading, width) + 8 }
-                    // Start a new page rather than split an entry (unless it's taller than a page).
-                    if y + needed > bottom && y > margin { newPage() }
+                    // Move on rather than split an entry (unless it's taller than a whole column).
+                    if y + needed > bottom && y > top { nextColumn() }
                     if let heading {
-                        draw(heading, x: margin, width: width)
+                        draw(heading, x: x, width: width)
                         y += 8
                     }
-                    draw(Self.entryLine(entry), x: margin, width: width)
+                    draw(Self.entryLine(entry), x: x, width: width)
                     for bullet in entry.bullets {
                         y += 3
-                        let line = Self.text(bullet, Self.bulletFont)
-                        let top = y
-                        Self.text("•", Self.bulletFont).draw(at: CGPoint(x: margin + Self.bulletIndent, y: top))
-                        draw(line, x: margin + Self.bulletTextIndent, width: width - Self.bulletTextIndent)
+                        Self.text("•", Self.bulletFont).draw(at: CGPoint(x: x + Self.bulletIndent, y: y))
+                        draw(Self.text(bullet, Self.bulletFont), x: x + Self.bulletTextIndent, width: width - Self.bulletTextIndent)
                     }
-                    y += Self.entrySpacing
+                    y += entrySpacing
                 }
-                y += 6
+                y += sectionSpacing
             }
         }
     }
@@ -128,7 +155,8 @@ extension PrintDocument {
                   bullets: item.detailLines)
         }
         return PrintDocument(title: checklist.name.isEmpty ? "Checklist" : checklist.name,
-                             subtitle: nil, sections: [Section(heading: nil, entries: entries)])
+                             subtitle: nil, sections: [Section(heading: nil, entries: entries)],
+                             columns: 1, entrySpacing: 36)
     }
 
     /// What's on a truck, grouped by where it's kept; kits list what's inside them.
@@ -143,6 +171,7 @@ extension PrintDocument {
                 return Entry(title: item.name, suffix: item.quantity.map { "×\($0)" }, bullets: bullets)
             })
         }
-        return PrintDocument(title: "\(truckName): What's on the Truck", subtitle: nil, sections: sections)
+        return PrintDocument(title: "\(truckName): What's on the Truck", subtitle: nil, sections: sections,
+                             columns: 2, entrySpacing: 12, sectionSpacing: 26)
     }
 }

@@ -14,14 +14,15 @@ export function PrintView({ doc, onBack }: { doc: PrintDoc; onBack?: () => void 
     return () => clearTimeout(timer);
   }, []);
   return (
-    <div className="print-page">
+    <div className={`print-page ${doc.columns === 2 ? 'two-col' : ''}`}>
       <div className="print-toolbar">
         <button className="btn plain" onClick={() => (onBack ? onBack() : navigate(-1))}>‹ Back</button>
         <button className="btn small" onClick={() => window.print()}>🖨 Print</button>
       </div>
       <h1>{doc.title}</h1>
+      <div className="print-body">
       {doc.sections.map((section, s) => (
-        <section key={s}>
+        <section className="print-section" key={s}>
           {section.entries.map((entry, e) => (
             <div className="print-entry" key={e}>
               {e === 0 && section.heading && <div className="print-heading">{section.heading}</div>}
@@ -31,6 +32,7 @@ export function PrintView({ doc, onBack }: { doc: PrintDoc; onBack?: () => void 
           ))}
         </section>
       ))}
+      </div>
     </div>
   );
 }

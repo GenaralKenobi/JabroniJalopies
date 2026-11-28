@@ -54,4 +54,24 @@ struct PrintTests {
             #expect(titles == firsts && firsts == seconds)
         }
     }
+
+    @Test func truckListsUseTwoColumnsAndKeepEveryItem() throws {
+        let items: [TruckItem] = (1...60).map { n in
+            var item = TruckItem.new()
+            item.name = "Thing \(n)"
+            item.location = n <= 20 ? "Cab" : n <= 40 ? "Bed" : "Left side box"
+            return item
+        }
+        let doc = PrintDocument.contents(items, truckName: "Van 12")
+        #expect(doc.columns == 2)
+        #expect(doc.columnWidth < (PrintDocument.pageSize.width - PrintDocument.margin * 2) / 2)
+        let pdf = try #require(PDFDocument(data: doc.pdfData()))
+        let text = (0..<pdf.pageCount).compactMap { pdf.page(at: $0)?.string }.joined(separator: "\n")
+        for n in 1...60 { #expect(text.contains("Thing \(n)")) }
+        // Two columns fit 60 short items on fewer pages than one column would.
+        var single = doc
+        single.columns = 1
+        let singlePages = try #require(PDFDocument(data: single.pdfData())).pageCount
+        #expect(pdf.pageCount < singlePages)
+    }
 }
