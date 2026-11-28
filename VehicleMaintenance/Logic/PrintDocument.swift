@@ -178,6 +178,6 @@ extension PrintDocument {
             })
         }
         return PrintDocument(title: "\(truckName): What's on the Truck", subtitle: nil, sections: sections,
-                             columns: 2, entrySpacing: 12, sectionSpacing: 44)
+                             columns: 2, entrySpacing: 18, sectionSpacing: 44)
     }
 }

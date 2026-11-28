@@ -52,7 +52,7 @@ function EntryView({ entry }: { entry: PrintEntry }) {
 const PAGE_HEIGHT = 890; // 9.5 in, less a little so a full page never spills onto a blank one
 const COLUMN_WIDTH = 322; // (7 in − 28 px gap) / 2
 const HEADING_GAP = 8;
-const ENTRY_GAP = 12;
+const ENTRY_GAP = 18;
 const SECTION_GAP = 44;
 
 /**
