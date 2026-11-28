@@ -59,7 +59,7 @@ struct PrintTests {
         let items: [TruckItem] = (1...60).map { n in
             var item = TruckItem.new()
             item.name = "Thing \(n)"
-            item.location = n <= 20 ? "Cab" : n <= 40 ? "Bed" : "Left side box"
+            item.location = n <= 50 ? "Cab" : "Bed"  // 50 items in the cab run past a column
             return item
         }
         let doc = PrintDocument.contents(items, truckName: "Van 12")
@@ -68,6 +68,8 @@ struct PrintTests {
         let pdf = try #require(PDFDocument(data: doc.pdfData()))
         let text = (0..<pdf.pageCount).compactMap { pdf.page(at: $0)?.string }.joined(separator: "\n")
         for n in 1...60 { #expect(text.contains("Thing \(n)")) }
+        // A location that runs past a column says it continues.
+        #expect(text.contains("(CONT.)"))
         // Two columns fit 60 short items on fewer pages than one column would.
         var single = doc
         single.columns = 1

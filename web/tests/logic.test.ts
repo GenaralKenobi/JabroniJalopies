@@ -270,3 +270,25 @@ describe('printing', () => {
     expect(contents.sections[0].entries[0]).toEqual({ title: 'First aid kit', suffix: '×1', bullets: ['Gauze ×4', 'Note: Check monthly'] });
   });
 });
+
+describe('two-column print layout', () => {
+  test('continues a long section with (cont.) and never splits entries', async () => {
+    const { layoutPrintColumns } = await import('../src/logic/logic');
+    const entries = (n: number) => Array.from({ length: n }, (_, i) => ({ title: `T${i}`, bullets: [] }));
+    const doc = { title: 'Van', columns: 2 as const, sections: [{ heading: 'Cab', entries: entries(10) }, { heading: 'Bed', entries: entries(3) }] };
+    // Each entry 20 tall + 10 gap; a column holds 100.
+    const pages = layoutPrintColumns(doc, { pageHeight: 100, firstPageTop: 0, columns: 2,
+      heading: () => 10, entry: () => 20, headingGap: 0, entryGap: 10, sectionGap: 20 });
+    const flat = pages.flat();
+    expect(flat[0][0]).toEqual({ kind: 'heading', section: 0 });
+    expect(flat[1][0]).toEqual({ kind: 'cont', section: 0 });
+    expect(pages[0].length).toBe(2);
+    expect(pages.length).toBeGreaterThan(1);
+    const placed = flat.flat().filter((b) => b.kind === 'entry');
+    expect(placed.length).toBe(13);
+    // The Bed heading always sits right before its first entry.
+    const bedColumn = flat.find((c) => c.some((b) => b.kind === 'heading' && b.section === 1))!;
+    const i = bedColumn.findIndex((b) => b.kind === 'heading' && b.section === 1);
+    expect(bedColumn[i + 1]).toEqual({ kind: 'entry', section: 1, entry: 0 });
+  });
+});

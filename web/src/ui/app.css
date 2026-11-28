@@ -198,11 +198,16 @@ input::placeholder, textarea::placeholder { color: var(--secondary); opacity: 0.
 .print-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .print-heading { text-transform: uppercase; font-size: 12px; font-weight: 600; color: #444; margin: 8px 0 8px; letter-spacing: 0.04em; }
 .print-entry { break-inside: avoid; page-break-inside: avoid; margin: 0 0 36px; }
-/* Truck lists: two columns, tighter items, extra space after each location (e.g. after the cab). */
-.two-col .print-body { column-count: 2; column-gap: 28px; }
-.two-col .print-entry { margin-bottom: 12px; }
-.two-col .print-section { margin-bottom: 44px; }
-.two-col .print-section:last-child { margin-bottom: 0; }
+/* Truck lists: two measured columns per page (see ColumnPages); a location that carries on says "(cont.)". */
+.two-col .print-entry { margin: 0; }
+.two-col .print-heading { margin: 0 0 8px; }
+.print-measure { position: absolute; left: -10000px; top: 0; visibility: hidden; }
+.print-measure h1 { width: 672px; }
+.print-page h1.print-sheet-title { margin: 0; padding: 8px 0 24px; }
+.print-sheet { width: 672px; }
+.print-sheet + .print-sheet { margin-top: 48px; }
+.print-cols { display: flex; gap: 28px; align-items: flex-start; }
+.print-col { flex: none; }
 .print-title { font-weight: 700; font-size: 15px; }
 .print-suffix { font-weight: 400; margin-left: 14px; }
 .print-entry ul { margin: 4px 0 0; padding-left: 30px; font-size: 13px; }
@@ -212,6 +217,10 @@ input::placeholder, textarea::placeholder { color: var(--secondary); opacity: 0.
   html, body { background: #fff !important; }
   .print-toolbar, .tabbar { display: none !important; }
   .print-page { padding: 0; max-width: none; min-height: 0; }
+  .print-sheet { break-after: page; page-break-after: always; }
+  .print-sheet:last-child { break-after: auto; page-break-after: auto; }
+  .print-sheet + .print-sheet { margin-top: 0; }
+  .print-measure { display: none; }
   /* The app's own page padding and heights would otherwise add a blank page. */
   html, body, #root, .app { height: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; }
 }

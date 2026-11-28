@@ -98,10 +98,16 @@ struct PrintDocument {
             for section in sections {
                 for (index, entry) in section.entries.enumerated() {
                     var needed = Self.entryHeight(entry, width: width)
-                    let heading = index == 0 ? section.heading.map { Self.text($0.uppercased(), Self.headingFont, color: .darkGray) } : nil
+                    var heading = index == 0 ? section.heading.map { Self.text($0.uppercased(), Self.headingFont, color: .darkGray) } : nil
                     if let heading { needed += Self.height(heading, width) + 8 }
                     // Move on rather than split an entry (unless it's taller than a whole column).
-                    if y + needed > bottom && y > top { nextColumn() }
+                    // A section that carries on in the next column or page repeats its heading with "(cont.)".
+                    if y + needed > bottom && y > top {
+                        nextColumn()
+                        if heading == nil, let name = section.heading {
+                            heading = Self.text("\(name.uppercased()) (CONT.)", Self.headingFont, color: .darkGray)
+                        }
+                    }
                     if let heading {
                         draw(heading, x: x, width: width)
                         y += 8

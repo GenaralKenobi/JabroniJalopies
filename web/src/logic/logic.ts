@@ -663,3 +663,50 @@ export function printContents(items: TruckItem[], truckName: string): PrintDoc {
     })),
   };
 }
+
+/** One placed block in a printed column: a section heading (or its "cont." repeat), or an entry. */
+export type PrintBlock = { kind: 'heading' | 'cont'; section: number } | { kind: 'entry'; section: number; entry: number };
+
+/**
+ * Lays a document out into pages of columns (PrintDocument.swift does the same for the app):
+ * entries never split, a section's heading stays with its first entry, and a section that
+ * carries on in the next column or page repeats its heading with "(cont.)".
+ * Heights come from measuring the rendered blocks.
+ */
+export function layoutPrintColumns(doc: PrintDoc, h: {
+  pageHeight: number; firstPageTop: number; columns: number;
+  heading: (section: number) => number; entry: (section: number, entry: number) => number;
+  headingGap: number; entryGap: number; sectionGap: number;
+}): PrintBlock[][][] {
+  const pages: PrintBlock[][][] = [];
+  let column: PrintBlock[] = [];
+  let y = h.firstPageTop;
+  let top = h.firstPageTop;
+  const newPage = () => { pages.push([]); top = 0; };
+  const nextColumn = () => {
+    const page = pages[pages.length - 1];
+    if (page.length >= h.columns) newPage(); // the page's columns are full
+    column = [];
+    pages[pages.length - 1].push(column);
+    y = top;
+  };
+  pages.push([column]);
+  doc.sections.forEach((section, s) => {
+    section.entries.forEach((_, e) => {
+      let needed = h.entry(s, e);
+      const first = e === 0 && !!section.heading;
+      if (first) needed += h.heading(s) + h.headingGap;
+      let cont = false;
+      if (y + needed > h.pageHeight && y > top) {
+        nextColumn();
+        cont = !first && !!section.heading;
+      }
+      if (first) { column.push({ kind: 'heading', section: s }); y += h.heading(s) + h.headingGap; }
+      if (cont) { column.push({ kind: 'cont', section: s }); y += h.heading(s) + h.headingGap; }
+      column.push({ kind: 'entry', section: s, entry: e });
+      y += h.entry(s, e) + h.entryGap;
+    });
+    y += h.sectionGap;
+  });
+  return pages;
+}
