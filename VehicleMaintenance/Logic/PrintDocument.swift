@@ -22,6 +22,7 @@ struct PrintDocument {
     /// 1 for checklists; 2 for truck lists (entries flow down the left column, then the right).
     var columns: Int = 1
     /// Space after each entry, and extra space after each section (e.g. after everything in the cab).
+    /// Entries with bullet points get a third less, since their bullets already open up the page.
     var entrySpacing: CGFloat = 36
     var sectionSpacing: CGFloat = 0
 
@@ -118,7 +119,7 @@ struct PrintDocument {
                         Self.text("•", Self.bulletFont).draw(at: CGPoint(x: x + Self.bulletIndent, y: y))
                         draw(Self.text(bullet, Self.bulletFont), x: x + Self.bulletTextIndent, width: width - Self.bulletTextIndent)
                     }
-                    y += entrySpacing
+                    y += entry.bullets.isEmpty ? entrySpacing : (entrySpacing * 2 / 3).rounded()
                 }
                 y += sectionSpacing
             }

@@ -677,6 +677,8 @@ export function layoutPrintColumns(doc: PrintDoc, h: {
   pageHeight: number; firstPageTop: number; columns: number;
   heading: (section: number) => number; entry: (section: number, entry: number) => number;
   headingGap: number; entryGap: number; sectionGap: number;
+  /** Space after entries that have bullet points (defaults to entryGap). */
+  bulletedEntryGap?: number;
 }): PrintBlock[][][] {
   const pages: PrintBlock[][][] = [];
   let column: PrintBlock[] = [];
@@ -704,7 +706,7 @@ export function layoutPrintColumns(doc: PrintDoc, h: {
       if (first) { column.push({ kind: 'heading', section: s }); y += h.heading(s) + h.headingGap; }
       if (cont) { column.push({ kind: 'cont', section: s }); y += h.heading(s) + h.headingGap; }
       column.push({ kind: 'entry', section: s, entry: e });
-      y += h.entry(s, e) + h.entryGap;
+      y += h.entry(s, e) + (section.entries[e].bullets.length ? h.bulletedEntryGap ?? h.entryGap : h.entryGap);
     });
     y += h.sectionGap;
   });

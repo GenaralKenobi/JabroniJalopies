@@ -25,7 +25,7 @@ export function PrintView({ doc, onBack }: { doc: PrintDoc; onBack?: () => void 
       {doc.sections.map((section, s) => (
         <section className="print-section" key={s}>
           {section.entries.map((entry, e) => (
-            <div className="print-entry" key={e}>
+            <div className={`print-entry ${entry.bullets.length ? 'has-bullets' : ''}`} key={e}>
               {e === 0 && section.heading && <div className="print-heading">{section.heading}</div>}
               <div className="print-title">{entry.title}{entry.suffix && <span className="print-suffix">{entry.suffix}</span>}</div>
               {entry.bullets.length > 0 && <ul>{entry.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>}
@@ -53,6 +53,7 @@ const PAGE_HEIGHT = 890; // 9.5 in, less a little so a full page never spills on
 const COLUMN_WIDTH = 322; // (7 in − 28 px gap) / 2
 const HEADING_GAP = 8;
 const ENTRY_GAP = 18;
+const BULLETED_ENTRY_GAP = 12; // a third less after items with bullet points
 const SECTION_GAP = 44;
 
 /**
@@ -69,13 +70,16 @@ function ColumnPages({ doc }: { doc: PrintDoc }) {
     setPages(layoutPrintColumns(doc, {
       pageHeight: PAGE_HEIGHT, firstPageTop: height('[data-m="title"]'), columns: 2,
       heading: (s) => height(`[data-m="h-${s}"]`), entry: (s, e) => height(`[data-m="e-${s}-${e}"]`),
-      headingGap: HEADING_GAP, entryGap: ENTRY_GAP, sectionGap: SECTION_GAP,
+      headingGap: HEADING_GAP, entryGap: ENTRY_GAP, sectionGap: SECTION_GAP, bulletedEntryGap: BULLETED_ENTRY_GAP,
     }));
   }, [doc]);
 
   const block = (b: PrintBlock, i: number) => {
     const section = doc.sections[b.section];
-    if (b.kind === 'entry') return <div key={i} style={{ marginBottom: ENTRY_GAP }}><EntryView entry={section.entries[b.entry]} /></div>;
+    if (b.kind === 'entry') {
+      const entry = section.entries[b.entry];
+      return <div key={i} style={{ marginBottom: entry.bullets.length ? BULLETED_ENTRY_GAP : ENTRY_GAP }}><EntryView entry={entry} /></div>;
+    }
     return <div key={i} className="print-heading">{section.heading}{b.kind === 'cont' ? ' (cont.)' : ''}</div>;
   };
   // Extra space after a section ends inside a column.
