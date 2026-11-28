@@ -26,6 +26,8 @@ struct PrintDocument {
     /// Space after entries that have bullet points (truck lists use a third less; checklists the same).
     var bulletedEntrySpacing: CGFloat? = nil
     var sectionSpacing: CGFloat = 0
+    /// Checklists use a larger, underlined title.
+    var largeUnderlinedTitle = false
 
     // US Letter with three-quarter-inch margins.
     static let pageSize = CGSize(width: 612, height: 792)
@@ -89,7 +91,14 @@ struct PrintDocument {
             }
 
             newPage()
-            draw(Self.text(title, Self.titleFont), x: margin, width: fullWidth)
+            if largeUnderlinedTitle {
+                draw(NSAttributedString(string: title, attributes: [
+                    .font: UIFont.systemFont(ofSize: 30, weight: .bold), .foregroundColor: UIColor.black,
+                    .underlineStyle: NSUnderlineStyle.single.rawValue,
+                ]), x: margin, width: fullWidth)
+            } else {
+                draw(Self.text(title, Self.titleFont), x: margin, width: fullWidth)
+            }
             if let subtitle, !subtitle.isEmpty {
                 y += 4
                 draw(Self.text(subtitle, Self.subtitleFont, color: .darkGray), x: margin, width: fullWidth)
@@ -164,7 +173,7 @@ extension PrintDocument {
         }
         return PrintDocument(title: checklist.name.isEmpty ? "Checklist" : checklist.name,
                              subtitle: nil, sections: [Section(heading: nil, entries: entries)],
-                             columns: 1, entrySpacing: 36)
+                             columns: 1, entrySpacing: 36, largeUnderlinedTitle: true)
     }
 
     /// What's on a truck, grouped by where it's kept; kits list what's inside them.

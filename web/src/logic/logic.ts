@@ -633,7 +633,7 @@ export function formatBytes(bytes: number): string {
 export interface PrintEntry { title: string; suffix?: string; bullets: string[] }
 export interface PrintSection { heading?: string; entries: PrintEntry[] }
 /** `columns`: 1 for checklists, 2 for truck lists. */
-export interface PrintDoc { title: string; sections: PrintSection[]; columns?: 1 | 2 }
+export interface PrintDoc { title: string; sections: PrintSection[]; columns?: 1 | 2; largeUnderlinedTitle?: boolean }
 
 /** A checklist for printing: each item in bold, with what to check as bullet points (PrintDocument.swift). */
 export function printChecklist(checklist: Pick<ChecklistTemplate, 'name' | 'items'>): PrintDoc {
@@ -642,7 +642,7 @@ export function printChecklist(checklist: Pick<ChecklistTemplate, 'name' | 'item
     suffix: i.requiresReading ? `${i.readingLabel.trim() || 'Reading'}: ________` : undefined,
     bullets: detailLines(i),
   }));
-  return { title: checklist.name.trim() || 'Checklist', sections: [{ entries }] };
+  return { title: checklist.name.trim() || 'Checklist', sections: [{ entries }], largeUnderlinedTitle: true };
 }
 
 /** What's on a truck for printing, grouped by where it's kept; kits list what's inside. */

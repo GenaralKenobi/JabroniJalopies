@@ -20,7 +20,7 @@ export function PrintView({ doc, onBack }: { doc: PrintDoc; onBack?: () => void 
         <button className="btn small" onClick={() => window.print()}>🖨 Print</button>
       </div>
       {doc.columns === 2 ? <ColumnPages doc={doc} /> : <>
-      <h1>{doc.title}</h1>
+      <h1 className={doc.largeUnderlinedTitle ? 'print-title-large' : undefined}>{doc.title}</h1>
       <div className="print-body">
       {doc.sections.map((section, s) => (
         <section className="print-section" key={s}>
