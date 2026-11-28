@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Empty, Page, useFleet, useSafeNavigate } from '../ui/kit';
 import { useContents } from '../data/records';
@@ -25,7 +25,7 @@ export function PrintView({ doc, onBack }: { doc: PrintDoc; onBack?: () => void 
       {doc.sections.map((section, s) => (
         <section className="print-section" key={s}>
           {section.entries.map((entry, e) => (
-            <div className={`print-entry ${entry.bullets.length ? 'has-bullets' : ''}`} key={e}>
+            <div className="print-entry" key={e}>
               {e === 0 && section.heading && <div className="print-heading">{section.heading}</div>}
               <div className="print-title">{entry.title}{entry.suffix && <span className="print-suffix">{entry.suffix}</span>}</div>
               {entry.bullets.length > 0 && <ul>{entry.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>}
@@ -52,7 +52,8 @@ function EntryView({ entry }: { entry: PrintEntry }) {
 const PAGE_HEIGHT = 890; // 9.5 in, less a little so a full page never spills onto a blank one
 const COLUMN_WIDTH = 322; // (7 in − 28 px gap) / 2
 const HEADING_GAP = 8;
-const ENTRY_GAP = 18; // the same after every item on truck lists
+const ENTRY_GAP = 18;
+const BULLETED_ENTRY_GAP = 12; // a third less after items with notes or kit contents
 const SECTION_GAP = 44;
 
 /**
@@ -64,12 +65,14 @@ function ColumnPages({ doc }: { doc: PrintDoc }) {
   const [pages, setPages] = useState<PrintBlock[][][]>();
   useLayoutEffect(() => {
     const root = measure.current;
-    if (!root) return;
+    // Measure only on screen: while printing, the measuring copy is hidden and has no size,
+    // so keep the layout worked out before.
+    if (!root || window.matchMedia('print').matches || !root.offsetHeight) return;
     const height = (selector: string) => (root.querySelector(selector) as HTMLElement | null)?.offsetHeight ?? 0;
     setPages(layoutPrintColumns(doc, {
       pageHeight: PAGE_HEIGHT, firstPageTop: height('[data-m="title"]'), columns: 2,
       heading: (s) => height(`[data-m="h-${s}"]`), entry: (s, e) => height(`[data-m="e-${s}-${e}"]`),
-      headingGap: HEADING_GAP, entryGap: ENTRY_GAP, sectionGap: SECTION_GAP,
+      headingGap: HEADING_GAP, entryGap: ENTRY_GAP, sectionGap: SECTION_GAP, bulletedEntryGap: BULLETED_ENTRY_GAP,
     }));
   }, [doc]);
 
@@ -77,7 +80,7 @@ function ColumnPages({ doc }: { doc: PrintDoc }) {
     const section = doc.sections[b.section];
     if (b.kind === 'entry') {
       const entry = section.entries[b.entry];
-      return <div key={i} style={{ marginBottom: ENTRY_GAP }}><EntryView entry={entry} /></div>;
+      return <div key={i} style={{ marginBottom: entry.bullets.length ? BULLETED_ENTRY_GAP : ENTRY_GAP }}><EntryView entry={entry} /></div>;
     }
     return <div key={i} className="print-heading">{section.heading}{b.kind === 'cont' ? ' (cont.)' : ''}</div>;
   };
@@ -126,7 +129,10 @@ export function PrintContentsPage() {
   const fleet = useFleet();
   const vehicle = fleet.vehicle(vehicleId);
   const contents = useContents(fleet.fleetId, vehicleId);
+  const name = vehicle ? vehicleName(vehicle) : '';
+  // The same document object across re-renders, so the page isn't laid out again needlessly.
+  const doc = useMemo(() => (vehicle ? printContents(contents.items, name) : undefined), [contents.items, name, vehicle]);
   if (!vehicle) return <Page back title="Print"><Empty title="Vehicle not found" /></Page>;
   if (!contents.loaded) return <Page back title="Print">{null}</Page>;
-  return <PrintView doc={printContents(contents.items, vehicleName(vehicle))} />;
+  return <PrintView doc={doc!} />;
 }

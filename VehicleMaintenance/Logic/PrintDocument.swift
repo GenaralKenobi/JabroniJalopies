@@ -23,7 +23,7 @@ struct PrintDocument {
     var columns: Int = 1
     /// Space after each entry, and extra space after each section (e.g. after everything in the cab).
     var entrySpacing: CGFloat = 36
-    /// Space after entries that have bullet points (checklists use a third less; truck lists the same).
+    /// Space after entries that have bullet points (truck lists use a third less; checklists the same).
     var bulletedEntrySpacing: CGFloat? = nil
     var sectionSpacing: CGFloat = 0
 
@@ -164,7 +164,7 @@ extension PrintDocument {
         }
         return PrintDocument(title: checklist.name.isEmpty ? "Checklist" : checklist.name,
                              subtitle: nil, sections: [Section(heading: nil, entries: entries)],
-                             columns: 1, entrySpacing: 36, bulletedEntrySpacing: 24)
+                             columns: 1, entrySpacing: 36)
     }
 
     /// What's on a truck, grouped by where it's kept; kits list what's inside them.
@@ -180,6 +180,6 @@ extension PrintDocument {
             })
         }
         return PrintDocument(title: "\(truckName): What's on the Truck", subtitle: nil, sections: sections,
-                             columns: 2, entrySpacing: 18, sectionSpacing: 44)
+                             columns: 2, entrySpacing: 18, bulletedEntrySpacing: 12, sectionSpacing: 44)
     }
 }

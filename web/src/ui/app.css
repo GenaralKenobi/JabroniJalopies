@@ -198,7 +198,6 @@ input::placeholder, textarea::placeholder { color: var(--secondary); opacity: 0.
 .print-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .print-heading { text-transform: uppercase; font-size: 12px; font-weight: 600; color: #444; margin: 8px 0 8px; letter-spacing: 0.04em; }
 .print-entry { break-inside: avoid; page-break-inside: avoid; margin: 0 0 36px; }
-.print-entry.has-bullets { margin-bottom: 24px; } /* a third less: the bullets already open up the page */
 /* Truck lists: two measured columns per page (see ColumnPages); a location that carries on says "(cont.)". */
 .two-col .print-entry { margin: 0; }
 .two-col .print-heading { margin: 0 0 8px; }
