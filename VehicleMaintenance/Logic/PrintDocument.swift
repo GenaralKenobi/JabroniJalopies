@@ -166,8 +166,9 @@ struct PrintDocument {
 extension PrintDocument {
     /// A checklist: each item in bold, with what to check as bullet points.
     static func checklist(_ checklist: ChecklistTemplate) -> PrintDocument {
-        let entries = checklist.items.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty }.map { item in
-            Entry(title: item.title.trimmingCharacters(in: .whitespaces),
+        let items = checklist.items.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty }
+        let entries = items.enumerated().map { index, item in
+            Entry(title: "\(index + 1). \(item.title.trimmingCharacters(in: .whitespaces))",
                   suffix: item.requiresReading ? "\(item.readingLabel.isEmpty ? "Reading" : item.readingLabel): ________" : nil,
                   bullets: item.detailLines)
         }

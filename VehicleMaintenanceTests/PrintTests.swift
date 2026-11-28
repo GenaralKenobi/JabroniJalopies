@@ -15,8 +15,8 @@ struct PrintTests {
         let doc = PrintDocument.checklist(checklist())
         #expect(doc.title == "Morning")
         #expect(doc.sections.first?.entries == [
-            PrintDocument.Entry(title: "Mirrors", suffix: nil, bullets: ["Not cracked", "Adjusted correctly", "Clear to see through"]),
-            PrintDocument.Entry(title: "Lowest tire pressure", suffix: "PSI: ________", bullets: []),
+            PrintDocument.Entry(title: "1. Mirrors", suffix: nil, bullets: ["Not cracked", "Adjusted correctly", "Clear to see through"]),
+            PrintDocument.Entry(title: "2. Lowest tire pressure", suffix: "PSI: ________", bullets: []),
         ])
     }
 
@@ -36,7 +36,7 @@ struct PrintTests {
     @Test func longChecklistsMakeMultiplePagesWithEveryItem() throws {
         var template = checklist()
         template.items = (1...45).map { n in
-            var item = ChecklistItem.new("Item \(n)")
+            var item = ChecklistItem.new("Step \(n)")
             item.details = ["First thing to check", "Second thing to check"]
             return item
         }
@@ -44,11 +44,11 @@ struct PrintTests {
         let pdf = try #require(PDFDocument(data: data))
         #expect(pdf.pageCount > 1)
         let text = (0..<pdf.pageCount).compactMap { pdf.page(at: $0)?.string }.joined(separator: "\n")
-        for n in [1, 23, 45] { #expect(text.contains("Item \(n)")) }
+        for n in [1, 23, 45] { #expect(text.contains("\(n). Step \(n)")) }
         // An item and its details always land on the same page.
         for index in 0..<pdf.pageCount {
             let page = pdf.page(at: index)?.string ?? ""
-            let titles = page.components(separatedBy: "\n").filter { $0.hasPrefix("Item ") }.count
+            let titles = page.components(separatedBy: "Step ").count - 1
             let firsts = page.components(separatedBy: "First thing to check").count - 1
             let seconds = page.components(separatedBy: "Second thing to check").count - 1
             #expect(titles == firsts && firsts == seconds)

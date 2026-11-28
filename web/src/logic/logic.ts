@@ -637,8 +637,8 @@ export interface PrintDoc { title: string; sections: PrintSection[]; columns?: 1
 
 /** A checklist for printing: each item in bold, with what to check as bullet points (PrintDocument.swift). */
 export function printChecklist(checklist: Pick<ChecklistTemplate, 'name' | 'items'>): PrintDoc {
-  const entries = checklist.items.filter((i) => i.title.trim()).map((i) => ({
-    title: i.title.trim(),
+  const entries = checklist.items.filter((i) => i.title.trim()).map((i, n) => ({
+    title: `${n + 1}. ${i.title.trim()}`,
     suffix: i.requiresReading ? `${i.readingLabel.trim() || 'Reading'}: ________` : undefined,
     bullets: detailLines(i),
   }));

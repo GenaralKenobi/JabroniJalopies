@@ -259,8 +259,8 @@ describe('printing', () => {
     ] });
     expect(doc.title).toBe('Morning');
     expect(doc.sections[0].entries).toEqual([
-      { title: 'Mirrors', suffix: undefined, bullets: ['Not cracked', 'Adjusted correctly'] },
-      { title: 'Lowest tire pressure', suffix: 'PSI: ________', bullets: [] },
+      { title: '1. Mirrors', suffix: undefined, bullets: ['Not cracked', 'Adjusted correctly'] },
+      { title: '2. Lowest tire pressure', suffix: 'PSI: ________', bullets: [] },
     ]);
     const contents = printContents([
       { id: 'a', name: 'First aid kit', location: 'Cab', notes: 'Check monthly', quantity: 1, parts: [{ id: 'p', name: 'Gauze', quantity: 4 }] },
