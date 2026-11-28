@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Empty, Page, Section, useFleet } from '../ui/kit';
+import { Link, useParams } from 'react-router-dom';
+import { Empty, Page, Section, useFleet, useSafeNavigate } from '../ui/kit';
 import { updateSpecs } from '../data/actions';
 import { filledSpecs, uuid } from '../logic/defaults';
 import { vehicleName, type SpecSection } from '../logic/model';
@@ -37,7 +37,7 @@ export function SpecsPage() {
 export function SpecsEditPage() {
   const { vehicleId = '' } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const vehicle = fleet.vehicle(vehicleId);
   const [sections, setSections] = useState<SpecSection[]>(() => structuredClone(vehicle?.specSections ?? []));
   if (!vehicle) return <Page back title="Specs"><Empty title="Vehicle not found" /></Page>;

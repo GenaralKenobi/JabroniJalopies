@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Empty, Field, Page, Row, Section, ToggleRow, confirmAction, fromDateInput, toDateInput, useFleet } from '../ui/kit';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Empty, Field, Page, Row, Section, ToggleRow, confirmAction, fromDateInput, toDateInput, useFleet, useSafeNavigate } from '../ui/kit';
 import { deleteChecklist, saveChecklist } from '../data/actions';
+import { PrintView } from './Print';
 import { commonItems, morningChecklist, newChecklistItem } from '../logic/defaults';
-import { ALERT_LEAD_DAYS, SKIP_LIMIT, addDays, alertMargin, checklistScheduleLabel, formatNumber, parseIntLenient } from '../logic/logic';
-import { vehicleName, type ChecklistItem, type ChecklistTemplate, type ItemFrequency } from '../logic/model';
+import { ALERT_LEAD_DAYS, SKIP_LIMIT, addDays, alertMargin, checklistScheduleLabel, formatNumber, parseIntLenient, printChecklist } from '../logic/logic';
+import { detailLines, vehicleName, type ChecklistItem, type ChecklistTemplate, type ItemFrequency } from '../logic/model';
 
 export function ChecklistsAdminPage() {
   const fleet = useFleet();
@@ -40,15 +41,17 @@ type RepeatChoice = 'every' | 'weekly' | 'monthly' | 'days';
 export function ChecklistEditorPage() {
   const { checklistId = 'new' } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const original = fleet.checklists.find((c) => c.id === checklistId);
   const [searchParams] = useSearchParams();
   const [draft, setDraft] = useState<Omit<ChecklistTemplate, 'id'>>(() => original ? structuredClone(original)
     : searchParams.get('template') === 'morning' ? morningChecklist()
     : { name: '', items: [newChecklistItem()], vehicleIds: [] });
+  const [printing, setPrinting] = useState(false);
   if (checklistId !== 'new' && !original) return <Page back title="Checklist"><Empty title="Checklist not found" /></Page>;
   if (!fleet.isManager) return <Page back title="Checklist"><Empty title="Managers only" /></Page>;
 
+  if (printing) return <PrintView doc={printChecklist(draft)} onBack={() => setPrinting(false)} />;
   const scheduled = draft.schedule != null || draft.readingInterval != null;
   const valid = draft.name.trim() && draft.items.length > 0 && draft.items.every((i) => i.title.trim())
     && (draft.readingInterval == null || draft.readingInterval > 0);
@@ -76,7 +79,7 @@ export function ChecklistEditorPage() {
     const cleaned: Omit<ChecklistTemplate, 'id'> & { id?: string } = {
       ...draft, id: original?.id, name: draft.name.trim(),
       items: draft.items.map((i) => ({ ...i, title: i.title.trim(), readingLabel: i.requiresReading ? i.readingLabel.trim() : '',
-        frequency: scheduled ? undefined : i.frequency })),
+        frequency: scheduled ? undefined : i.frequency, details: detailLines(i).length ? detailLines(i) : undefined })),
     };
     saveChecklist(fleet, cleaned);
     navigate(-1);
@@ -134,6 +137,17 @@ export function ChecklistEditorPage() {
                 <button className="btn plain" aria-label="Move down" disabled={index === draft.items.length - 1} onClick={() => move(index, 1)}>↓</button>
                 <button className="btn plain" style={{ color: 'var(--red)' }} aria-label="Delete item" onClick={() => set({ items: draft.items.filter((_, i) => i !== index) })}>✕</button>
               </Field>
+              {(item.details ?? []).map((detail, d) => (
+                <Field key={d}>
+                  <span className="muted" style={{ paddingLeft: 12 }}>•</span>
+                  <input placeholder="What to check (e.g. Not cracked)" value={detail} aria-label={`Item ${index + 1} detail ${d + 1}`}
+                    onChange={(e) => setItem(index, { details: (item.details ?? []).map((x, j) => (j === d ? e.target.value : x)) })} />
+                  <button className="btn plain" style={{ color: 'var(--red)' }} aria-label="Remove detail"
+                    onClick={() => setItem(index, { details: (item.details ?? []).filter((_, j) => j !== d) })}>✕</button>
+                </Field>
+              ))}
+              <button className="row link accent" style={{ paddingLeft: 28 }} onClick={() => setItem(index, { details: [...(item.details ?? []), ''] })}
+                aria-label={`Add detail to item ${index + 1}`}>＋ Add Detail</button>
               <ToggleRow label="Safety item" checked={item.unsafeIfFailed} onChange={(v) => setItem(index, { unsafeIfFailed: v })} />
               <ToggleRow label="Record a number" checked={item.requiresReading} onChange={(v) => setItem(index, { requiresReading: v })} />
               {item.requiresReading && <Field label="Unit"><input className="right" placeholder="e.g. PSI" value={item.readingLabel} onChange={(e) => setItem(index, { readingLabel: e.target.value })} /></Field>}
@@ -183,6 +197,13 @@ export function ChecklistEditorPage() {
               if (ids.length) set({ vehicleIds: ids });
             }} />
         ))}
+      </Section>
+
+      <Section footer="Each item prints in bold with its details as bullet points underneath. Items are never split across pages.">
+        <Row icon="🖨" chevron={false} disabled={!draft.items.some((i) => i.title.trim())}
+          onClick={() => setPrinting(true)}>
+          Print Checklist
+        </Row>
       </Section>
 
       {original && (

@@ -116,6 +116,11 @@ export function ContentsPage() {
           ))}
         </Section>
       )}
+      {contents.items.length > 0 && (
+        <Section footer="Grouped by where each item is kept; kits list what's inside them.">
+          <Row to={`/print/contents/${vehicleId}`} icon="🖨">Print List</Row>
+        </Section>
+      )}
       {fleet.isManager && (
         <Section header="Truck Lead" footer="The truck lead can also update this list. A driver who can't see every truck is given access to this one.">
           <Field label="Lead">

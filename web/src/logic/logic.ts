@@ -6,7 +6,7 @@ import {
   type ChecklistState, type ChecklistTemplate, type Defect, type DefectEvent, type DistanceUnit,
   type Inspection, type InspectionResult, type ItemFrequency, type Reminder, type TruckItem, type VehicleSummary,
   type DefectPriority,
-  frequencyLabel, isMinorDefect, isOpen,
+  detailLines, frequencyLabel, isMinorDefect, isOpen,
 } from './model';
 
 // ---------- Dates (local time, like the phone's calendar) ----------
@@ -626,4 +626,38 @@ export function formatBytes(bytes: number): string {
   let unit = -1;
   do { value /= 1000; unit++; } while (value >= 1000 && unit < units.length - 1);
   return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
+}
+
+// ---------- Printing ----------
+
+export interface PrintEntry { title: string; suffix?: string; bullets: string[] }
+export interface PrintSection { heading?: string; entries: PrintEntry[] }
+export interface PrintDoc { title: string; sections: PrintSection[] }
+
+/** A checklist for printing: each item in bold, with what to check as bullet points (PrintDocument.swift). */
+export function printChecklist(checklist: Pick<ChecklistTemplate, 'name' | 'items'>): PrintDoc {
+  const entries = checklist.items.filter((i) => i.title.trim()).map((i) => ({
+    title: i.title.trim(),
+    suffix: i.requiresReading ? `${i.readingLabel.trim() || 'Reading'}: ________` : undefined,
+    bullets: detailLines(i),
+  }));
+  return { title: checklist.name.trim() || 'Checklist', sections: [{ entries }] };
+}
+
+/** What's on a truck for printing, grouped by where it's kept; kits list what's inside. */
+export function printContents(items: TruckItem[], truckName: string): PrintDoc {
+  return {
+    title: `${truckName}: What's on the Truck`,
+    sections: groupContents(items, '').map((group) => ({
+      heading: group.title,
+      entries: group.items.map((item) => ({
+        title: item.name,
+        suffix: item.quantity != null ? `×${item.quantity}` : undefined,
+        bullets: [
+          ...(item.parts ?? []).filter((p) => p.name.trim()).map((p) => (p.quantity != null ? `${p.name} ×${p.quantity}` : p.name)),
+          ...(item.notes?.trim() ? [`Note: ${item.notes.trim()}`] : []),
+        ],
+      })),
+    })),
+  };
 }

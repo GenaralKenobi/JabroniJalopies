@@ -248,3 +248,25 @@ describe('fix whenever problems', () => {
     expect(conditionFromSummary({ openDefects: 2, unsafeDefects: 0, minorDefects: 1 })).toBe('attention');
   });
 });
+
+describe('printing', () => {
+  test('checklists print each item with its details as bullets', async () => {
+    const { printChecklist, printContents } = await import('../src/logic/logic');
+    const doc = printChecklist({ name: 'Morning', items: [
+      { id: '1', title: 'Mirrors', requiresReading: false, readingLabel: '', unsafeIfFailed: false, details: ['Not cracked', ' ', 'Adjusted correctly'] },
+      { id: '2', title: 'Lowest tire pressure', requiresReading: true, readingLabel: 'PSI', unsafeIfFailed: false },
+      { id: '3', title: '  ', requiresReading: false, readingLabel: '', unsafeIfFailed: false },
+    ] });
+    expect(doc.title).toBe('Morning');
+    expect(doc.sections[0].entries).toEqual([
+      { title: 'Mirrors', suffix: undefined, bullets: ['Not cracked', 'Adjusted correctly'] },
+      { title: 'Lowest tire pressure', suffix: 'PSI: ________', bullets: [] },
+    ]);
+    const contents = printContents([
+      { id: 'a', name: 'First aid kit', location: 'Cab', notes: 'Check monthly', quantity: 1, parts: [{ id: 'p', name: 'Gauze', quantity: 4 }] },
+      { id: 'b', name: 'Cones', location: '', notes: '' },
+    ], 'Van 12');
+    expect(contents.title).toBe("Van 12: What's on the Truck");
+    expect(contents.sections[0].entries[0]).toEqual({ title: 'First aid kit', suffix: '×1', bullets: ['Gauze ×4', 'Note: Check monthly'] });
+  });
+});

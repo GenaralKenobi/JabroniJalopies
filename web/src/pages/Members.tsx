@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Banner, Empty, Field, Page, Row, Section, ToggleRow, confirmAction, useFleet } from '../ui/kit';
+import { Link, useParams } from 'react-router-dom';
+import { Banner, Empty, Field, Page, Row, Section, ToggleRow, confirmAction, useFleet, useSafeNavigate } from '../ui/kit';
 import { invite, removeMember, revokeInvite, setAssigned, setRole, setSeesAllVehicles, setTruckLead } from '../data/actions';
 import { roleName, vehicleName, type Role } from '../logic/model';
 
@@ -37,7 +37,7 @@ export function MembersPage() {
 
 export function InvitePage() {
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const [email, setEmail] = useState('');
   const [role, setRoleValue] = useState<Role>('driver');
   const [error, setError] = useState<string>();
@@ -64,7 +64,7 @@ export function InvitePage() {
 export function MemberPage() {
   const { memberId = '' } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const member = fleet.member(memberId);
   const [error, setError] = useState<string>();
   if (!member) return <Page back title="Member"><Empty title="Member not found" /></Page>;

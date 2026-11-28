@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Badge, Banner, Empty, Field, Page, Row, Section, confirmAction, useFleet } from '../ui/kit';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Badge, Banner, Empty, Field, Page, Row, Section, confirmAction, useFleet, useSafeNavigate } from '../ui/kit';
 import { DefectRowContent } from './common';
 import { useEquipmentRecords } from '../data/records';
 import {
@@ -61,7 +61,7 @@ function detailLine(item: Equipment): string {
 export function EquipmentPage() {
   const { equipmentId = '' } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const item = fleet.equipmentItem(equipmentId);
   const records = useEquipmentRecords(fleet.fleetId, equipmentId, item?.type === 'rope');
   const [feet, setFeet] = useState('');
@@ -155,7 +155,7 @@ export function EquipmentFormPage() {
   const { equipmentId } = useParams();
   const [params] = useSearchParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const original = equipmentId ? fleet.equipmentItem(equipmentId) : undefined;
   const [draft, setDraft] = useState<Omit<Equipment, 'id'>>(() => original ? structuredClone(original) : {
     type: 'chainsaw', name: '', vehicleId: params.get('vehicle') ?? fleet.sortedVehicles[0]?.id ?? '', make: '', model: '',

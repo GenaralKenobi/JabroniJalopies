@@ -57,6 +57,16 @@ struct TruckContentsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $search, prompt: "Search this truck")
         .toolbar {
+            if !items.isEmpty {
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
+                        let name = vehicle?.displayName ?? "Truck"
+                        printPDF(PrintDocument.contents(items, truckName: name).pdfData(), jobName: "\(name) contents")
+                    } label: {
+                        Label("Print List", systemImage: "printer")
+                    }
+                }
+            }
             if canEdit {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {

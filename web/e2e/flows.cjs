@@ -142,6 +142,28 @@ async function emulatorUser(email, password) {
     await page.locator('input[aria-label="Item 4"]').fill('Hoses');
     await page.getByRole('button', { name: 'Save' }).click();
     await check('edit-checklist');
+    // Details under a checklist item, then print the checklist (saved as a PDF to check page breaks)
+    await page.goto(BASE + '/settings/checklists/morning');
+    for (const [item, lines] of [[1, ['Not cracked', 'Adjusted correctly', 'Clear to see through']], [3, ['Pedal firm', 'Parking brake holds on a slope']]]) {
+      for (const [d, text] of lines.entries()) {
+        await page.getByLabel(`Add detail to item ${item}`, { exact: true }).click();
+        await page.getByLabel(`Item ${item} detail ${d + 1}`, { exact: true }).fill(text);
+      }
+    }
+    await page.getByText('Print Checklist').click();
+    await page.locator('.print-page').getByText('Clear to see through').waitFor();
+    await page.emulateMedia({ media: 'print' });
+    await page.pdf({ path: `${OUT}/print-checklist.pdf`, format: 'Letter' });
+    await page.emulateMedia({ media: 'screen' });
+    await page.getByRole('button', { name: '‹ Back' }).click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await check('checklist-details');
+    await page.goto(BASE + '/v/van-12/contents');
+    await page.getByText('Print List').click();
+    await page.locator('.print-page').waitFor();
+    await page.emulateMedia({ media: 'print' });
+    await page.pdf({ path: `${OUT}/print-contents.pdf`, format: 'Letter' });
+    await page.emulateMedia({ media: 'screen' });
     // New checklist from the morning template: remove an item, add it back from the common items, move it up
     await page.goto(BASE + '/settings/checklists');
     await page.getByText('New from Morning Template').click();
@@ -286,6 +308,11 @@ async function emulatorUser(email, password) {
     await page.waitForTimeout(500);
     if (!page.url().includes('/checklist/')) await page.getByRole('button', { name: /Morning Checklist/ }).first().click();
     await page.waitForSelector('.verdicts');
+    // Details stay hidden until the item is expanded
+    if (await page.getByText('Clear to see through').count()) failures.push('[details] shown before expanding');
+    await page.getByText(/What to Check \(3\)/).click();
+    await page.getByText('Clear to see through').waitFor();
+    await check('driver-details');
     for (const input of await page.getByPlaceholder('Enter number').all()) await input.fill('35');
     for (let i = 0; i < 30; i++) {
       const pass = page.locator('.verdicts button.pass:not(.on)').first();

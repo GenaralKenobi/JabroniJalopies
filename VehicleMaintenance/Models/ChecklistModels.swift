@@ -39,6 +39,14 @@ struct ChecklistItem: Codable, Identifiable, Hashable {
     var unsafeIfFailed: Bool
     /// How often the item needs doing. `nil` means on every checklist.
     var frequency: ItemFrequency? = nil
+    /// What to look for, e.g. for Mirrors: "Not cracked", "Adjusted correctly".
+    /// Shown when the item is expanded, and as bullet points when printed.
+    var details: [String]? = nil
+
+    /// The detail lines with blanks removed.
+    var detailLines: [String] {
+        (details ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+    }
 
     static func new(_ title: String = "", reading: String? = nil, unsafe: Bool = false,
                     frequency: ItemFrequency? = nil) -> ChecklistItem {

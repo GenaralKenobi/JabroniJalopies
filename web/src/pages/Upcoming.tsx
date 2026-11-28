@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Empty, Field, OfflineBanner, Page, Row, Section, ToggleRow, fromDateInput, toDateInput, useFleet } from '../ui/kit';
+import { Link, useParams } from 'react-router-dom';
+import { Empty, Field, OfflineBanner, Page, Row, Section, ToggleRow, fromDateInput, toDateInput, useFleet, useSafeNavigate } from '../ui/kit';
 import { DueBadge, ScheduledRowContent } from './common';
 import { planChecklist } from '../data/actions';
 import {
@@ -116,7 +116,7 @@ export function UpcomingPage() {
 export function PlanChecklistPage() {
   const { vehicleId = '', checklistId = '' } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const vehicle = fleet.vehicle(vehicleId);
   const entry = fleet.scheduledChecklists(vehicleId).find((e) => e.checklist.id === checklistId);
   const start = startOfDay(new Date());

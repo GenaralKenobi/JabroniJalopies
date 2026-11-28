@@ -554,6 +554,7 @@ private struct ItemCard: View {
     @Binding var photos: [String: Data]
     let photosEnabled: Bool
     let onFail: () -> Void
+    @State private var showingDetails = false
 
     private func scheduleText(_ frequency: ItemFrequency) -> String {
         guard let lastDone else { return "Not done on this truck yet" }
@@ -608,6 +609,30 @@ private struct ItemCard: View {
                     }
                 }
                 .font(.caption)
+            }
+
+            if !item.detailLines.isEmpty {
+                Button {
+                    withAnimation { showingDetails.toggle() }
+                } label: {
+                    Label(showingDetails ? "Hide What to Check" : "What to Check (\(item.detailLines.count))",
+                          systemImage: showingDetails ? "chevron.up" : "chevron.down")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.borderless)
+                if showingDetails {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(item.detailLines.enumerated()), id: \.offset) { _, line in
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text("•")
+                                Text(line)
+                            }
+                        }
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(Color.secondary)
+                    .padding(.leading, 12)
+                }
             }
 
             if let existingDefect {

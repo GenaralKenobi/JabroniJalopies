@@ -149,6 +149,17 @@ struct ChecklistEditorView: View {
                     Text(errorMessage).foregroundStyle(.red)
                 }
 
+                Section {
+                    Button {
+                        printPDF(PrintDocument.checklist(draft).pdfData(), jobName: draft.name.isEmpty ? "Checklist" : draft.name)
+                    } label: {
+                        Label("Print Checklist", systemImage: "printer")
+                    }
+                    .disabled(draft.items.allSatisfy { $0.title.trimmed.isEmpty })
+                } footer: {
+                    Text("Each item prints in bold with its details as bullet points underneath. Items are never split across pages.")
+                }
+
                 if original != nil {
                     Section {
                         Button("Delete Checklist", role: .destructive) { confirmingDelete = true }
@@ -239,6 +250,7 @@ struct ChecklistEditorView: View {
             if checklist.isScheduled { item.frequency = nil }
             item.title = item.title.trimmed
             item.readingLabel = item.requiresReading ? item.readingLabel.trimmed : ""
+            item.details = item.detailLines.isEmpty ? nil : item.detailLines
             return item
         }
         do {
@@ -258,6 +270,36 @@ private struct ChecklistItemEditor: View {
         VStack(alignment: .leading, spacing: 8) {
             TextField("Item (e.g. Brake lights)", text: $item.title)
                 .font(.body.weight(.medium))
+            ForEach(Array((item.details ?? []).enumerated()), id: \.offset) { index, _ in
+                HStack(spacing: 6) {
+                    Text("•").foregroundStyle(Color.secondary)
+                    TextField("What to check (e.g. Not cracked)", text: Binding(
+                        get: { (item.details ?? []).indices.contains(index) ? item.details![index] : "" },
+                        set: { value in
+                            guard var details = item.details, details.indices.contains(index) else { return }
+                            details[index] = value
+                            item.details = details
+                        }))
+                        .font(.subheadline)
+                    Button {
+                        guard var details = item.details, details.indices.contains(index) else { return }
+                        details.remove(at: index)
+                        item.details = details.isEmpty ? nil : details
+                    } label: {
+                        Image(systemName: "minus.circle.fill").foregroundStyle(.red)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Remove detail")
+                }
+                .padding(.leading, 12)
+            }
+            Button {
+                item.details = (item.details ?? []) + [""]
+            } label: {
+                Label("Add Detail", systemImage: "plus")
+                    .font(.subheadline)
+            }
+            .buttonStyle(.borderless)
             Toggle("Record a number", isOn: $item.requiresReading)
                 .font(.subheadline)
             if item.requiresReading {

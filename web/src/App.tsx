@@ -16,6 +16,7 @@ import { VehicleFormPage } from './pages/VehicleForm';
 import { ReminderFormPage, ServiceFormPage, ServiceReviewPage, HistoryPage, InspectionPage } from './pages/Records';
 import { MembersPage, MemberPage, InvitePage } from './pages/Members';
 import { ChecklistsAdminPage, ChecklistEditorPage } from './pages/ChecklistsAdmin';
+import { PrintChecklistPage, PrintContentsPage } from './pages/Print';
 import { EquipmentListPage, EquipmentPage, EquipmentFormPage } from './pages/Equipment';
 import { ChainsPage, ChainTotalsPage } from './pages/Chains';
 
@@ -82,6 +83,8 @@ function Main() {
         <Route path="/v/:vehicleId/chains" element={<ChainsPage />} />
         <Route path="/v/:vehicleId/plan/:checklistId" element={<PlanChecklistPage />} />
         <Route path="/defect/:kind/:ownerId/:defectId" element={<DefectDetailPage />} />
+        <Route path="/print/checklist/:checklistId" element={<PrintChecklistPage />} />
+        <Route path="/print/contents/:vehicleId" element={<PrintContentsPage />} />
         <Route path="/equipment/new" element={<EquipmentFormPage />} />
         <Route path="/equipment/:equipmentId" element={<EquipmentPage />} />
         <Route path="/equipment/:equipmentId/edit" element={<EquipmentFormPage />} />

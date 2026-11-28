@@ -1,15 +1,33 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Link, useNavigate, type NavigateOptions, type To } from 'react-router-dom';
 import { errors, loadingProblems, useObservable } from '../data/store';
 import { session } from '../data/session';
 import type { FleetStore } from '../data/fleet';
+
+/**
+ * Like useNavigate, but "back" (-1) goes to the home screen when there's no earlier page
+ * inside the website (e.g. a page opened from a bookmark or reloaded). Otherwise going back
+ * would leave the website, and a save started just before could be lost.
+ */
+export function useSafeNavigate() {
+  const navigate = useNavigate();
+  return useCallback((to: To | number, options?: NavigateOptions) => {
+    if (typeof to === 'number') {
+      const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+      if (to < 0 && idx + to < 0) navigate('/', { replace: true });
+      else navigate(to);
+    } else {
+      navigate(to, options);
+    }
+  }, [navigate]);
+}
 
 // Small building blocks shared by every page, styled like the iPhone app.
 
 export function Page({ title, back, actions, children, inlineTitle, subtitle }: {
   title?: string; back?: string | boolean; actions?: ReactNode; children: ReactNode; inlineTitle?: boolean; subtitle?: string;
 }) {
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   useEffect(() => { document.title = title ? `${title} · Jalopies` : 'Jabroni Jalopies'; }, [title]);
   return (
     <>

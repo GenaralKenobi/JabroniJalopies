@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Banner, Field, Page, Row, Section, ToggleRow, confirmAction, fromDateInput, toDateInput, useFleet, useOnline } from '../ui/kit';
+import { Banner, Field, Page, Row, Section, ToggleRow, confirmAction, fromDateInput, toDateInput, useFleet, useOnline, useSafeNavigate } from '../ui/kit';
 import { session } from '../data/session';
 import { friendlyError } from '../data/store';
 import { photoQueue } from '../data/photos';
@@ -15,7 +14,7 @@ const SUPPORT = 'https://genaralkenobi.github.io/JabroniJalopies/';
 
 export function SettingsPage() {
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   useObservable(photoQueue);
   const contact = fleet.contacts[fleet.uid];
   const usage = fleet.fleet?.usage ?? {};
@@ -113,7 +112,7 @@ export function SettingsPage() {
 
 export function ProfilePage() {
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const [name, setName] = useState(fleet.me?.displayName ?? '');
   const [phone, setPhone] = useState(fleet.contacts[fleet.uid]?.phone ?? '');
   return (

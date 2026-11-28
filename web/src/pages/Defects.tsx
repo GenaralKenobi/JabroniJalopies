@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect } from 'react';
-import { Badge, Banner, Empty, Field, OfflineBanner, Page, Row, Section, confirmAction, useFleet } from '../ui/kit';
+import { Badge, Banner, Empty, Field, OfflineBanner, Page, Row, Section, confirmAction, useFleet, useSafeNavigate } from '../ui/kit';
 import { DefectPhotoView, DefectRowContent, DefectStatusBadge, InProgressLine, Lightbox } from './common';
 import {
   addDefectEvent, addDefectPhotos, closeDefect, reopenDefect, reportDefect, setDefectInProgress, setDefectInProgressNote, setDefectPriority,
@@ -246,7 +246,7 @@ export function DefectDetailPage() {
 export function ReportDefectPage() {
   const { vehicleId, equipmentId } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const location = useLocation();
   const owner: DefectOwner = equipmentId ? { kind: 'equipment', id: equipmentId } : { kind: 'vehicle', id: vehicleId ?? '' };
   const equipment = equipmentId ? fleet.equipmentItem(equipmentId) : undefined;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Badge, Banner, Empty, Field, OfflineBanner, Page, Section, useFleet, useOnline } from '../ui/kit';
+import { useParams } from 'react-router-dom';
+import { Badge, Banner, Empty, Field, OfflineBanner, Page, Section, useFleet, useOnline, useSafeNavigate } from '../ui/kit';
 import { processPhoto } from '../data/photos';
 import { newId } from '../data/paths';
 import { submitChecklist } from '../data/actions';
@@ -10,7 +10,7 @@ import {
   dayAndTime, relativeTime, type ItemAnswer, checklistScheduleLabel, checkReading, formatDistance, readingRequired,
 } from '../logic/logic';
 import {
-  checklistStateOf, frequencyLabel, isScheduled, readingName, vehicleName, type ChecklistItem, type Defect,
+  checklistStateOf, detailLines, frequencyLabel, isScheduled, readingName, vehicleName, type ChecklistItem, type Defect,
   DEFECT_PRIORITIES, priorityLabel, type DefectPriority,
 } from '../logic/model';
 
@@ -76,7 +76,7 @@ async function deleteDraftPhotos(ids: string[]) {
 export function ChecklistPage() {
   const { vehicleId = '', checklistId = '' } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const online = useOnline();
   const vehicle = fleet.vehicle(vehicleId);
   const checklist = fleet.checklists.find((c) => c.id === checklistId);
@@ -330,6 +330,8 @@ function ItemCard({ item, answer, existing, lastDone, skips, photosEnabled, phot
   photos: Record<string, Blob>; onChange: (change: Partial<ItemAnswer>) => void; onPhotos: (files: FileList | null) => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const details = detailLines(item);
   const urls = useMemo(() => Object.fromEntries(answer.photoIds.filter((id) => photos[id]).map((id) => [id, URL.createObjectURL(photos[id])])),
     [answer.photoIds, photos]);
   useEffect(() => () => Object.values(urls).forEach(URL.revokeObjectURL), [urls]);
@@ -342,6 +344,14 @@ function ItemCard({ item, answer, existing, lastDone, skips, photosEnabled, phot
         {item.frequency && isSkippedTooOften(skips) && due && <Badge color="orange">Overdue</Badge>}
         {item.unsafeIfFailed && <Badge color="red">Safety</Badge>}
       </div>
+      {details.length > 0 && (
+        <div>
+          <button type="button" className="btn plain small" style={{ padding: 0 }} aria-expanded={showDetails} onClick={() => setShowDetails(!showDetails)}>
+            {showDetails ? '▴ Hide What to Check' : `▾ What to Check (${details.length})`}
+          </button>
+          {showDetails && <ul className="detail-list">{details.map((d, i) => <li key={i}>{d}</li>)}</ul>}
+        </div>
+      )}
       {item.frequency && (
         <div className={`caption ${isSkippedTooOften(skips) && due ? 'orange' : ''}`}>
           {isSkippedTooOften(skips) && due ? `Skipped on the last ${skips} checklists. Please do it today.`

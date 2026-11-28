@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Badge, Banner, Empty, Field, Page, Row, Section, ToggleRow, confirmAction, fromDateInput, toDateInput, useFleet } from '../ui/kit';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Badge, Banner, Empty, Field, Page, Row, Section, ToggleRow, confirmAction, fromDateInput, toDateInput, useFleet, useSafeNavigate } from '../ui/kit';
 import { DefectRowContent } from './common';
 import { useInspection, useVehicleRecords } from '../data/records';
 import {
@@ -23,7 +23,7 @@ export function ReminderFormPage() {
 
 function ReminderForm({ vehicleId, reminderId }: { vehicleId: string; reminderId: string }) {
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const vehicle = fleet.vehicle(vehicleId);
   const original = (fleet.reminders[vehicleId] ?? []).find((r) => r.id === reminderId);
   const unit = vehicle ? fleet.unitOf(vehicle) : 'mi';
@@ -98,7 +98,7 @@ function ReminderForm({ vehicleId, reminderId }: { vehicleId: string; reminderId
 export function ServiceFormPage() {
   const { vehicleId = '', serviceId = 'new' } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const vehicle = fleet.vehicle(vehicleId);
   const records = useVehicleRecords(fleet.fleetId, vehicleId, fleet.isManager, 0);
   const original = records.services.items.find((s) => s.id === serviceId);
@@ -160,7 +160,7 @@ function ServiceForm({ vehicleId, original, cost, onDone }: {
 export function ServiceReviewPage() {
   const { vehicleId = '', serviceId = '' } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const vehicle = fleet.vehicle(vehicleId);
   const records = useVehicleRecords(fleet.fleetId, vehicleId, true, 0);
   const record = records.services.items.find((s) => s.id === serviceId) ?? fleet.pendingServices[vehicleId]?.find((s) => s.id === serviceId);

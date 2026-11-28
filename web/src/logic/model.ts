@@ -249,7 +249,12 @@ export interface ChecklistItem {
   readingLabel: string;
   unsafeIfFailed: boolean;
   frequency?: ItemFrequency;
+  /** What to look for, e.g. for Mirrors: "Not cracked". Shown when expanded and printed as bullets. */
+  details?: string[];
 }
+
+/** An item's detail lines with blanks removed. */
+export const detailLines = (item: Pick<ChecklistItem, 'details'>) => (item.details ?? []).map((d) => d.trim()).filter(Boolean);
 
 export interface ChecklistTemplate {
   id: string;

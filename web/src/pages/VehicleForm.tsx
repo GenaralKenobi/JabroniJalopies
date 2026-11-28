@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Banner, Empty, Field, Page, Row, Section, useFleet } from '../ui/kit';
+import { useParams } from 'react-router-dom';
+import { Banner, Empty, Field, Page, Row, Section, useFleet, useSafeNavigate } from '../ui/kit';
 import { addVehicle, updateVehicle } from '../data/actions';
 import { blobToBytes, processPhoto } from '../data/photos';
 import { newVehicle } from '../logic/defaults';
@@ -10,7 +10,7 @@ import { readingName, type Vehicle } from '../logic/model';
 export function VehicleFormPage() {
   const { vehicleId } = useParams();
   const fleet = useFleet();
-  const navigate = useNavigate();
+  const navigate = useSafeNavigate();
   const original = vehicleId ? fleet.vehicle(vehicleId) : undefined;
   const [draft, setDraft] = useState<Omit<Vehicle, 'id'>>(() => (original ? structuredClone(original) : newVehicle()));
   const [odometerText, setOdometerText] = useState(String(draft.odometer || ''));
