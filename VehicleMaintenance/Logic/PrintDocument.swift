@@ -26,7 +26,7 @@ struct PrintDocument {
     /// Space after entries that have bullet points (truck lists use a third less; checklists the same).
     var bulletedEntrySpacing: CGFloat? = nil
     var sectionSpacing: CGFloat = 0
-    /// Checklists use a larger, underlined title.
+    /// Checklists and truck lists use a larger, underlined title.
     var largeUnderlinedTitle = false
 
     // US Letter with three-quarter-inch margins.
@@ -189,6 +189,7 @@ extension PrintDocument {
             })
         }
         return PrintDocument(title: "\(truckName): What's on the Truck", subtitle: nil, sections: sections,
-                             columns: 2, entrySpacing: 18, bulletedEntrySpacing: 12, sectionSpacing: 44)
+                             columns: 2, entrySpacing: 18, bulletedEntrySpacing: 12, sectionSpacing: 44,
+                             largeUnderlinedTitle: true)
     }
 }

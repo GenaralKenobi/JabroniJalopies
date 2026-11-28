@@ -650,6 +650,7 @@ export function printContents(items: TruckItem[], truckName: string): PrintDoc {
   return {
     title: `${truckName}: What's on the Truck`,
     columns: 2,
+    largeUnderlinedTitle: true,
     sections: groupContents(items, '').map((group) => ({
       heading: group.title,
       entries: group.items.map((item) => ({

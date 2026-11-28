@@ -95,7 +95,7 @@ function ColumnPages({ doc }: { doc: PrintDoc }) {
     <>
       {/* Hidden copy used only to measure each block at its printed width. */}
       <div ref={measure} className="print-measure" style={{ width: COLUMN_WIDTH }} aria-hidden>
-        <h1 data-m="title" className="print-sheet-title">{doc.title}</h1>
+        <h1 data-m="title" className={`print-sheet-title ${doc.largeUnderlinedTitle ? 'print-title-large' : ''}`}>{doc.title}</h1>
         {doc.sections.map((section, s) => (
           <div key={s}>
             <div data-m={`h-${s}`} className="print-heading">{section.heading}</div>
@@ -105,7 +105,7 @@ function ColumnPages({ doc }: { doc: PrintDoc }) {
       </div>
       {pages?.map((page, p) => (
         <div className="print-sheet" key={p}>
-          {p === 0 && <h1 className="print-sheet-title">{doc.title}</h1>}
+          {p === 0 && <h1 className={`print-sheet-title ${doc.largeUnderlinedTitle ? 'print-title-large' : ''}`}>{doc.title}</h1>}
           <div className="print-cols">
             {page.map((column, c) => <div className="print-col" style={{ width: COLUMN_WIDTH }} key={c}>{withSectionGaps(column)}</div>)}
           </div>
